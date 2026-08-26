@@ -117,6 +117,19 @@ function splitReadings(field) {
     .filter(Boolean);
 }
 
+/**
+ * A kana hint appended to a meaning, as in "every month (\u3052)".
+ *
+ * This is a deliberate convention in the source data, not noise: 433 entries
+ * carry one. When a surface has two readings, the meaning alone cannot tell you
+ * which is being asked for, so a distinguishing kana from the reading is
+ * appended to the prompt. It is the difference between an answerable question
+ * and a coin flip.
+ *
+ * Anything that would erase or blur one of these is a bug.
+ */
+const KANA_TAG = /[\uff08(]\s*[\u3040-\u309f\u30a0-\u30ff]+\s*[)\uff09]\s*$/;
+
 /** For comparing two meanings that differ only in punctuation and case. */
 function normaliseMeaning(meaning) {
   return meaning
@@ -146,6 +159,20 @@ function dedupe(entries) {
 
     if (!existing) {
       byKey.set(key, { ...entry, meanings: [entry.meaning] });
+      continue;
+    }
+
+    // Never merge across a disambiguator. Two entries carrying one are being
+    // held apart on purpose, and joining their meanings would produce a prompt
+    // like "shop (\u307f); shop (\u3066)" that answers itself for neither reading.
+    // Same word *and* same reading *and* a tag should be impossible; if the data
+    // ever gets there, say so rather than quietly averaging it away.
+    if (KANA_TAG.test(entry.meaning) || KANA_TAG.test(existing.meaning)) {
+      console.warn(
+        `  ! ${entry.word}/${entry.reading} is duplicated *and* carries a kana` +
+          ' disambiguator; keeping both rather than merging. Check the source data.',
+      );
+      byKey.set(`${key} ${byKey.size}`, { ...entry, meanings: [entry.meaning] });
       continue;
     }
 
@@ -213,6 +240,59 @@ function buildKanji() {
   );
 }
 
+/**
+ * Marks prompts that more than one reading legitimately answers.
+ *
+ * The disambiguator convention covers most of the corpus, but four surfaces
+ * slip through with two readings behind one identical prompt - \u56db as both
+ * \u3057 and \u3088\u3093 for "four", and three others. Asked as a reading question those
+ * are coin flips, and marking a coin flip wrong teaches nothing and tells the
+ * scheduler the learner has forgotten something they have not.
+ *
+ * So the item records every reading its own prompt admits, and the quiz accepts
+ * any of them. Fixing the source data by adding disambiguators would be better
+ * and would make this pass find nothing; until then it stops the schedule being
+ * poisoned by an unanswerable question.
+ */
+function markUnanswerablePrompts(items) {
+  const bySurface = new Map();
+  for (const item of items) {
+    const group = bySurface.get(item.word);
+    if (group) group.push(item);
+    else bySurface.set(item.word, [item]);
+  }
+
+  const flagged = [];
+
+  for (const group of bySurface.values()) {
+    if (group.length < 2) continue;
+
+    const byPrompt = new Map();
+    for (const item of group) {
+      const prompt = normaliseMeaning(item.meaning);
+      const sharing = byPrompt.get(prompt);
+      if (sharing) sharing.push(item);
+      else byPrompt.set(prompt, [item]);
+    }
+
+    for (const sharing of byPrompt.values()) {
+      const readings = [...new Set(sharing.map((i) => i.reading))];
+      if (readings.length < 2) continue;
+
+      for (const item of sharing) item.accepts = readings;
+      flagged.push(`${sharing[0].word} (${readings.join(', ')})`);
+    }
+  }
+
+  if (flagged.length > 0) {
+    console.warn(
+      `  ! ${flagged.length} prompt(s) that more than one reading answers; all are` +
+        ` accepted: ${flagged.join('; ')}`,
+    );
+    console.warn('    Adding a kana disambiguator to their meanings would fix this properly.');
+  }
+}
+
 function buildVocab() {
   const rows = readCsv('Vocab.csv');
   const raw = rows
@@ -243,6 +323,8 @@ function buildVocab() {
     meaning: entry.meanings.filter(Boolean).join('; '),
     level: entry.level,
   }));
+
+  markUnanswerablePrompts(items);
 
   const { buckets, strays } = bucketByLevel(items);
   if (strays.length > 0) {

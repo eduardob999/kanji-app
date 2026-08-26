@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { expandReadings, isReadingCorrect, isWritingCorrect, normalise, toHiragana } from './answerCheck';
+import {
+  expandReadings,
+  isAnyReadingCorrect,
+  isReadingCorrect,
+  isWritingCorrect,
+  normalise,
+  toHiragana,
+} from './answerCheck';
 
 /**
  * The cases here are the corpus's, not invented ones: every reading quoted
@@ -92,6 +99,24 @@ describe('isReadingCorrect', () => {
   it('rejects an empty answer even against an empty field', () => {
     expect(isReadingCorrect('', 'まいげつ')).toBe(false);
     expect(isReadingCorrect('', '')).toBe(false);
+  });
+});
+
+describe('isAnyReadingCorrect', () => {
+  it('accepts either reading of a prompt the data cannot disambiguate', () => {
+    // 四 is both し and よん behind the prompt "four". Marking one of two right
+    // answers wrong would tell the scheduler a memory had failed when it had
+    // not — see markUnanswerablePrompts in scripts/build-decks.mjs.
+    expect(isAnyReadingCorrect('し', ['よん', 'し'])).toBe(true);
+    expect(isAnyReadingCorrect('よん', ['よん', 'し'])).toBe(true);
+  });
+
+  it('still rejects a reading that is not one of them', () => {
+    expect(isAnyReadingCorrect('ご', ['よん', 'し'])).toBe(false);
+  });
+
+  it('rejects an empty answer', () => {
+    expect(isAnyReadingCorrect('', ['よん', 'し'])).toBe(false);
   });
 });
 

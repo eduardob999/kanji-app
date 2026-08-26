@@ -105,6 +105,17 @@ export function isReadingCorrect(input: string, readingField: string): boolean {
 }
 
 /**
+ * Is this any of several acceptable readings?
+ *
+ * For the handful of prompts the source data leaves ambiguous — see `accepts`
+ * on `VocabItem`. Each entry is still expanded, so an alternative that itself
+ * carries several spellings behaves as it would on its own.
+ */
+export function isAnyReadingCorrect(input: string, readings: readonly string[]): boolean {
+  return readings.some((reading) => isReadingCorrect(input, reading));
+}
+
+/**
  * Is this the right written form?
  *
  * Used wherever the answer is the characters themselves — the kanji quiz, and

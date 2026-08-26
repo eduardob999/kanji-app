@@ -59,6 +59,17 @@ export interface VocabItem {
   reading: string;
   /** Occasionally empty; reading and fill-in questions do not need one. */
   meaning: string;
+  /**
+   * Every reading this item's *prompt* legitimately admits.
+   *
+   * Absent almost always, and present only where the source data leaves a
+   * question genuinely unanswerable: 四 is both し and よん behind the prompt
+   * "four", and three other surfaces do the same. Marking one of two right
+   * answers wrong tells the scheduler the learner has forgotten something they
+   * have not, so the quiz accepts either. See `markUnanswerablePrompts` in
+   * scripts/build-decks.mjs.
+   */
+  accepts?: string[];
 }
 
 export type StudyItem = KanjiItem | VocabItem;

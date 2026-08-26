@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import type { User } from 'firebase/auth';
-import { isReadingCorrect } from '../domain/answerCheck';
+import { isAnyReadingCorrect, isReadingCorrect } from '../domain/answerCheck';
 import { loadAllDecks } from '../domain/decks';
 import type { StudyItem, VocabItem } from '../domain/items';
 import type { Candidate } from '../domain/sessionPlanner';
@@ -47,8 +47,15 @@ export function VocabReadingPanel({ user }: { user: User }) {
       quiz="vocab-reading"
       loadCandidates={loadCandidates}
       placeholder="Reading in kana"
-      check={(input, item) => isReadingCorrect(input, asVocab(item).reading)}
-      answerOf={(item) => asVocab(item).reading}
+      check={(input, item) => {
+        const vocab = asVocab(item);
+        // A prompt the source leaves ambiguous accepts either reading; see
+        // `accepts` on VocabItem.
+        return vocab.accepts
+          ? isAnyReadingCorrect(input, vocab.accepts)
+          : isReadingCorrect(input, vocab.reading);
+      }}
+      answerOf={(item) => asVocab(item).accepts?.join(' / ') ?? asVocab(item).reading}
       renderPrompt={(item) => (
         <>
           <p className="quiz__surface" lang="ja">
