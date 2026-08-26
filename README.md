@@ -99,6 +99,12 @@ Either way, supply the config values locally by copying `.env.example` to
 `.env.local`, and for deployment as repository secrets under **Settings →
 Secrets and variables → Actions**.
 
+> The repository secrets are named `APIKEY`, `AUTHDOMAIN`, `PROJECTID`,
+> `STORAGEBUCKET`, `MESSAGINGSENDERID` and `APPID` — the short forms.
+> [`deploy.yml`](.github/workflows/deploy.yml) maps them onto the `VITE_`
+> names the app reads. `.env.local` uses the `VITE_` names directly, since
+> Vite only exposes variables with that prefix.
+
 > These values are **not secrets** — Firebase web config ships in every client
 > bundle by design. `firestore.rules` is what protects your data.
 
