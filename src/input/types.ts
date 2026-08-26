@@ -14,8 +14,14 @@
 export interface AnswerInputProps {
   value: string;
   onChange: (value: string) => void;
-  /** The learner is done. The frame decides whether an empty answer counts. */
-  onSubmit: () => void;
+  /**
+   * The learner is done. The frame decides whether an empty answer counts.
+   *
+   * The optional argument is for methods where choosing *is* submitting, in one
+   * gesture: `onChange` has not reached the frame's state by the time
+   * `onSubmit` runs, so the answer travels with the call instead.
+   */
+  onSubmit: (value?: string) => void;
   /** True once the answer has been marked; the input becomes read-only. */
   disabled: boolean;
   placeholder: string;

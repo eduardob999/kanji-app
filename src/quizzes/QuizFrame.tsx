@@ -9,6 +9,7 @@ import type { StudyItem } from '../domain/items';
 import type { ItemReviewState, PracticeResult } from '../domain/review';
 import { describeInterval } from '../domain/scheduler';
 import { planSession, type Candidate, type PlannedQuestion } from '../domain/sessionPlanner';
+import { buildChoices } from '../domain/distractors';
 import { useReviewStates } from '../hooks/useReviewStates';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { AnswerInput } from '../input/AnswerInput';
@@ -87,6 +88,10 @@ export function QuizFrame({
   const [status, setStatus] = useState<Status>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [queue, setQueue] = useState<PlannedQuestion[]>([]);
+  // Kept so multiple choice can draw distractors from the same deck the
+  // question came from. Similar-looking wrong answers are the entire
+  // difficulty of a choice question — see domain/distractors.ts.
+  const [pool, setPool] = useState<StudyItem[]>([]);
   const [index, setIndex] = useState(0);
   const [answer, setAnswer] = useState('');
   const [verdict, setVerdict] = useState<Verdict | null>(null);
@@ -110,6 +115,7 @@ export function QuizFrame({
         if (!live) return;
         const planned = planSession(candidates, lookupRef.current, new Date());
         setQueue(planned);
+        setPool(candidates.map((candidate) => candidate.item));
         setIndex(0);
         setAnswer('');
         setVerdict(null);
@@ -134,10 +140,13 @@ export function QuizFrame({
 
   const question = queue[index];
 
-  const submit = useCallback(() => {
+  const submit = useCallback(
+    (given?: string) => {
     if (!question || verdict) return;
 
-    const trimmed = answer.trim();
+    // Methods where choosing is submitting hand the answer over directly; the
+    // frame's own state has not caught up yet.
+    const trimmed = (given ?? answer).trim();
     if (!trimmed) return;
 
     const correct = check(trimmed, question.item);
@@ -214,7 +223,9 @@ export function QuizFrame({
       right: current.right + (correct ? 1 : 0),
       wrong: current.wrong + (correct ? 0 : 1),
     }));
-  }, [adaptive, answer, check, inputMethod, question, quiz, user.uid, verdict]);
+    },
+    [adaptive, answer, check, inputMethod, question, quiz, user.uid, verdict],
+  );
 
   const next = useCallback(() => {
     setVerdict(null);
@@ -345,6 +356,9 @@ export function QuizFrame({
         onSubmit={submit}
         disabled={verdict !== null}
         placeholder={placeholder}
+        {...(inputMethod === 'choice'
+          ? { choices: buildChoices(question.item, pool, quiz) }
+          : {})}
       />
 
       {verdict ? (
@@ -386,7 +400,9 @@ export function QuizFrame({
         <button
           type="button"
           className="button button--primary button--block"
-          onClick={submit}
+          // Wrapped, not passed directly: submit's optional argument would
+          // otherwise receive the click event as the answer.
+          onClick={() => submit()}
           disabled={answer.trim() === ''}
         >
           Check

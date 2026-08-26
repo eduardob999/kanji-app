@@ -20,6 +20,8 @@ import { AppMark } from './AppMark';
 import { BrowsePanel } from './BrowsePanel';
 import { ComingSoon } from './ComingSoon';
 import { SchedulerPanel } from './SchedulerPanel';
+import { InputMethodPanel } from './InputMethodPanel';
+import { KanjiWritingPanel } from '../quizzes/KanjiWritingPanel';
 import { VocabReadingPanel } from '../quizzes/VocabReadingPanel';
 
 /**
@@ -97,12 +99,7 @@ export function AppShell({ user }: AppShellProps) {
       case 'vocab-reading':
         return <VocabReadingPanel user={user} />;
       case 'kanji-writing':
-        return (
-          <ComingSoon
-            title="Kanji writing"
-            note="Readings and meaning; you supply the character."
-          />
-        );
+        return <KanjiWritingPanel user={user} />;
       case 'fill-in':
         return (
           <ComingSoon
@@ -122,12 +119,7 @@ export function AppShell({ user }: AppShellProps) {
           />
         );
       case 'input':
-        return (
-          <ComingSoon
-            title="Input method"
-            note="Keyboard, handwriting, or multiple choice — switchable mid-session."
-          />
-        );
+        return <InputMethodPanel user={user} />;
       case 'about':
         return (
           <ComingSoon
