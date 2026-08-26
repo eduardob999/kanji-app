@@ -886,3 +886,75 @@ code {
     transform: none !important;
   }
 }
+
+/* Browse: the item list --------------------------------------------------- */
+
+/*
+ * The level picker holds eight options and each label is short ("N5", "N1 (a)"),
+ * so it wants tighter columns than the six-column default.
+ */
+.segmented--levels {
+  grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+}
+
+.textinput {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  color: var(--text);
+  font: inherit;
+}
+
+.textinput::placeholder {
+  color: var(--text-muted);
+}
+
+.textinput:focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+}
+
+.itemlist {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+
+.itemlist__row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+/*
+ * Japanese at a size you can actually read the strokes of. Everything else on
+ * the row is supporting detail, so it stays at body size.
+ */
+.itemlist__surface {
+  flex: none;
+  min-width: 3.2em;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.itemlist__detail {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.itemlist__reading {
+  color: var(--accent-soft);
+  font-size: 0.95rem;
+}
+
+.itemlist__meaning {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}

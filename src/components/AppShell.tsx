@@ -14,6 +14,7 @@ import {
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { AccountPanel } from './AccountPanel';
 import { AppMark } from './AppMark';
+import { BrowsePanel } from './BrowsePanel';
 import { ComingSoon } from './ComingSoon';
 
 /**
@@ -104,12 +105,7 @@ export function AppShell({ user }: AppShellProps) {
       case 'audio':
         return <ComingSoon title="Listening" note="Hear the word in context, then write it." />;
       case 'browse':
-        return (
-          <ComingSoon
-            title="Browse"
-            note="Every kanji and word by JLPT level, each with its own schedule."
-          />
-        );
+        return <BrowsePanel />;
       case 'progress':
         return (
           <ComingSoon

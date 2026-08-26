@@ -5,9 +5,9 @@
   "type": "module",
   "description": "Offline-first PWA for drilling JLPT kanji and vocabulary, scheduled by an adaptive FSRS memory model.",
   "scripts": {
-    "predev": "node scripts/setup-config.mjs",
+    "predev": "node scripts/setup-config.mjs && node scripts/build-decks.mjs",
     "dev": "vite",
-    "prebuild": "node scripts/setup-config.mjs",
+    "prebuild": "node scripts/setup-config.mjs && node scripts/build-decks.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",

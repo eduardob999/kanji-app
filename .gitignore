@@ -20,3 +20,9 @@ npm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Compiled from data/*.csv by `npm run decks`, which prebuild runs. Generated
+# rather than committed because the CSVs they come from are right there.
+# public/sentences/ is deliberately NOT ignored: it comes from a Tatoeba export
+# far too large to download in CI.
+public/decks/
