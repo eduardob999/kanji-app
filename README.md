@@ -57,7 +57,33 @@ npm run build && npm run preview
 
 ## Firebase setup
 
-In the [Firebase console](https://console.firebase.google.com):
+This app **shares a Firebase project with [GHAPP](https://github.com/eduardob999/GHAPP)**,
+on purpose. Both are served from `eduardob999.github.io`, which makes them the
+same browser origin — so one project means Firebase Auth persistence is shared
+and signing into one signs you into the other. Two projects would mean signing
+in twice on one origin, two consoles, and two authorised-domain lists to keep in
+step, for no isolation that matters between two apps belonging to one person.
+
+The apps stay out of each other's way by convention, enforced in
+[`src/storage/userState.ts`](src/storage/userState.ts):
+
+| | GHAPP | Kanjiba |
+| --- | --- | --- |
+| Subcollection | `/users/{uid}/skills` | `/users/{uid}/reviews` |
+| Profile fields | `handedness`, `practicePings` | everything under `kanjiba` |
+
+Top-level profile fields are identity only — uid, name, email, photo, created,
+last login — and mean the same thing to both. Neither app writes without
+`merge`.
+
+**If you are using GHAPP's project**, there is nothing to configure in the
+console: Google sign-in is enabled, `eduardob999.github.io` is already an
+authorised domain, and the published rules already cover `/reviews` through
+their `/users/{uid}/{document=**}` wildcard. Copy the six `VITE_FIREBASE_*`
+values from GHAPP's `.env.local` or its repository secrets, and put them in this
+repo's `.env.local` and its Actions secrets.
+
+**Standing up a fresh project instead**, if you ever want the two separated:
 
 - Create a project, then add a **Web app** to it.
 - **Authentication → Sign-in method →** enable **Google**.
@@ -69,9 +95,9 @@ In the [Firebase console](https://console.firebase.google.com):
   and publish. The console defaults either lock you out or leave your data
   world-readable.
 
-Then supply the config values. Locally, copy `.env.example` to `.env.local` and
-fill it in. For deployment, add the same six names as repository secrets under
-**Settings → Secrets and variables → Actions**.
+Either way, supply the config values locally by copying `.env.example` to
+`.env.local`, and for deployment as repository secrets under **Settings →
+Secrets and variables → Actions**.
 
 > These values are **not secrets** — Firebase web config ships in every client
 > bundle by design. `firestore.rules` is what protects your data.

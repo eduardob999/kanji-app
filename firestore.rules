@@ -6,6 +6,13 @@ rules_version = '2';
 // The whole data model is keyed by uid, so the rule is simply "you may touch
 // your own document and nothing else". Signing into the same Google account on
 // another device yields the same uid, which is what makes progress follow you.
+//
+// NOTE: this app shares a Firebase project with GHAPP, whose rules are already
+// published and are character-for-character these. If you are pointing Kanjiba
+// at that project, there is nothing to publish -- the wildcard below already
+// covers /users/{uid}/reviews. This file is kept so the project can be stood up
+// from scratch, and so the two repos cannot drift into disagreeing about what
+// the rules are.
 service cloud.firestore {
   match /databases/{database}/documents {
 

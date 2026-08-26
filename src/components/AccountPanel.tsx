@@ -51,6 +51,12 @@ export function AccountPanel({ user }: { user: User }) {
         device is never a second account.
       </p>
 
+      <p className="card__hint">
+        This shares a Firebase project with Guitar Practice Companion — both apps are served from
+        the same domain, so one sign-in covers both. Kanjiba only ever writes to{' '}
+        <code>reviews</code> and to its own corner of your profile.
+      </p>
+
       {error ? (
         <p className="notice notice--error" role="alert">
           Could not read your profile: {error}
@@ -68,10 +74,14 @@ export function AccountPanel({ user }: { user: User }) {
             <dd>{formatTimestamp(profile.lastLoginAt)}</dd>
           </div>
           <div className="datalist__row">
+            <dt>Last opened Kanjiba</dt>
+            <dd>{formatTimestamp(profile.kanjiba.lastOpenedAt)}</dd>
+          </div>
+          <div className="datalist__row">
             <dt>Old CLI scores imported</dt>
             <dd>
-              {profile.legacyScoresImportedAt
-                ? formatTimestamp(profile.legacyScoresImportedAt)
+              {profile.kanjiba.legacyScoresImportedAt
+                ? formatTimestamp(profile.kanjiba.legacyScoresImportedAt)
                 : 'not yet'}
             </dd>
           </div>

@@ -71,7 +71,7 @@ export function QuizFrame({
 }: QuizFrameProps) {
   const { lookup, error: reviewError } = useReviewStates(user);
   const { profile } = useUserProfile(user);
-  const inputMethod = profile?.inputMethod ?? DEFAULT_INPUT_METHOD;
+  const inputMethod = profile?.kanjiba.inputMethod ?? DEFAULT_INPUT_METHOD;
 
   const [status, setStatus] = useState<Status>('loading');
   const [message, setMessage] = useState<string | null>(null);
