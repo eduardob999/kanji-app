@@ -14,13 +14,15 @@ shell, and the FSRS scheduler itself — is lifted from
 [GHAPP](https://github.com/eduardob999/GHAPP), where it was already doing this
 job for guitar practice.
 
-> **Status: phase 1 of 9.** The shell, sign-in, offline caching and deploy
-> pipeline work. The quizzes do not exist yet — every study screen currently
-> renders a placeholder. See [docs/ROADMAP.md](docs/ROADMAP.md).
+Live at **<https://eduardob999.github.io/kanji-app/>**.
 
-## What it will do
+> **Status: all four quiz modes work**, scheduled by an FSRS model that fits
+> itself to you. Still to come: the handwriting canvas, the import of the old
+> CLI's scores, and Today's Session. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
-Four question types, all drawn from the same 2,211 kanji and 7,279 vocabulary
+## What it does
+
+Four question types, all drawn from the same 2,211 kanji and 7,235 vocabulary
 entries:
 
 | Mode | Prompt | You answer |
@@ -30,9 +32,16 @@ entries:
 | Fill in the blank | a real sentence with the word removed | the character |
 | Listening | the word spoken in context | the character |
 
-Three ways to answer, because Japanese input is the one thing you cannot assume
-about a device: the native IME keyboard, an on-device handwriting canvas, or
-multiple choice.
+Two ways to answer so far, because Japanese input is the one thing you cannot
+assume about a device: the native IME keyboard, or multiple choice with
+distractors chosen for confusability. A handwriting canvas is the third and is
+not built yet — see the roadmap for why it is harder than it looks.
+
+The scheduler fits itself to you. Response-time thresholds track your own
+speed per question type and input method, and the FSRS weights are refitted per
+review mode from your review log, held-out-validated so a bad fit is never
+adopted. **Tools → Scheduler** shows the calibration curve and what has been
+learnt.
 
 ## Quick start
 

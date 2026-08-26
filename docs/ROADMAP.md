@@ -1,67 +1,66 @@
 # Roadmap
 
-Nine phases. Phases 1–4 are the risky ones; after 4 it is the same pattern
-repeated three more times.
+## Done
 
-## 1. Skeleton ✅
+**1. Skeleton.** Vite/React/TS, Firebase, Google sign-in, the navigation shell,
+PWA offline caching, Pages workflow.
 
-Vite/React/TS, Firebase, Google sign-in, the navigation shell, PWA offline
-caching, Pages workflow. Deploys and installs on a phone; every study screen is
-a placeholder.
+**2. Data.** `build-decks.mjs` compiles the two CSVs from the CLI into 16
+per-level decks — 9,445 items, 1.1 MB. Vocabulary is keyed by word *and*
+reading; 45 cross-level duplicates are collapsed; the kana disambiguator
+convention in the source (`every month (げ)`) is protected by a build guard, and
+four prompts it does not cover accept either reading.
 
-## 2. Data
+**3. Domain.** Grading, answer checking ported from `vocab_quiz.py`, the
+interleaving session planner, and review state bucketed one document per mode
+per level rather than one per item — ~19,000 cold-start reads avoided.
 
-`scripts/build-decks.mjs` reads the two CSVs from `kanji-practice-app` and emits
-one JSON per deck into `public/decks/`. Item ids are stable: kanji use the
-character, vocab use `kanji|reading` — the CSV has genuine duplicate words that
-only their reading tells apart (毎月/まいげつ vs 毎月/まいつき), which the old
-`scores.txt` could not represent at all.
+**4–6. All four quiz modes.** Vocab reading, kanji writing, fill-in and
+listening, over a shared `QuizFrame`. Sentences come from a build-time Tatoeba
+pack (90% coverage) rather than a live API call; listening uses the device's own
+Japanese voice and says so when there is none.
 
-Deliverable: the Browse screen, showing real data.
+**Adaptive scheduling.** A review log, an FSRS optimiser fitted per review mode
+with held-out validation, and response-time thresholds learnt per question type
+and input method.
 
-## 3. Domain
+**Multiple choice**, with distractors scored for confusability.
 
-`grading.ts` (objective correct/incorrect → FSRS grade), `answerCheck.ts`
-(reading normalisation, ported from `vocab_quiz.py`), `sessionPlanner.ts`,
-and `storage/reviewState.ts` — review state bucketed one document per deck
-rather than one per item. ~9,500 items would otherwise mean ~9,500 document
-reads on every cold start.
+## Next
 
-Deliverable: tests, no UI.
+### 7. Handwriting
 
-## 4. First quiz
+The one input method still missing, and the one the CLI's workflow was built
+around. It is harder than the plan assumed:
 
-`QuizFrame` (prompt → answer → verdict → grade → next) plus the vocab reading
-mode and the keyboard input method. End to end: prompt, grade, write, sync,
-survive going offline.
+- The only viable open recogniser, [KanjiCanvas](https://github.com/asdfjkl/kanjicanvas)
+  (MIT), ships reference patterns as **raw stroke coordinates**: 5.75 MB for
+  this corpus, against 1.1 MB for every deck combined.
+- It is **missing 205 of our 2,211 kanji** — mostly jinmeiyō like 哉, 舜, 慧,
+  麟 — so roughly 9% of the kanji deck could not be checked.
+- It contains **no kana at all**, which the vocabulary modes need for okurigana.
+  The repository has separate hiragana and katakana sets that would have to be
+  merged in.
 
-## 5. Input methods
+The shape of the answer: split the patterns per JLPT level so a session loads
+only what it needs, let the service worker cache them on use rather than
+precaching 5.75 MB, port the recognition pipeline away from its DOM coupling,
+and fall back to the keyboard for characters with no reference pattern.
 
-The handwriting canvas (KanjiCanvas) and multiple choice, behind the same
-`AnswerInput` interface.
+### 8. Importing the CLI's scores
 
-## 6. The remaining three modes
+`migrate-scores.mjs` and the one-time import at first sign-in. The old
+`scores.txt` joins to the CSVs exactly (0 key mismatches across 2,211 kanji and
+7,279 vocab rows), but most of that score is not progress: only ~1,100 items
+ever moved above the baseline `reset_scores` set from their JLPT level. Those
+get seeded FSRS state; the rest get none, and their level decides introduction
+order instead.
 
-Kanji writing, then `build-sentences.mjs` → fill in the blank, then listening
-via the Web Speech API.
+### 9. Today's Session and Progress
 
-## 7. Migration
+The planner already interleaves; this is the screen that uses it across all four
+modes at once, plus per-level completion bars and streaks.
 
-`scripts/migrate-scores.mjs`, and the one-time import offered at first sign-in.
-
-The old `scores.txt` is a row-ordered dump of both CSVs; the index join is exact
-(0 key mismatches across 2,211 kanji and 7,279 vocab rows). But most of that
-score is not progress: `reset_scores` set a baseline per JLPT level and only
-~1,100 items ever moved above it. Those get seeded FSRS state; the rest get
-none, and their level decides introduction order instead. Fabricating a memory
-state for 15,000 unseen items would poison `adaptWeights` from the first
-session.
-
-## 8. Today's Session and Progress
-
-The interleaved planner, per-level completion bars, and retention
-actual-vs-predicted.
-
-## 9. Retire the CLI
+### 10. Retire the CLI
 
 Archive `kanji-practice-app` with a README pointing here.
