@@ -73,7 +73,22 @@ export const DEFAULT_EASE = 2.5;
 const MIN_EASE = 1.3;
 const MAX_EASE = 3.5;
 
-/** A failure comes back in about two and a half hours, i.e. later today. */
+/**
+ * A failure comes back in about two and a half hours, i.e. later today.
+ *
+ * **This is applied, not merely clamped to.** GHAPP carried the same constant
+ * and the same comment, but only used it as the lower bound of a clamp — and
+ * FSRS's post-lapse stability for a well-known item is comfortably above it.
+ * Missing a kanji you had known for a month scheduled it three and a half days
+ * out, which is not what the comment says and not what a lapse needs.
+ *
+ * A lapse means the memory has to be rebuilt, and rebuilding starts with seeing
+ * it again soon — the relearning step every spaced-repetition tool has. FSRS
+ * supplies the *stability*, which is what the next successful review is
+ * scheduled from; the step is what happens in between. The CLI did the same
+ * thing more bluntly, by dropping the score to zero and putting the item
+ * straight back into the lowest-score pool.
+ */
 const FAIL_INTERVAL_DAYS = 0.1;
 
 // Matches fsrs.ts. This clamp is the outer guard rail; fsrs.ts has already
@@ -123,7 +138,10 @@ export function scheduleNext(
     ...(weights ? ([weights] as const) : ([] as const)),
   );
 
-  let intervalDays = update.intervalDays;
+  // A lapse goes to the relearning step rather than to what FSRS makes of the
+  // rebuilt stability. That stability is still stored, and still governs the
+  // interval after the next *successful* answer.
+  let intervalDays = result === 'fail' ? FAIL_INTERVAL_DAYS : update.intervalDays;
 
   // Same-sitting repeat: allow the interval to fall but not to climb. Answering
   // something twice in one sitting is massed practice, and FSRS — which assumes
