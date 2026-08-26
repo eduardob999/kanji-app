@@ -1,0 +1,155 @@
+name: Deploy to GitHub Pages
+
+# Once Pages is enabled and a deploy succeeds, the app is live at:
+#
+#     https://eduardob999.github.io/kanji-app/
+#
+# ─── One-time manual setup, which no workflow can do for you ──────────────────
+#
+#   1. Open https://github.com/eduardob999/kanji-app/settings/pages
+#   2. Under "Build and deployment", set Source to **GitHub Actions**
+#   3. Save
+#
+# Until that is done, configure-pages and deploy-pages both log 404 HttpErrors
+# and publish nothing — but CI stays green, because both carry
+# continue-on-error (see Task 4). The next successful run after enabling Pages
+# publishes the site at the URL above.
+#
+# Until that is set, `actions/deploy-pages` fails with:
+#   Error: Failed to create deployment (status: 404)
+#   Ensure GitHub Pages has been enabled: .../settings/pages
+#
+# The `enablement: true` input on actions/configure-pages does NOT solve this
+# with the default token. Its own documentation says the option "requires a
+# token other than GITHUB_TOKEN" — a PAT with `repo` scope, or a GitHub App with
+# `administration:write`. There is a commented-out example on the step below if
+# you would rather grant a PAT than click through the settings once.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # Opt in to the Node 24 runner for JavaScript actions. Every action pinned
+  # below already declares `runs.using: node24`, so today this changes nothing;
+  # it is here so the build stays quiet if a transitive action still targets
+  # node20 before the June 2026 cutover.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # These majors are what actually silences the "Node.js 20 is deprecated"
+      # warnings: v4/v3 of these actions declare `runs.using: node20`, whereas
+      # the versions below declare node24.
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # This step queries the GitHub Pages site for this repo. It will return 404
+      # (and log an HttpError) until:
+      #   - GitHub Pages is enabled for this repository, AND
+      #   - "Source: GitHub Actions" is selected in Settings → Pages.
+      #
+      #   HttpError: Not Found
+      #   GET https://api.github.com/repos/OWNER/REPO/pages
+      #   Get Pages site failed. Please verify that the repository has Pages
+      #   enabled and configured to build using GitHub Actions...
+      #
+      # `continue-on-error: true` keeps the build job green when Pages is not
+      # configured yet, and still uploads an artifact so the run is deployable
+      # the moment Pages is turned on.
+      #
+      # `enablement: true` is deliberately NOT set: it needs a PAT or GitHub App
+      # with Pages admin rights, which this workflow does not have by design.
+      #
+      # The step is kept rather than deleted because it is the documented Pages
+      # flow, and its base_url/base_path outputs would matter if vite.config.ts
+      # ever moved off a relative `base`.
+      #
+      # SAFE TO REMOVE the guard below once Pages is enabled and a deploy has
+      # succeeded.
+      - uses: actions/configure-pages@v6
+        continue-on-error: true
+
+      - run: npm ci
+
+      - run: npm run build
+        env:
+          # Firebase web config is public, but keeping it in repository secrets
+          # means the values are set per-repo rather than committed.
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+
+      # v5 pairs with deploy-pages@v5; it wraps upload-artifact@v7 internally.
+      # Mixing an older artifact major with a newer deploy major does not work.
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    # Job-level permissions replace the workflow-level block for this job. The
+    # deploy job never checks out the repo, so it does not need contents: read.
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # This step creates the GitHub Pages deployment from the built artifact.
+      # Until Pages is enabled and configured for "GitHub Actions" in
+      # Settings → Pages, the GitHub API returns 404 and this action logs:
+      #
+      #   Error: Failed to create deployment (status: 404) with build version ...
+      #   Ensure GitHub Pages has been enabled:
+      #   https://github.com/OWNER/REPO/settings/pages
+      #
+      # `continue-on-error: true` keeps the workflow green in that case.
+      #
+      # ⚠ TRADE-OFF: this also swallows *genuine* deployment failures. While the
+      # guard is on, a green run does NOT mean the site published — check the
+      # step's log, or the Pages environment, to confirm. Remove the guard once
+      # Pages is enabled and a deployment has succeeded, so real breakage goes
+      # red again.
+      #
+      # No REST calls to create or update the Pages site are made from this
+      # workflow; enablement stays a one-time manual step in the UI.
+      - id: deployment
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+
+      # Runs even when the step above 404s, so every run ends by telling you
+      # where the app is and whether it actually published.
+      - name: Show deployed URL
+        if: always()
+        run: |
+          echo "App URL: https://eduardob999.github.io/kanji-app/"
+          if [ -n "${{ steps.deployment.outputs.page_url }}" ]; then
+            echo "Published this run: ${{ steps.deployment.outputs.page_url }}"
+          else
+            echo "NOT published this run."
+            echo "Enable Pages first: Settings -> Pages -> Source: GitHub Actions"
+            echo "https://github.com/eduardob999/kanji-app/settings/pages"
+          fi

@@ -1,0 +1,35 @@
+{
+  "name": "kanjiba",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Offline-first PWA for drilling JLPT kanji and vocabulary, scheduled by an adaptive FSRS memory model.",
+  "scripts": {
+    "predev": "node scripts/setup-config.mjs",
+    "dev": "vite",
+    "prebuild": "node scripts/setup-config.mjs",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "icons": "node scripts/generate-icons.mjs",
+    "decks": "node scripts/build-decks.mjs",
+    "sentences": "node scripts/build-sentences.mjs",
+    "migrate": "node scripts/migrate-scores.mjs"
+  },
+  "dependencies": {
+    "firebase": "^12.17.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1",
+    "vitest": "^4.0.5"
+  }
+}

@@ -1,0 +1,25 @@
+rules_version = '2';
+
+// Publish with: firebase deploy --only firestore:rules
+// Or paste into the Firebase console under Firestore Database -> Rules.
+//
+// The whole data model is keyed by uid, so the rule is simply "you may touch
+// your own document and nothing else". Signing into the same Google account on
+// another device yields the same uid, which is what makes progress follow you.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      // Subcollections — /reviews (one document per deck) and /sessions —
+      // inherit the same ownership check rather than needing a new rule each
+      // time.
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // Anything not matched above is denied.
+  }
+}

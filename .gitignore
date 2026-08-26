@@ -1,0 +1,22 @@
+node_modules/
+dist/
+dist-ssr/
+
+# Generated from src/firebaseConfig.example.ts on first `npm run dev`/`build`.
+# Kept out of git so each clone points at its own Firebase project.
+src/firebaseConfig.ts
+
+.env
+.env.local
+.env.*.local
+
+# Raw Tatoeba export, downloaded on demand by scripts/build-sentences.mjs.
+# ~200 MB; the built sentence packs in public/sentences/ are what ships.
+data/tatoeba/
+
+*.log
+npm-debug.log*
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
