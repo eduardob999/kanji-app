@@ -111,6 +111,64 @@ export function speak(text: string, options: SpeakOptions = {}): Promise<void> {
   });
 }
 
+/**
+ * Speaks several phrases in order, as one utterance would be.
+ *
+ * **Not a loop over `speak`.** `speak` cancels whatever is speaking before it
+ * starts, which is right for a replay button and exactly wrong for a sequence:
+ * three chained calls would cancel each other and only the last would be heard.
+ * This cancels once, then queues.
+ *
+ * Resolves when the last phrase finishes, or immediately if `stopSpeaking` is
+ * called part-way through — the caller sees a completed promise either way,
+ * because there is nothing useful for a UI to do about "the user navigated
+ * away mid-sentence".
+ */
+export async function speakSequence(
+  phrases: readonly string[],
+  options: SpeakOptions = {},
+): Promise<void> {
+  const speech = synth();
+  if (!speech) return;
+
+  speech.cancel();
+
+  for (const phrase of phrases) {
+    if (!phrase.trim()) continue;
+
+    await new Promise<void>((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(phrase);
+      utterance.lang = JAPANESE;
+      utterance.rate = options.rate ?? 0.85;
+      if (options.voice) utterance.voice = options.voice;
+
+      utterance.addEventListener('end', () => resolve());
+      utterance.addEventListener('error', () => resolve());
+
+      speech.speak(utterance);
+    });
+  }
+}
+
+/**
+ * The CLI's framing, kept: announce the word, read the example, announce it
+ * again.
+ *
+ * Without this a listening question plays a whole sentence and leaves you to
+ * guess which word in it is being asked, which is not a question about the
+ * word at all.
+ *
+ * **The announcement uses the reading, not the written form.** `audio_quiz.py`
+ * announced 問題の言葉は{kanji}です and let the engine decide how to pronounce
+ * it — which for a word like 毎月, whose two entries differ only by reading,
+ * means the app can announce the wrong answer to its own question. Kana leaves
+ * the engine nothing to decide.
+ */
+export function announcedSequence(reading: string, sentence: string | null): string[] {
+  const announcement = `問題の言葉は${reading}です`;
+  return sentence ? [announcement, sentence, announcement] : [announcement];
+}
+
 export function stopSpeaking(): void {
   synth()?.cancel();
 }

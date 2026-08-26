@@ -24,6 +24,8 @@ import { InputMethodPanel } from './InputMethodPanel';
 import { KanjiWritingPanel } from '../quizzes/KanjiWritingPanel';
 import { FillInPanel } from '../quizzes/FillInPanel';
 import { AudioPanel } from '../quizzes/AudioPanel';
+import { TodaySessionPanel } from '../quizzes/TodaySessionPanel';
+import { RandomPanel } from '../quizzes/RandomPanel';
 import { VocabReadingPanel } from '../quizzes/VocabReadingPanel';
 
 /**
@@ -92,12 +94,9 @@ export function AppShell({ user }: AppShellProps) {
       // Each of these is replaced by its panel in a later phase; the tree is
       // complete now so the shape of the app can be walked and checked.
       case 'today':
-        return (
-          <ComingSoon
-            title="Today's Session"
-            note="Everything due across the four modes, interleaved so you never get forty N1 kanji in a row."
-          />
-        );
+        return <TodaySessionPanel user={user} />;
+      case 'random':
+        return <RandomPanel user={user} />;
       case 'vocab-reading':
         return <VocabReadingPanel user={user} />;
       case 'kanji-writing':

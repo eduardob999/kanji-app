@@ -18,6 +18,7 @@
 /** Every leaf screen. The shell maps these to components. */
 export type ScreenId =
   | 'today'
+  | 'random'
   | 'vocab-reading'
   | 'kanji-writing'
   | 'fill-in'
@@ -67,6 +68,13 @@ export const NAV_ROOT: NavNode = {
           title: "Today's Session",
           blurb: 'Everything that is due, interleaved across the four modes.',
           screen: 'today',
+        },
+        {
+          id: 'study.random',
+          title: 'Random',
+          blurb: 'Any word, any of the four question types, for as long as you want.',
+          screen: 'random',
+          needsSpeech: true,
         },
         {
           id: 'study.vocab-reading',

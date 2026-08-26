@@ -1,81 +1,22 @@
 import { useCallback } from 'react';
 import type { User } from 'firebase/auth';
-import { isAnyReadingCorrect, isReadingCorrect } from '../domain/answerCheck';
-import { loadAllDecks } from '../domain/decks';
-import type { StudyItem, VocabItem } from '../domain/items';
-import type { Candidate } from '../domain/sessionPlanner';
 import { QuizFrame } from './QuizFrame';
+import { loadQuizSource } from './source';
 
 /**
  * The word and its meaning; you supply the reading.
  *
- * Ported from `vocab_quiz.py`. The CLI showed the kanji and the meaning and
- * asked for the reading, and there is nothing to improve about that — the
- * change is what happens afterwards, which is now a schedule rather than an
- * incremented counter.
+ * Ported from `vocab_quiz.py`. What the question looks like lives in
+ * `definitions.tsx`, shared with Today's Session and Random; this screen only
+ * says which mode it wants.
  */
 
-function asVocab(item: StudyItem): VocabItem {
-  return item as VocabItem;
-}
+const MODES = ['vocab-reading'] as const;
 
 export function VocabReadingPanel({ user }: { user: User }) {
-  /**
-   * All eight vocabulary decks, about 770 kB of JSON.
-   *
-   * Loaded whole rather than level by level because the planner has to see
-   * everything to know what is due: due material is scattered across levels by
-   * definition, and guessing which levels to load would mean guessing the
-   * answer to the question being asked. `decks.ts` caches, and the service
-   * worker has them locally either way.
-   *
-   * `useCallback` with no dependencies is doing real work: QuizFrame replans
-   * whenever this identity changes, so an inline function would restart the
-   * session on every render.
-   */
-  const loadCandidates = useCallback(async (): Promise<Candidate[]> => {
-    const decks = await loadAllDecks<VocabItem>('vocab');
+  // Stable identity: QuizFrame replans whenever this changes, so an inline
+  // arrow would restart the session on every render.
+  const loadQuiz = useCallback(() => loadQuizSource(MODES, null), []);
 
-    return decks.flatMap((deck) =>
-      deck.items.map((item) => ({ quiz: 'vocab-reading' as const, item, level: deck.level })),
-    );
-  }, []);
-
-  return (
-    <QuizFrame
-      user={user}
-      quiz="vocab-reading"
-      loadCandidates={loadCandidates}
-      placeholder="Reading in kana"
-      check={(input, item) => {
-        const vocab = asVocab(item);
-        // A prompt the source leaves ambiguous accepts either reading; see
-        // `accepts` on VocabItem.
-        return vocab.accepts
-          ? isAnyReadingCorrect(input, vocab.accepts)
-          : isReadingCorrect(input, vocab.reading);
-      }}
-      answerOf={(item) => asVocab(item).accepts?.join(' / ') ?? asVocab(item).reading}
-      renderPrompt={({ item }) => (
-        <>
-          <p className="quiz__surface" lang="ja">
-            {asVocab(item).word}
-          </p>
-          <p className="quiz__gloss">{asVocab(item).meaning || 'no meaning recorded'}</p>
-        </>
-      )}
-      renderReveal={(item) => (
-        <dl className="datalist">
-          <div className="datalist__row">
-            <dt>Reading</dt>
-            <dd lang="ja">{asVocab(item).reading}</dd>
-          </div>
-          <div className="datalist__row">
-            <dt>Meaning</dt>
-            <dd>{asVocab(item).meaning || '—'}</dd>
-          </div>
-        </dl>
-      )}
-    />
-  );
+  return <QuizFrame user={user} loadQuiz={loadQuiz} />;
 }

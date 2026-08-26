@@ -1,14 +1,14 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { DEFAULT_INPUT_METHOD } from '../domain/inputMethod';
 import { gradeAnswer, gradeLabel, downgrade } from '../domain/grading';
 import { observeResponse, profileFor } from '../domain/fluency';
 import { retrievability } from '../domain/fsrs';
-import type { QuizMode } from '../domain/modes';
-import type { StudyItem } from '../domain/items';
 import type { ItemReviewState, PracticeResult } from '../domain/review';
 import { describeInterval } from '../domain/scheduler';
-import { planSession, type Candidate, type PlannedQuestion } from '../domain/sessionPlanner';
+import { planSession, type Candidate, type PlannedQuestion, type ReviewLookup } from '../domain/sessionPlanner';
+import type { StudyItem } from '../domain/items';
+import type { QuizSource } from './source';
 import { buildChoices } from '../domain/distractors';
 import { useReviewStates } from '../hooks/useReviewStates';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -44,33 +44,28 @@ import { EMPTY_MODEL, saveFluency, weightsFor } from '../storage/modelState';
 
 export interface QuizFrameProps {
   user: User;
-  quiz: QuizMode;
-  /** The pool to plan from. Async because decks load on demand. */
-  loadCandidates: () => Promise<Candidate[]>;
   /**
-   * The question, before it is answered.
+   * The candidate pool and the definitions to render it with, loaded together.
    *
-   * Gets the whole planned question rather than just the item, because some
-   * prompts depend on its history — the fill-in mode rotates through a word's
-   * sentences as it matures, so that a familiar item is not always shown in the
-   * same frame.
+   * One call rather than two props because the definitions close over what was
+   * loaded — the fill-in prompt needs the sentence index — so separating them
+   * would leave a window where the queue exists and its sentences do not.
    *
-   * `markHelped` is for prompts that can give something away: replaying the
-   * audio, or revealing a hint. It caps the grade at `hard`, because an answer
-   * you had to be told is not recall whatever the clock says.
+   * Must be stable: the frame replans whenever this identity changes, so an
+   * inline arrow would restart the session on every render.
    */
-  renderPrompt: (question: PlannedQuestion, helpers: PromptHelpers) => ReactNode;
-  /** The rest of the entry, shown once it has been. */
-  renderReveal: (item: StudyItem) => ReactNode;
-  /** Marks the answer. */
-  check: (input: string, item: StudyItem) => boolean;
-  /** What the answer was, for a miss. */
-  answerOf: (item: StudyItem) => string;
-  placeholder: string;
-}
-
-export interface PromptHelpers {
-  markHelped: () => void;
+  loadQuiz: () => Promise<QuizSource>;
+  /**
+   * Turns the candidate pool into a queue.
+   *
+   * Defaults to `planSession` — due first, new material rationed, interleaved.
+   * Random supplies its own, which ignores due dates entirely and refills from
+   * the whole corpus on every round, which is what makes it endless.
+   */
+  buildQueue?: (candidates: readonly Candidate[], lookup: ReviewLookup, now: Date) => PlannedQuestion[];
+  /** Shown when the queue comes back empty. */
+  emptyTitle?: string;
+  emptyBody?: string;
 }
 
 interface Verdict {
@@ -87,13 +82,10 @@ type Status = 'loading' | 'ready' | 'empty' | 'error';
 
 export function QuizFrame({
   user,
-  quiz,
-  loadCandidates,
-  renderPrompt,
-  renderReveal,
-  check,
-  answerOf,
-  placeholder,
+  loadQuiz,
+  buildQueue = planSession,
+  emptyTitle = 'Nothing due',
+  emptyBody = 'Everything in this mode is scheduled for later. Come back when something is due, or pick another mode.',
 }: QuizFrameProps) {
   const { lookup, error: reviewError } = useReviewStates(user);
   const { profile } = useUserProfile(user);
@@ -103,6 +95,7 @@ export function QuizFrame({
   const [status, setStatus] = useState<Status>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [queue, setQueue] = useState<PlannedQuestion[]>([]);
+  const [definitions, setDefinitions] = useState<QuizSource['definitions'] | null>(null);
   // Kept so multiple choice can draw distractors from the same deck the
   // question came from. Similar-looking wrong answers are the entire
   // difficulty of a choice question — see domain/distractors.ts.
@@ -127,12 +120,13 @@ export function QuizFrame({
     setStatus('loading');
     setMessage(null);
 
-    loadCandidates().then(
-      (candidates) => {
+    loadQuiz().then(
+      ({ candidates, definitions: loaded }) => {
         if (!live) return;
-        const planned = planSession(candidates, lookupRef.current, new Date());
+        const planned = buildQueue(candidates, lookupRef.current, new Date());
+        setDefinitions(loaded);
         setQueue(planned);
-        setPool(candidates.map((candidate) => candidate.item));
+        setPool(candidates.map((candidate: Candidate) => candidate.item));
         setIndex(0);
         setAnswer('');
         setVerdict(null);
@@ -154,9 +148,12 @@ export function QuizFrame({
     // Bumping `round` is what restarts the session. `lookup` is deliberately
     // absent: it changes on every snapshot, and is read through the ref so a
     // landing write cannot reshuffle the queue mid-session.
-  }, [loadCandidates, round]);
+  }, [buildQueue, loadQuiz, round]);
 
   const question = queue[index];
+  // Every per-question behaviour — how it is prompted, marked and timed —
+  // follows from the question's own mode, not from the screen it is on.
+  const definition = question && definitions ? definitions[question.quiz] : null;
 
   const submit = useCallback(
     (given?: string) => {
@@ -167,13 +164,15 @@ export function QuizFrame({
     const trimmed = (given ?? answer).trim();
     if (!trimmed) return;
 
-    const correct = check(trimmed, question.item);
+    const active = definitions?.[question.quiz];
+    if (!active) return;
+    const correct = active.check(trimmed, question.item);
     const elapsedMs = Date.now() - askedAt.current;
     // Graded against this learner's own response times once there are enough of
     // them, and against the static guesses until then.
     const result = gradeAnswer(
       { correct, elapsedMs, usedHint: helped.current },
-      profileFor(adaptive.fluency, quiz, inputMethod),
+      profileFor(adaptive.fluency, question.quiz, inputMethod),
     );
 
     // Read the state this grade applies to *before* writing, so an undo has
@@ -192,7 +191,7 @@ export function QuizFrame({
     void appendReview(user.uid, {
       itemId: question.item.id,
       mode: question.mode,
-      quiz,
+      quiz: question.quiz,
       input: inputMethod,
       result,
       elapsedDays,
@@ -209,7 +208,7 @@ export function QuizFrame({
       // know is a fact about patience, not fluency.
       void saveFluency(
         user.uid,
-        observeResponse(adaptive.fluency, quiz, inputMethod, elapsedMs),
+        observeResponse(adaptive.fluency, question.quiz, inputMethod, elapsedMs),
       ).catch((error: unknown) => {
         console.error('[firestore] Response-time update did not reach the server.', error);
       });
@@ -242,7 +241,7 @@ export function QuizFrame({
       wrong: current.wrong + (correct ? 0 : 1),
     }));
     },
-    [adaptive, answer, check, inputMethod, question, quiz, user.uid, verdict],
+    [adaptive, answer, definitions, inputMethod, question, user.uid, verdict],
   );
 
   const next = useCallback(() => {
@@ -323,16 +322,13 @@ export function QuizFrame({
   if (status === 'empty') {
     return (
       <section className="card">
-        <h1 className="card__title">Nothing due</h1>
-        <p className="card__body">
-          Everything in this mode is scheduled for later. Come back when something is due, or pick
-          another mode.
-        </p>
+        <h1 className="card__title">{emptyTitle}</h1>
+        <p className="card__body">{emptyBody}</p>
       </section>
     );
   }
 
-  if (!question) {
+  if (!question || !definition) {
     return (
       <section className="card">
         <h1 className="card__title">Round finished</h1>
@@ -368,7 +364,7 @@ export function QuizFrame({
       ) : null}
 
       <div className="quiz__prompt">
-        {renderPrompt(question, {
+        {definition.renderPrompt(question, {
           markHelped: () => {
             helped.current = true;
           },
@@ -381,9 +377,9 @@ export function QuizFrame({
         onChange={setAnswer}
         onSubmit={submit}
         disabled={verdict !== null}
-        placeholder={placeholder}
+        placeholder={definition.placeholder}
         {...(inputMethod === 'choice'
-          ? { choices: buildChoices(question.item, pool, quiz) }
+          ? { choices: buildChoices(question.item, pool, question.quiz) }
           : {})}
       />
 
@@ -393,10 +389,12 @@ export function QuizFrame({
             className={`verdict ${verdict.correct ? 'verdict--hit' : 'verdict--wrong'}`}
             role="status"
           >
-            {verdict.correct ? 'Correct' : answerOf(verdict.question.item)}
+            {verdict.correct
+              ? 'Correct'
+              : definitions?.[verdict.question.quiz].answerOf(verdict.question.item)}
           </p>
 
-          <div className="quiz__reveal">{renderReveal(question.item)}</div>
+          <div className="quiz__reveal">{definition.renderReveal(question.item)}</div>
 
           <p className="card__hint">
             {gradeLabel(verdict.result)}

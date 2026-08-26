@@ -1141,3 +1141,35 @@ code {
 .quiz__play {
   margin-bottom: 14px;
 }
+
+/* Session summary --------------------------------------------------------- */
+
+.tally {
+  display: flex;
+  gap: 28px;
+  margin: 8px 0 20px;
+}
+
+.tally__figure {
+  display: flex;
+  flex-direction: column;
+}
+
+.tally__number {
+  font-size: 2.75rem;
+  line-height: 1.1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-soft);
+}
+
+/* "Not yet seen" is context, not a target — 9,000 unseen items is not a task. */
+.tally__figure--muted .tally__number {
+  color: var(--text-muted);
+  font-size: 1.75rem;
+}
+
+.tally__label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
