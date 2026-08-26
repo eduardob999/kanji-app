@@ -6,6 +6,7 @@ import { persistenceStatus } from '../firebase';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { SyncBadge } from './SyncBadge';
+import { LegacyImport } from './LegacyImport';
 
 /**
  * Where your progress is stored, and whether it has landed.
@@ -100,6 +101,13 @@ export function AccountPanel({ user }: { user: User }) {
           your Firestore security rules.
         </p>
       )}
+
+      {profile && !profile.kanjiba.legacyScoresImportedAt ? (
+        <>
+          <h2 className="card__subtitle">From the old app</h2>
+          <LegacyImport user={user} />
+        </>
+      ) : null}
 
       <button
         type="button"
