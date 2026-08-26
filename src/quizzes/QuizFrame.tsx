@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { User } from 'firebase/auth';
 import { DEFAULT_INPUT_METHOD } from '../domain/inputMethod';
-import { gradeAnswer, gradeLabel, downgrade, timingProfile } from '../domain/grading';
+import { gradeAnswer, gradeLabel, downgrade } from '../domain/grading';
+import { observeResponse, profileFor } from '../domain/fluency';
+import { retrievability } from '../domain/fsrs';
 import type { QuizMode } from '../domain/modes';
 import type { StudyItem } from '../domain/items';
 import type { ItemReviewState, PracticeResult } from '../domain/review';
@@ -11,6 +13,8 @@ import { useReviewStates } from '../hooks/useReviewStates';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { AnswerInput } from '../input/AnswerInput';
 import { recordReview, undoReview } from '../storage/reviewState';
+import { appendReview } from '../storage/reviewLog';
+import { EMPTY_MODEL, saveFluency, weightsFor } from '../storage/modelState';
 
 /**
  * The shape every quiz has: prompt, answer, verdict, on to the next.
@@ -29,6 +33,12 @@ import { recordReview, undoReview } from '../storage/reviewState';
  *   cache immediately but leaves the promise pending until the server
  *   acknowledges — possibly for hours. Awaiting it would freeze the quiz on the
  *   first question of a train journey.
+ *
+ * Every answer produces three writes, and they are not redundant. The *state*
+ * write is what the scheduler reads back. The *log* append is the history the
+ * model is later fitted to, which current state has thrown away by design. The
+ * *fluency* write is what makes "fast" mean fast for this person rather than
+ * fast by my guess.
  */
 
 export interface QuizFrameProps {
@@ -72,6 +82,7 @@ export function QuizFrame({
   const { lookup, error: reviewError } = useReviewStates(user);
   const { profile } = useUserProfile(user);
   const inputMethod = profile?.kanjiba.inputMethod ?? DEFAULT_INPUT_METHOD;
+  const adaptive = profile?.kanjiba.adaptive ?? EMPTY_MODEL;
 
   const [status, setStatus] = useState<Status>('loading');
   const [message, setMessage] = useState<string | null>(null);
@@ -131,11 +142,51 @@ export function QuizFrame({
 
     const correct = check(trimmed, question.item);
     const elapsedMs = Date.now() - askedAt.current;
-    const result = gradeAnswer({ correct, elapsedMs }, timingProfile(quiz, inputMethod));
+    // Graded against this learner's own response times once there are enough of
+    // them, and against the static guesses until then.
+    const result = gradeAnswer(
+      { correct, elapsedMs },
+      profileFor(adaptive.fluency, quiz, inputMethod),
+    );
 
     // Read the state this grade applies to *before* writing, so an undo has
     // something exact to restore.
     const previous = lookupRef.current(question.mode, question.item.id);
+
+    // How overdue this was, and what the model therefore expected — both are
+    // needed to replay this review when the weights are next fitted, and
+    // neither can be reconstructed afterwards.
+    const lastAt = previous?.lastReviewedAt?.toDate() ?? null;
+    const elapsedDays = lastAt ? Math.max(0, (Date.now() - lastAt.getTime()) / 86_400_000) : 0;
+    const predictedRecall = previous?.stability
+      ? retrievability(elapsedDays, previous.stability)
+      : 1;
+
+    void appendReview(user.uid, {
+      itemId: question.item.id,
+      mode: question.mode,
+      quiz,
+      input: inputMethod,
+      result,
+      elapsedDays,
+      predictedRecall,
+      responseMs: elapsedMs,
+    }).catch((error: unknown) => {
+      // Losing a log entry costs a slightly worse fit months from now. Worth
+      // reporting, not worth interrupting anyone over.
+      console.error('[firestore] Review log entry did not reach the server.', error);
+    });
+
+    if (correct) {
+      // Only correct answers. How long someone stared at a word they did not
+      // know is a fact about patience, not fluency.
+      void saveFluency(
+        user.uid,
+        observeResponse(adaptive.fluency, quiz, inputMethod, elapsedMs),
+      ).catch((error: unknown) => {
+        console.error('[firestore] Response-time update did not reach the server.', error);
+      });
+    }
 
     void recordReview(user.uid, {
       mode: question.mode,
@@ -143,6 +194,7 @@ export function QuizFrame({
       itemId: question.item.id,
       result,
       current: previous,
+      weights: weightsFor(adaptive, question.mode),
     })
       .then((stored) => {
         setVerdict((current) =>
@@ -162,7 +214,7 @@ export function QuizFrame({
       right: current.right + (correct ? 1 : 0),
       wrong: current.wrong + (correct ? 0 : 1),
     }));
-  }, [answer, check, inputMethod, question, quiz, user.uid, verdict]);
+  }, [adaptive, answer, check, inputMethod, question, quiz, user.uid, verdict]);
 
   const next = useCallback(() => {
     setVerdict(null);
@@ -190,12 +242,13 @@ export function QuizFrame({
       itemId: verdict.question.item.id,
       result: softened,
       current: verdict.previous,
+      weights: weightsFor(adaptive, verdict.question.mode),
     }).catch((error: unknown) => {
       console.error('[firestore] Adjusted review did not reach the server.', error);
     });
 
     setVerdict({ ...verdict, result: softened, overridden: true });
-  }, [user.uid, verdict]);
+  }, [adaptive, user.uid, verdict]);
 
   const undo = useCallback(() => {
     if (!verdict) return;

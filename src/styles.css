@@ -1016,3 +1016,41 @@ code {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* Scheduler --------------------------------------------------------------- */
+
+.card__subtitle {
+  margin: 24px 0 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.datalist__note {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/*
+ * A figure that is either matching expectation or not. Green is not "good" here
+ * and amber is not "bad" — they mean "the model was right" and "the model was
+ * off", which is the only thing the calibration table is claiming.
+ */
+.figure {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.figure--ok {
+  color: var(--ok);
+}
+
+.figure--off {
+  color: var(--pending);
+}
+
+.itemlist__row--stacked {
+  display: block;
+}

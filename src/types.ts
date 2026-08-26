@@ -1,5 +1,6 @@
 import type { Timestamp } from 'firebase/firestore';
 import type { InputMethod } from './domain/inputMethod';
+import type { AdaptiveModel } from './storage/modelState';
 
 /**
  * The document stored at /users/{uid}.
@@ -44,6 +45,13 @@ export interface KanjibaProfile {
    */
   legacyScoresImportedAt?: Timestamp | null;
   lastOpenedAt?: Timestamp | null;
+  /**
+   * What the app has worked out about this learner: fitted FSRS weights per
+   * review mode, and their own response-time thresholds. Both are derived from
+   * the review log and both fall back to published defaults — see
+   * `src/storage/modelState.ts`.
+   */
+  adaptive: AdaptiveModel;
 }
 
 /**

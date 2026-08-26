@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { scheduleNext } from '../domain/scheduler';
+import type { FsrsWeights } from '../domain/fsrs';
 import { bucketId, parseBucketId, type ReviewMode } from '../domain/modes';
 import type { Level } from '../domain/items';
 import type { ItemReviewState, PracticeResult } from '../domain/review';
@@ -232,6 +233,11 @@ export interface RecordReviewInput {
    * offline.
    */
   current: ItemReviewState | null;
+  /**
+   * The FSRS weights to schedule with — this learner's fitted ones for this
+   * mode, or the published defaults. See `storage/modelState.ts`.
+   */
+  weights?: FsrsWeights;
   /** Injectable for tests; defaults to now. */
   now?: Date;
 }
@@ -264,6 +270,7 @@ export async function recordReview(
     },
     input.result,
     now,
+    input.weights,
   );
 
   const compact: CompactReview = {

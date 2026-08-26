@@ -12,10 +12,14 @@ import {
   type ScreenId,
 } from '../domain/navigation';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useModelFit } from '../hooks/useModelFit';
+import { useUserProfile } from '../hooks/useUserProfile';
+import { EMPTY_MODEL } from '../storage/modelState';
 import { AccountPanel } from './AccountPanel';
 import { AppMark } from './AppMark';
 import { BrowsePanel } from './BrowsePanel';
 import { ComingSoon } from './ComingSoon';
+import { SchedulerPanel } from './SchedulerPanel';
 import { VocabReadingPanel } from '../quizzes/VocabReadingPanel';
 
 /**
@@ -36,6 +40,12 @@ interface AppShellProps {
 
 export function AppShell({ user }: AppShellProps) {
   const online = useOnlineStatus();
+  const { profile } = useUserProfile(user);
+
+  // Retunes the memory model to this learner once enough new answers have
+  // built up, in idle time after the app has settled. Mounted here so it runs
+  // once per launch rather than once per screen that happens to want it.
+  useModelFit(user, profile?.kanjiba.adaptive ?? EMPTY_MODEL);
   const [nodeId, setNodeId] = useState<string>(() => nodeFromHash(window.location.hash).id);
 
   const go = useCallback((id: string) => {
@@ -71,6 +81,8 @@ export function AppShell({ user }: AppShellProps) {
     switch (screen) {
       case 'account':
         return <AccountPanel user={user} />;
+      case 'scheduler':
+        return <SchedulerPanel user={user} />;
 
       // ── Not built yet ────────────────────────────────────────────────────
       // Each of these is replaced by its panel in a later phase; the tree is

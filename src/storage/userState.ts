@@ -12,6 +12,7 @@ import {
 import type { User } from 'firebase/auth';
 import { db } from '../firebase';
 import { isInputMethod } from '../domain/inputMethod';
+import { toAdaptiveModel } from './modelState';
 import type { InputMethod } from '../domain/inputMethod';
 import type { KanjibaProfile, ProfileSnapshot, UserProfile } from '../types';
 
@@ -70,6 +71,7 @@ function toUserProfile(uid: string, data: DocumentData | undefined): UserProfile
       ...(isInputMethod(kanjiba['inputMethod']) ? { inputMethod: kanjiba['inputMethod'] } : {}),
       legacyScoresImportedAt: (kanjiba['legacyScoresImportedAt'] ?? null) as Timestamp | null,
       lastOpenedAt: (kanjiba['lastOpenedAt'] ?? null) as Timestamp | null,
+      adaptive: toAdaptiveModel(kanjiba),
     },
   };
 }

@@ -25,6 +25,7 @@ export type ScreenId =
   | 'browse'
   | 'progress'
   | 'input'
+  | 'scheduler'
   | 'account'
   | 'about';
 
@@ -118,6 +119,12 @@ export const NAV_ROOT: NavNode = {
           title: 'Input method',
           blurb: 'Keyboard, handwriting, or multiple choice.',
           screen: 'input',
+        },
+        {
+          id: 'tools.scheduler',
+          title: 'Scheduler',
+          blurb: 'How well aimed your intervals are, and what has been fitted to you.',
+          screen: 'scheduler',
         },
         {
           id: 'tools.account',
