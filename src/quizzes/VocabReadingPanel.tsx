@@ -56,7 +56,7 @@ export function VocabReadingPanel({ user }: { user: User }) {
           : isReadingCorrect(input, vocab.reading);
       }}
       answerOf={(item) => asVocab(item).accepts?.join(' / ') ?? asVocab(item).reading}
-      renderPrompt={(item) => (
+      renderPrompt={({ item }) => (
         <>
           <p className="quiz__surface" lang="ja">
             {asVocab(item).word}

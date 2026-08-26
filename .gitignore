@@ -23,6 +23,11 @@ npm-debug.log*
 
 # Compiled from data/*.csv by `npm run decks`, which prebuild runs. Generated
 # rather than committed because the CSVs they come from are right there.
-# public/sentences/ is deliberately NOT ignored: it comes from a Tatoeba export
-# far too large to download in CI.
+#
+# public/sentences/ is deliberately NOT ignored, and the reason is not size --
+# the Tatoeba export is 3.4 MB and builds in under two seconds. It is
+# reproducibility: Tatoeba updates weekly, so building the packs in CI would
+# silently change which sentences the quizzes ask, build to build. Committing
+# them pins the questions. Re-run `npm run sentences` to take an update
+# deliberately.
 public/decks/

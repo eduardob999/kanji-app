@@ -1112,3 +1112,32 @@ code {
   font-size: 1.6rem;
   line-height: 1.2;
 }
+
+/* Fill-in and listening --------------------------------------------------- */
+
+/*
+ * A whole sentence, so this is set for reading rather than for looking at a
+ * single glyph — smaller than .quiz__surface and with the line height Japanese
+ * needs at length.
+ */
+.quiz__sentence {
+  margin: 0 0 12px;
+  font-size: clamp(1.15rem, 5vw, 1.5rem);
+  line-height: 1.75;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.quiz__note {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.quiz__note a {
+  color: var(--accent-soft);
+}
+
+.quiz__play {
+  margin-bottom: 14px;
+}

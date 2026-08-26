@@ -37,7 +37,7 @@ export function KanjiWritingPanel({ user }: { user: User }) {
       placeholder="The character"
       check={(input, item) => isWritingCorrect(input, asKanji(item).kanji)}
       answerOf={(item) => asKanji(item).kanji}
-      renderPrompt={(item) => (
+      renderPrompt={({ item }) => (
         <>
           <p className="quiz__readings" lang="ja">
             {asKanji(item).readings.join('・')}

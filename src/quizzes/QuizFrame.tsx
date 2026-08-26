@@ -47,8 +47,19 @@ export interface QuizFrameProps {
   quiz: QuizMode;
   /** The pool to plan from. Async because decks load on demand. */
   loadCandidates: () => Promise<Candidate[]>;
-  /** The question, before it is answered. */
-  renderPrompt: (item: StudyItem) => ReactNode;
+  /**
+   * The question, before it is answered.
+   *
+   * Gets the whole planned question rather than just the item, because some
+   * prompts depend on its history — the fill-in mode rotates through a word's
+   * sentences as it matures, so that a familiar item is not always shown in the
+   * same frame.
+   *
+   * `markHelped` is for prompts that can give something away: replaying the
+   * audio, or revealing a hint. It caps the grade at `hard`, because an answer
+   * you had to be told is not recall whatever the clock says.
+   */
+  renderPrompt: (question: PlannedQuestion, helpers: PromptHelpers) => ReactNode;
   /** The rest of the entry, shown once it has been. */
   renderReveal: (item: StudyItem) => ReactNode;
   /** Marks the answer. */
@@ -56,6 +67,10 @@ export interface QuizFrameProps {
   /** What the answer was, for a miss. */
   answerOf: (item: StudyItem) => string;
   placeholder: string;
+}
+
+export interface PromptHelpers {
+  markHelped: () => void;
 }
 
 interface Verdict {
@@ -104,6 +119,8 @@ export function QuizFrame({
   lookupRef.current = lookup;
 
   const askedAt = useRef<number>(Date.now());
+  // Whether the prompt gave anything away before the answer came in.
+  const helped = useRef(false);
 
   useEffect(() => {
     let live = true;
@@ -121,6 +138,7 @@ export function QuizFrame({
         setVerdict(null);
         setTally({ right: 0, wrong: 0 });
         askedAt.current = Date.now();
+        helped.current = false;
         setStatus(planned.length > 0 ? 'ready' : 'empty');
       },
       (error: unknown) => {
@@ -154,7 +172,7 @@ export function QuizFrame({
     // Graded against this learner's own response times once there are enough of
     // them, and against the static guesses until then.
     const result = gradeAnswer(
-      { correct, elapsedMs },
+      { correct, elapsedMs, usedHint: helped.current },
       profileFor(adaptive.fluency, quiz, inputMethod),
     );
 
@@ -232,6 +250,7 @@ export function QuizFrame({
     setAnswer('');
     setIndex((current) => current + 1);
     askedAt.current = Date.now();
+    helped.current = false;
   }, []);
 
   /**
@@ -280,6 +299,7 @@ export function QuizFrame({
     setVerdict(null);
     setAnswer('');
     askedAt.current = Date.now();
+    helped.current = false;
   }, [user.uid, verdict]);
 
   if (status === 'loading') {
@@ -347,7 +367,13 @@ export function QuizFrame({
         </p>
       ) : null}
 
-      <div className="quiz__prompt">{renderPrompt(question.item)}</div>
+      <div className="quiz__prompt">
+        {renderPrompt(question, {
+          markHelped: () => {
+            helped.current = true;
+          },
+        })}
+      </div>
 
       <AnswerInput
         method={inputMethod}

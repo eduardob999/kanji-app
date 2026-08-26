@@ -22,6 +22,8 @@ import { ComingSoon } from './ComingSoon';
 import { SchedulerPanel } from './SchedulerPanel';
 import { InputMethodPanel } from './InputMethodPanel';
 import { KanjiWritingPanel } from '../quizzes/KanjiWritingPanel';
+import { FillInPanel } from '../quizzes/FillInPanel';
+import { AudioPanel } from '../quizzes/AudioPanel';
 import { VocabReadingPanel } from '../quizzes/VocabReadingPanel';
 
 /**
@@ -101,14 +103,9 @@ export function AppShell({ user }: AppShellProps) {
       case 'kanji-writing':
         return <KanjiWritingPanel user={user} />;
       case 'fill-in':
-        return (
-          <ComingSoon
-            title="Fill in the blank"
-            note="A real sentence from Tatoeba with the word taken out."
-          />
-        );
+        return <FillInPanel user={user} />;
       case 'audio':
-        return <ComingSoon title="Listening" note="Hear the word in context, then write it." />;
+        return <AudioPanel user={user} />;
       case 'browse':
         return <BrowsePanel />;
       case 'progress':
