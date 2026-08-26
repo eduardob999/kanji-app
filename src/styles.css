@@ -958,3 +958,61 @@ code {
   font-size: 0.85rem;
   overflow-wrap: anywhere;
 }
+
+/* Quizzes ----------------------------------------------------------------- */
+
+.quiz__prompt {
+  margin: 8px 0 20px;
+  text-align: center;
+}
+
+/*
+ * The question, at the size the strokes are legible at. Everything else on the
+ * card is smaller than this on purpose — there is exactly one thing to look at.
+ */
+.quiz__surface {
+  margin: 0 0 8px;
+  font-size: clamp(2.75rem, 18vw, 4.5rem);
+  line-height: 1.15;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.quiz__gloss {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The answer field is bigger than the browse search field: it is the one thing
+ * on the screen being typed into, and on a phone it sits directly above the
+ * keyboard.
+ */
+.textinput--answer {
+  padding: 14px 16px;
+  font-size: 1.35rem;
+  text-align: center;
+}
+
+.quiz__reveal {
+  margin-top: 16px;
+}
+
+/*
+ * Undo and the grade override. Deliberately quiet and below the primary action:
+ * they matter, and they are not what you press fifteen times a session.
+ */
+.quiz__afterthoughts {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.pill--muted {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}

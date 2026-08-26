@@ -16,6 +16,7 @@ import { AccountPanel } from './AccountPanel';
 import { AppMark } from './AppMark';
 import { BrowsePanel } from './BrowsePanel';
 import { ComingSoon } from './ComingSoon';
+import { VocabReadingPanel } from '../quizzes/VocabReadingPanel';
 
 /**
  * The app shell: one screen at a time, and the way between them.
@@ -82,12 +83,7 @@ export function AppShell({ user }: AppShellProps) {
           />
         );
       case 'vocab-reading':
-        return (
-          <ComingSoon
-            title="Vocab reading"
-            note="The word and its meaning; you supply the reading."
-          />
-        );
+        return <VocabReadingPanel user={user} />;
       case 'kanji-writing':
         return (
           <ComingSoon
