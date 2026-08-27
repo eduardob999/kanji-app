@@ -3,14 +3,23 @@ import type { User } from 'firebase/auth';
 import { countSeeds, intakeDaysFor, toBuckets, type LegacySeedFile } from '../domain/legacySeed';
 import { markLegacyScoresImported } from '../storage/userState';
 import { seedReviewBuckets } from '../storage/reviewState';
+import { useReviewStates } from '../hooks/useReviewStates';
 
 /**
- * The one-time import of the CLI's scores.
+ * Importing the CLI's scores.
  *
- * Offered rather than done automatically, and offered *once*: the flag is
- * written only after the buckets land, so a failure half-way through leaves it
- * unset and the import offerable again. Re-running is safe; skipping a
- * half-finished one is not.
+ * **Gap-filling, not overwriting.** Any item that already has review state is
+ * skipped, so this can be run again safely and only ever adds what is missing.
+ * That is not a nicety: the first version wrote every seeded item
+ * unconditionally, which would have discarded real reviews on a second run —
+ * and a second run turned out to be necessary the moment a fuller export
+ * appeared. It also means the offer can stay visible while anything is left,
+ * rather than vanishing behind a one-time flag that might have been set against
+ * a stale file.
+ *
+ * Offered rather than done automatically. The flag is still written when it
+ * finishes, but it now records "this has been done" rather than gating whether
+ * it may be done again.
  *
  * The counts in the copy are read from the seed file rather than written into
  * it. They were hardcoded once, against a 1,117-item export that was later
@@ -34,6 +43,7 @@ function seedUrl(): string {
 }
 
 export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void }) {
+  const { lookup, loading: statesLoading } = useReviewStates(user);
   const [status, setStatus] = useState<Status>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [seed, setSeed] = useState<LegacySeedFile | null>(null);
@@ -66,7 +76,11 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
 
     try {
       const file = seed ?? ((await (await fetch(seedUrl())).json()) as LegacySeedFile);
-      const buckets = toBuckets(file, new Date());
+      // Only what is still missing. An item you have actually answered holds a
+      // measurement; a seed value is a guess, and a guess must never replace a
+      // measurement.
+      const pending = { ...file, entries: file.entries.filter((e) => !lookup(e.m, e.i)) };
+      const buckets = toBuckets(pending, new Date());
       const seeded = countSeeds(buckets);
 
       // Awaited, unlike every other write in this app. This one is a deliberate
@@ -97,7 +111,14 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
     );
   }
 
-  const count = seed?.entries.length ?? 0;
+  // Recomputed against live state, so the number shrinks as items are answered
+  // and reaches zero when there is nothing left to bring across.
+  const remaining = seed ? seed.entries.filter((e) => !lookup(e.m, e.i)) : [];
+  const count = remaining.length;
+  const alreadyHave = (seed?.entries.length ?? 0) - count;
+
+  // Nothing left to do, and nothing worth saying about it.
+  if (status === 'idle' && !statesLoading && seed && count === 0) return null;
 
   return (
     <div className="field">
@@ -105,9 +126,10 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
         Bring across what the old command-line app knew.{' '}
         {count > 0 ? (
           <>
-            <strong>{count.toLocaleString()} items</strong> in its records were answered correctly
-            at least once — the rest of that file was its way of writing down a word’s JLPT level,
-            which is not evidence of anything.
+            <strong>{count.toLocaleString()} items</strong> from its records are not here yet.
+            {alreadyHave > 0
+              ? ` ${alreadyHave.toLocaleString()} already are, and will be left exactly as they are.`
+              : ' The rest of that file was its way of writing down a word’s JLPT level, which is not evidence of anything.'}
           </>
         ) : (
           'Reading the export…'

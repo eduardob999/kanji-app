@@ -1488,3 +1488,42 @@ code {
   font-size: 0.85rem;
   color: var(--text-muted);
 }
+
+/* Progress: the two-number figure ----------------------------------------- */
+
+.levels__row {
+  grid-template-columns: 4.5em 1fr 4.2em;
+}
+
+.levels__figure {
+  display: grid;
+  gap: 1px;
+  justify-items: end;
+}
+
+.levels__held {
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+/*
+ * Smaller and quieter: "seen" is context for the held figure, not a second
+ * headline. It exists so a full bar beside 0% held reads as an explanation
+ * rather than a contradiction.
+ */
+.levels__seen {
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/*
+ * Learning is deliberately faint. It is the band that means "started, not yet
+ * vouched for", and at a stronger tint a freshly imported level reads as a
+ * mostly-full progress bar.
+ */
+.levels__band--learning {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}

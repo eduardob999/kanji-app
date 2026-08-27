@@ -144,16 +144,23 @@ export function ProgressPanel({ user }: { user: User }) {
         <p className="card__body">Working it out…</p>
       ) : (
         <>
-          <p className="card__hint">
-            {PERCENT.format(progress.score)} of {progress.total.toLocaleString()} — counting
-            familiar items as half. {progress.due} due now.
+          <p className="card__body">
+            <strong>{PERCENT.format(progress.seen)} started</strong>,{' '}
+            <strong>{PERCENT.format(progress.score)} held</strong>, of{' '}
+            {progress.total.toLocaleString()}. {progress.due} due now.
           </p>
 
           <ul className="levels">
             {progress.levels.map((level) => (
               <li className="levels__row" key={level.level}>
                 <span className="levels__name">{levelLabel(level.level)}</span>
-                <span className="levels__bar" title={`${PERCENT.format(level.score)} of ${level.total}`}>
+                <span
+                  className="levels__bar"
+                  title={
+                    `${level.total} items — ` +
+                    BANDS.map((b) => `${bandLabel(b)} ${level.counts[b]}`).join(', ')
+                  }
+                >
                   {BANDS.map((band) =>
                     level.counts[band] > 0 ? (
                       <span
@@ -164,7 +171,16 @@ export function ProgressPanel({ user }: { user: User }) {
                     ) : null,
                   )}
                 </span>
-                <span className="levels__figure">{PERCENT.format(level.score)}</span>
+                {/*
+                  Both numbers, because they diverge and the bar shows the
+                  difference. A level that is fully started and nothing held
+                  draws a full bar next to 0%, which reads as a bug unless the
+                  other number is there to explain it.
+                */}
+                <span className="levels__figure">
+                  <span className="levels__held">{PERCENT.format(level.score)}</span>
+                  <span className="levels__seen">{PERCENT.format(level.seen)} seen</span>
+                </span>
               </li>
             ))}
           </ul>
@@ -180,10 +196,19 @@ export function ProgressPanel({ user }: { user: User }) {
           </ul>
 
           <p className="card__hint">
-            Bands are set by how long the schedule expects the memory to last: known is a month or
-            more, familiar is a week or more. They are not a count of how often you have answered —
+            <strong>Held</strong> counts only what the schedule can vouch for: known is a month or
+            more of expected retention, familiar a week or more, counted as half. <strong>Seen</strong>{' '}
+            is everything you have started. They are not a count of how often you have answered —
             that was the old app’s measure, and it rewarded attendance rather than knowing.
           </p>
+          {progress.counts.learning > 0 ? (
+            <p className="card__hint">
+              Imported items begin in <strong>Learning</strong> and stay there until you answer
+              them here. The old app recorded <em>that</em> you were right, never <em>when</em>, so
+              there is nothing to vouch for yet — the first real answer replaces the guess with a
+              measurement, and the bars move then.
+            </p>
+          ) : null}
         </>
       )}
     </section>

@@ -65,13 +65,24 @@ export interface LevelProgress {
   /** Items due at or before `now`. */
   due: number;
   /**
-   * How far through this level you are, 0–1.
+   * How much of this level the schedule can vouch for, 0–1.
    *
-   * Familiar items count half. An item you will still know next week is
-   * genuine progress and counting it as zero makes the bar sit still for weeks;
-   * counting it the same as one you will know next year overstates it.
+   * Familiar items count half. An item you will still know next week is genuine
+   * progress and counting it as zero makes the bar sit still for weeks;
+   * counting it the same as one you will know next year overstates it. Items
+   * still in Learning count nothing — that is what Learning means.
    */
   score: number;
+  /**
+   * The fraction that has been started at all, 0–1.
+   *
+   * Reported alongside `score` because the two can be far apart and the bar
+   * shows the difference. A freshly imported level is 100% started and 0% held:
+   * the old app recorded *that* you answered correctly and never *when*, so
+   * nothing is vouched for until you answer it here. Showing only `score` next
+   * to a visibly part-full bar reads as a bug.
+   */
+  seen: number;
 }
 
 function emptyCounts(): BandCounts {
@@ -99,8 +110,9 @@ export function summariseLevel(
 
   const total = deck.items.length;
   const score = total === 0 ? 0 : (counts.known + counts.familiar * 0.5) / total;
+  const seen = total === 0 ? 0 : (total - counts.unseen) / total;
 
-  return { level: deck.level, total, counts, due, score };
+  return { level: deck.level, total, counts, due, score, seen };
 }
 
 export interface CorpusProgress {
@@ -109,6 +121,7 @@ export interface CorpusProgress {
   counts: BandCounts;
   due: number;
   score: number;
+  seen: number;
 }
 
 export function summarise(
@@ -135,6 +148,7 @@ export function summarise(
     counts,
     due,
     score: total === 0 ? 0 : (counts.known + counts.familiar * 0.5) / total,
+    seen: total === 0 ? 0 : (total - counts.unseen) / total,
   };
 }
 

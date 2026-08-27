@@ -102,12 +102,8 @@ export function AccountPanel({ user }: { user: User }) {
         </p>
       )}
 
-      {profile && !profile.kanjiba.legacyScoresImportedAt ? (
-        <>
-          <h2 className="card__subtitle">From the old app</h2>
-          <LegacyImport user={user} />
-        </>
-      ) : null}
+      {/* Renders nothing once there is nothing left to bring across. */}
+      <LegacyImport user={user} />
 
       <button
         type="button"

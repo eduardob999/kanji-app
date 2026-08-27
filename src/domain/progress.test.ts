@@ -74,6 +74,28 @@ describe('summariseLevel', () => {
     expect(counted).toBe(10);
   });
 
+  it('reports seen alongside held, because they diverge', () => {
+    // The bug this exists for: a level fully in Learning draws a full bar and
+    // reports 0% held, which reads as broken unless the other number is there.
+    const d = deck('5', 4);
+    const byId: Record<string, ItemReviewState> = {
+      '5-0': state(1),
+      '5-1': state(1),
+      '5-2': state(1),
+      '5-3': state(1),
+    };
+
+    const summary = summariseLevel(d, 'vocab-reading', (_m, id) => byId[id] ?? null, NOW);
+
+    expect(summary.counts.learning).toBe(4);
+    expect(summary.score).toBe(0);
+    expect(summary.seen).toBe(1);
+  });
+
+  it('reports nothing seen for an untouched level', () => {
+    expect(summariseLevel(deck('5', 5), 'vocab-reading', () => null, NOW).seen).toBe(0);
+  });
+
   it('scores familiar items as half', () => {
     // Otherwise a bar sits still for weeks while real progress is happening.
     const d = deck('5', 4);
@@ -108,6 +130,14 @@ describe('summariseLevel', () => {
 });
 
 describe('summarise', () => {
+  it('totals seen across levels too', () => {
+    const decks = [deck('5', 4), deck('4', 6)];
+    const summary = summarise(decks, 'vocab-reading', () => state(1), NOW);
+
+    expect(summary.seen).toBe(1);
+    expect(summary.score).toBe(0);
+  });
+
   it('totals across levels', () => {
     const decks = [deck('5', 4), deck('4', 6)];
     const summary = summarise(decks, 'vocab-reading', () => state(KNOWN_FROM), NOW);

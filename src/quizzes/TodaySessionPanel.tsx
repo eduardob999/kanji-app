@@ -104,11 +104,8 @@ export function TodaySessionPanel({ user }: { user: User }) {
             two taps into Tools means starting from zero without ever knowing
             there was an alternative. It disappears for good once run.
           */}
-          {profile && !profile.kanjiba.legacyScoresImportedAt ? (
-            <div className="notice notice--muted">
-              <strong>Coming from the old command-line app?</strong>
-              <LegacyImport user={user} />
-            </div>
+          {profile ? (
+            <LegacyImport user={user} />
           ) : null}
 
           {counts.due === 0 ? (
