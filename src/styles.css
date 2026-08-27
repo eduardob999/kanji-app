@@ -479,8 +479,17 @@ code {
   gap: 6px;
 }
 
+/*
+ * 88px, arrived at by measuring rather than taste. A 360px phone leaves 288px
+ * inside the card; three columns need two 6px gaps, so each may be at most
+ * (288 - 12) / 3 = 92px. The original 120px fitted only two, leaving the third
+ * option alone on a second row at double height — which reads as a mistake
+ * rather than a choice. 88px leaves a little room and the longest label wraps
+ * inside its own button; grid then gives every option in the row equal height.
+ * Two-option controls are unaffected.
+ */
 .segmented--wrap {
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
 }
 
 .segmented__option {
@@ -1214,8 +1223,17 @@ code {
 
 /* Session summary --------------------------------------------------------- */
 
+/*
+ * Figures on one baseline.
+ *
+ * The muted figure used a smaller number, which put its label at a different
+ * height from the other's — "due" sat noticeably below "not yet seen" and read
+ * as a mistake. The numbers are one size now and the difference in weight is
+ * carried by colour, which was what the size was standing in for.
+ */
 .tally {
   display: flex;
+  align-items: baseline;
   gap: 28px;
   margin: 8px 0 20px;
 }
@@ -1226,17 +1244,17 @@ code {
 }
 
 .tally__number {
-  font-size: 2.75rem;
+  font-size: 2.25rem;
   line-height: 1.1;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--accent-soft);
+  color: var(--accent);
 }
 
 /* "Not yet seen" is context, not a target — 9,000 unseen items is not a task. */
 .tally__figure--muted .tally__number {
   color: var(--text-muted);
-  font-size: 1.75rem;
+  font-weight: 600;
 }
 
 .tally__label {
@@ -1397,7 +1415,12 @@ code {
 
 .levels__row {
   display: grid;
-  grid-template-columns: 4.5em 1fr 3em;
+  /*
+   * The bar is the point of the row, so it gets what is left after the two
+   * labels — which are sized in `ch` so they fit their longest actual content
+   * ("N1 (a)", "100%") rather than a guess in ems.
+   */
+  grid-template-columns: 6ch 1fr 5ch;
   align-items: center;
   gap: 10px;
 }
@@ -1547,8 +1570,9 @@ code {
 
 /* Progress: the two-number figure ----------------------------------------- */
 
+/* Superseded by the `ch`-based columns above; kept out of the way. */
 .levels__row {
-  grid-template-columns: 4.5em 1fr 4.2em;
+  grid-template-columns: 6ch 1fr 5ch;
 }
 
 .levels__figure {

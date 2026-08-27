@@ -102,12 +102,31 @@ stripped-down Android. Declaring the common system faces costs nothing.
    Check underneath the tab bar. The canvas is now bounded by viewport height
    as well as width, and the three controls fit one row.
 
-## Still to do
+8. **Both themes at phone width.** The audit ran phones dark and wide viewports
+   light, so no phone-sized light screenshot existed. 360 is light now and 390
+   dark, which covers the gap without doubling every run.
+9. **The home screen stopped waiting for something it does not need.** Counts
+   come from the decks; only the pacing note needs the review log, and both
+   were awaited together — so opening the app showed a title and one line of
+   text until the slowest read finished. Time to useful content went from up to
+   eight seconds to **316 ms**.
+10. **Two things the rules could not see**, found by looking at screenshots:
+    the two figures on Today's Session sat on different baselines because the
+    muted one used a smaller number, which read as a mistake; and the
+    three-option skill picker on Progress wrapped 2 + 1 at 360 px, leaving the
+    third alone at double height.
 
-- A pass over **Today's Session** and **Progress** for whether they read well,
-  which no rule can judge.
-- The **light theme** at phone width; the audit runs phones in dark and wide
-  viewports in light, so no phone-sized light screenshot exists yet.
+## Done
+
+Every item above is complete. `npm run ui` reports 0 problems across 15 screens
+× 4 viewport/theme combinations, plus 3 interactive states.
+
+What is worth keeping from this is not the CSS. It is that the app now has a
+way to be looked at: `src/preview/` renders any screen without a sign-in, and
+`npm run ui` says which of them are broken. Four of the ten items above were
+bugs that had been shipped and unnoticed, and two of those — a missing
+`box-sizing` reset and a session screen that could hang for ever — were
+invisible from reading the code.
 
 ## Verification
 

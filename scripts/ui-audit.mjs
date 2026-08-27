@@ -37,17 +37,23 @@ const EXECUTABLE = resolve(
 );
 
 /**
- * The viewports that matter.
+ * The viewports that matter, and the theme each is checked in.
  *
  * 360 is the narrowest Android still in wide use and the one that finds
  * everything; 390 is a current iPhone; 768 and 1280 confirm nothing collapses
  * the other way.
+ *
+ * The theme is part of the viewport rather than a second dimension, because
+ * doubling every run to check a palette that shares all its layout would be
+ * slow for nothing. What it must not do is leave a combination unlooked-at: the
+ * phone widths were dark-only for a while, so no phone-sized light screenshot
+ * existed at all. 360 now covers light and 390 dark.
  */
 const VIEWPORTS = [
-  { name: 'phone-360', width: 360, height: 780 },
-  { name: 'phone-390', width: 390, height: 844 },
-  { name: 'tablet-768', width: 768, height: 1024 },
-  { name: 'desktop-1280', width: 1280, height: 900 },
+  { name: 'phone-360-light', width: 360, height: 780, scheme: 'light' },
+  { name: 'phone-390-dark', width: 390, height: 844, scheme: 'dark' },
+  { name: 'tablet-768-dark', width: 768, height: 1024, scheme: 'dark' },
+  { name: 'desktop-1280-light', width: 1280, height: 900, scheme: 'light' },
 ];
 
 const SCREENS = [
@@ -188,9 +194,7 @@ for (const viewport of VIEWPORTS) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     deviceScaleFactor: 2,
-    // The app is theme-aware; the phone widths audit dark, the wide ones light,
-    // so both palettes get looked at without doubling the run.
-    colorScheme: viewport.width < 700 ? 'dark' : 'light',
+    colorScheme: viewport.scheme,
   });
 
   // Each screen on load, plus any interactive state it can be driven into.

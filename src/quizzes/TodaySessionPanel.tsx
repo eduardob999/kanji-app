@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
 import type { QuizMode } from '../domain/modes';
 import { countDue, planSession, type Candidate } from '../domain/sessionPlanner';
@@ -37,12 +37,35 @@ export function TodaySessionPanel({ user }: { user: User }) {
 
   const [started, setStarted] = useState(false);
   const [counts, setCounts] = useState<{ due: number; unseen: number } | null>(null);
-  const [pacing, setPacing] = useState<Pacing | null>(null);
+  const [historyStats, setHistoryStats] = useState<
+    { throughput: number; measured: boolean; accuracy: number } | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
 
   const modes = voice ? WITH_VOICE : WITHOUT_VOICE;
 
   const loadQuiz = useCallback(() => loadQuizSource(modes, voice), [modes, voice]);
+
+  /**
+   * Derived rather than stored, so it simply improves when the log arrives.
+   *
+   * Until then it paces on "no measurable history", which is the same state a
+   * new account is in and which `pace` is built to handle — rather than the
+   * screen having nothing to say.
+   */
+  const pacing = useMemo<Pacing | null>(
+    () =>
+      counts
+        ? pace({
+            due: counts.due,
+            unseen: counts.unseen,
+            throughput: historyStats?.throughput ?? 0,
+            accuracy: historyStats?.accuracy ?? 1,
+            measured: historyStats?.measured ?? false,
+          })
+        : null,
+    [counts, historyStats],
+  );
 
   // Sized from the backlog and from what this learner actually gets through,
   // rather than a flat fifteen. Held in a ref so the session it starts with does
@@ -62,39 +85,41 @@ export function TodaySessionPanel({ user }: { user: User }) {
 
     let live = true;
 
-    // The history is for pacing only, so a failure to read it must not stop the
-    // session. It used to be inside the same Promise.all as the decks, which
-    // meant an unreadable review log — offline on a device whose log cache is
-    // cold — killed the whole screen, and reported "could not load the decks"
-    // about decks that had loaded perfectly. Pacing without history is a state
-    // `pace` already handles: it is what a new account gets.
-    const history = loadReviewHistory(user.uid).catch((caught: unknown) => {
-      console.warn('[pacing] Could not read the review log; using default pacing.', caught);
-      return [] as Awaited<ReturnType<typeof loadReviewHistory>>;
-    });
-
-    Promise.all([loadQuizSource(modes, voice), history]).then(
-      ([{ candidates }, history]) => {
-        if (!live) return;
-
-        const now = new Date();
-        const totals = countDue(candidates, lookup, now);
-        const { throughput, measured } = throughputFrom(history.map((r) => r.at), now);
-
-        setCounts(totals);
-        setPacing(
-          pace({
-            due: totals.due,
-            unseen: totals.unseen,
-            throughput,
-            accuracy: accuracyFrom(history, now),
-            measured,
-          }),
-        );
+    /*
+     * Two loads, resolved separately and deliberately.
+     *
+     * The counts come from the decks alone; only the pacing note needs the
+     * review log. Waiting for both before showing anything made the app's home
+     * screen sit on "Working out what is due…" for as long as the slowest read
+     * took — on a phone that had just been opened, that is a title and one line
+     * of text on an otherwise empty screen, which is the first thing you see.
+     *
+     * So the counts land as soon as they can and the pacing note fills in
+     * after. The Start button does not wait for pacing either: `planSession`
+     * has sensible defaults, which is exactly what someone with no history gets
+     * anyway.
+     */
+    loadQuizSource(modes, voice).then(
+      ({ candidates }) => {
+        if (live) setCounts(countDue(candidates, lookup, new Date()));
       },
       (caught: unknown) => {
-        // Only the decks can land here now, so the message is accurate again.
         if (live) setError(caught instanceof Error ? caught.message : 'Could not load the decks.');
+      },
+    );
+
+    // Pacing is advisory: a log that cannot be read leaves the session running
+    // on defaults rather than not running.
+    loadReviewHistory(user.uid).then(
+      (history) => {
+        if (!live) return;
+        const now = new Date();
+        const { throughput, measured } = throughputFrom(history.map((r) => r.at), now);
+        setHistoryStats({ throughput, measured, accuracy: accuracyFrom(history, now) });
+      },
+      (caught: unknown) => {
+        console.warn('[pacing] Could not read the review log; using default pacing.', caught);
+        if (live) setHistoryStats({ throughput: 0, measured: false, accuracy: 1 });
       },
     );
 
