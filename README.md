@@ -16,9 +16,10 @@ job for guitar practice.
 
 Live at **<https://eduardob999.github.io/kanji-app/>**.
 
-> **Status: all four quiz modes work**, scheduled by an FSRS model that fits
-> itself to you. Still to come: the handwriting canvas, the import of the old
-> CLI's scores, and Today's Session. See [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status: everything below works.** Four quiz modes, three input methods,
+> Today's Session and Random, an FSRS scheduler that fits itself to you, and the
+> import of the old CLI's scores. See [docs/ROADMAP.md](docs/ROADMAP.md) for
+> what is left.
 
 ## What it does
 
@@ -32,10 +33,18 @@ entries:
 | Fill in the blank | a real sentence with the word removed | the character |
 | Listening | the word spoken in context | the character |
 
-Two ways to answer so far, because Japanese input is the one thing you cannot
-assume about a device: the native IME keyboard, or multiple choice with
-distractors chosen for confusability. A handwriting canvas is the third and is
-not built yet — see the roadmap for why it is harder than it looks.
+Two ways to study them: **Today's Session**, which is everything the schedule
+says is due, interleaved across all four types; and **Random**, which is endless
+and ignores due dates, for when the session is cleared.
+
+Three ways to answer, because Japanese input is the one thing you cannot assume
+about a device:
+
+| | |
+| --- | --- |
+| **Keyboard** | The device's own IME. Works everywhere; gives the answer away on writing questions. |
+| **Handwriting** | Draw the character. On-device, offline, tolerant of wrong stroke order. |
+| **Multiple choice** | Four options, distractors chosen for confusability rather than at random. |
 
 The scheduler fits itself to you. Response-time thresholds track your own
 speed per question type and input method, and the FSRS weights are refitted per
@@ -133,6 +142,9 @@ is done the deploy job logs a 404 and publishes nothing, but CI stays green.
 | `npm run typecheck` | TypeScript only. |
 | `npm test` | Domain tests. |
 | `npm run icons` | Regenerate the icons in `public/icons`. |
+| `npm run sentences` | Rebuild the Tatoeba example-sentence packs. |
+| `npm run strokes` | Rebuild the handwriting reference patterns. |
+| `npm run migrate` | Rebuild the seed file from the old CLI's `scores.txt`. |
 
 ## Project layout
 
@@ -159,6 +171,7 @@ src/
     inputMethod.ts            Keyboard / handwriting / multiple choice
   storage/                    The only modules that know the Firestore layout
   input/                      The only modules that know how a character is typed
+    handwriting/pipeline.js   Recognition, ported from Kanji Canvas (see LICENSES.md)
   quizzes/                    One panel per question type
   components/                 AppShell, SignInScreen, AccountPanel, SyncBadge…
 docs/ROADMAP.md               What is built and what is next
@@ -181,9 +194,11 @@ Kanji and vocabulary data carried over from `kanji-practice-app`.
 Example sentences from [Tatoeba](https://tatoeba.org), used under
 [CC-BY 2.0 FR](https://creativecommons.org/licenses/by/2.0/fr/).
 
-Handwriting recognition by [KanjiCanvas](https://github.com/asdfjkl/kanjicanvas)
+Handwriting recognition by [Kanji Canvas](https://github.com/asdfjkl/kanjicanvas)
 (© Dominik Klein, MIT), whose reference patterns derive from
 [KanjiVG](https://kanjivg.tagaini.net/) (© Ulrich Apel, CC BY-SA 3.0).
+
+Full notices in [LICENSES.md](LICENSES.md).
 
 FSRS scheduler and app shell from
 [GHAPP](https://github.com/eduardob999/GHAPP).

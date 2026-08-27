@@ -1173,3 +1173,105 @@ code {
   font-size: 0.8rem;
   color: var(--text-muted);
 }
+
+/* Handwriting ------------------------------------------------------------- */
+
+.handwriting {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+
+.handwriting__answer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 56px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+}
+
+.handwriting__text {
+  font-size: 1.9rem;
+  line-height: 1.2;
+}
+
+.handwriting__placeholder {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+/*
+ * `touch-action: none` is doing real work: without it a drawn stroke scrolls
+ * the page on a phone instead of drawing, which makes the canvas unusable on
+ * exactly the devices handwriting is most for.
+ */
+.handwriting__canvas {
+  width: min(320px, 78vw);
+  height: min(320px, 78vw);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.handwriting__candidates {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  width: 100%;
+}
+
+.handwriting__candidate {
+  min-width: 48px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  color: var(--text);
+  font: inherit;
+  font-size: 1.5rem;
+  line-height: 1.1;
+  cursor: pointer;
+}
+
+.handwriting__candidate:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.handwriting__candidate:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.handwriting__hint {
+  align-self: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.handwriting__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.handwriting__credit {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.handwriting__credit a {
+  color: var(--accent-soft);
+}

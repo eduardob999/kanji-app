@@ -31,3 +31,7 @@ npm-debug.log*
 # them pins the questions. Re-run `npm run sentences` to take an update
 # deliberately.
 public/decks/
+
+# Cloned by `npm run strokes`. The built patterns in public/strokes/ are what
+# ships; this is the 7 MB source they come from.
+data/kanjicanvas/

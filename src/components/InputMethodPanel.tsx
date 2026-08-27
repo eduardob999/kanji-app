@@ -16,12 +16,9 @@ import { setInputMethod } from '../storage/userState';
  * too. Handwriting on a tablet and multiple choice one-handed on a bus are the
  * same person on the same day.
  *
- * Handwriting is deliberately absent from this list until it works. A settings
- * screen that offers a method which silently falls back to another one is worse
- * than a settings screen with one fewer option.
  */
 
-const AVAILABLE: readonly InputMethod[] = ['keyboard', 'choice'];
+const AVAILABLE: readonly InputMethod[] = ['keyboard', 'handwriting', 'choice'];
 
 export function InputMethodPanel({ user }: { user: User }) {
   const { profile, loading } = useUserProfile(user);
@@ -60,9 +57,10 @@ export function InputMethodPanel({ user }: { user: User }) {
         <p className="card__hint">{describeInputMethod(current)}</p>
       </fieldset>
 
-      <p className="notice notice--muted">
-        Handwriting is not ready yet. It needs a stroke database that covers this app’s kanji, and
-        the one available is missing 205 of them along with every kana.
+      <p className="card__hint">
+        Handwriting downloads about 1.5 MB of stroke patterns the first time you use it, then works
+        offline. It covers 2,006 of this app’s 2,211 kanji and all kana; the 205 it does not know
+        are mostly rare name characters, and there is a “type it instead” button for those.
       </p>
 
       <p className="card__hint">
