@@ -155,18 +155,17 @@ export function QuizFrame({
   // follows from the question's own mode, not from the screen it is on.
   const definition = question && definitions ? definitions[question.quiz] : null;
 
-  const submit = useCallback(
-    (given?: string) => {
+  /**
+   * Records one answer and shows the verdict.
+   *
+   * Reached either by answering or by giving up. Giving up is a `fail` and is
+   * recorded exactly like a wrong answer, because it is one: you could not
+   * recall the item, and the schedule should hear that.
+   */
+  const resolve = useCallback(
+    (correct: boolean) => {
     if (!question || verdict) return;
 
-    // Methods where choosing is submitting hand the answer over directly; the
-    // frame's own state has not caught up yet.
-    const trimmed = (given ?? answer).trim();
-    if (!trimmed) return;
-
-    const active = definitions?.[question.quiz];
-    if (!active) return;
-    const correct = active.check(trimmed, question.item);
     const elapsedMs = Date.now() - askedAt.current;
     // Graded against this learner's own response times once there are enough of
     // them, and against the static guesses until then.
@@ -241,8 +240,40 @@ export function QuizFrame({
       wrong: current.wrong + (correct ? 0 : 1),
     }));
     },
-    [adaptive, answer, definitions, inputMethod, question, user.uid, verdict],
+    [adaptive, inputMethod, question, user.uid, verdict],
   );
+
+  const submit = useCallback(
+    (given?: string) => {
+      if (!question || verdict) return;
+
+      // Methods where choosing is submitting hand the answer over directly; the
+      // frame's own state has not caught up yet.
+      const trimmed = (given ?? answer).trim();
+      if (!trimmed) return;
+
+      const active = definitions?.[question.quiz];
+      if (!active) return;
+
+      resolve(active.check(trimmed, question.item));
+    },
+    [answer, definitions, question, resolve, verdict],
+  );
+
+  /**
+   * "I don't know."
+   *
+   * Not a nicety. Submitting requires a non-empty answer, so on a handwriting
+   * question with nothing drawn the Check button is disabled and there is no way
+   * forward at all — the session simply stops. Even where the input allows
+   * nonsense to be typed, making someone invent a wrong answer to escape a
+   * question wastes their time and tells the scheduler the same thing this does.
+   *
+   * Deliberately not a skip. A skip that recorded nothing would leave the item
+   * due and looping, and would let the backlog be walked past rather than
+   * worked through.
+   */
+  const giveUp = useCallback(() => resolve(false), [resolve]);
 
   const next = useCallback(() => {
     setVerdict(null);
@@ -421,16 +452,27 @@ export function QuizFrame({
           </div>
         </>
       ) : (
-        <button
-          type="button"
-          className="button button--primary button--block"
-          // Wrapped, not passed directly: submit's optional argument would
-          // otherwise receive the click event as the answer.
-          onClick={() => submit()}
-          disabled={answer.trim() === ''}
-        >
-          Check
-        </button>
+        <>
+          <button
+            type="button"
+            className="button button--primary button--block"
+            // Wrapped, not passed directly: submit's optional argument would
+            // otherwise receive the click event as the answer.
+            onClick={() => submit()}
+            disabled={answer.trim() === ''}
+          >
+            Check
+          </button>
+          <div className="quiz__afterthoughts">
+            <button
+              type="button"
+              className="button button--ghost button--small"
+              onClick={giveUp}
+            >
+              I don’t know
+            </button>
+          </div>
+        </>
       )}
     </section>
   );
