@@ -79,12 +79,23 @@ export function difficultyForLevel(level: Level): number {
  * held and is nonsense for 6,328 — it would ask for 450 reviews a day, which no
  * one does, so the backlog would simply never clear and the app would show a
  * number that only went up.
+ *
+ * **This has to agree with what a session actually asks.** The first version of
+ * this constant was 50 while `pacing.ts` sized a default session at 15, which
+ * meant the import handed out 53 items a day to a screen offering 15 — a
+ * backlog growing by 38 a day, designed in. Two numbers picked independently
+ * for the same quantity.
+ *
+ * 25 is a real but achievable daily habit, and the adaptive session will offer
+ * more than that to anyone whose measured throughput supports it. Someone
+ * slower is still protected: the planner stops introducing new material while
+ * behind, so the import is the only thing in the queue until it clears.
  */
-export const TARGET_PER_DAY = 50;
+export const TARGET_PER_DAY = 25;
 
 /** Floor and ceiling on the window, so neither a tiny nor a vast import is silly. */
 export const MIN_INTAKE_DAYS = 14;
-export const MAX_INTAKE_DAYS = 120;
+export const MAX_INTAKE_DAYS = 300;
 
 export function intakeDaysFor(count: number): number {
   const needed = Math.ceil(count / TARGET_PER_DAY);

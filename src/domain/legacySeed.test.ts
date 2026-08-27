@@ -137,11 +137,13 @@ describe('toBuckets', () => {
     expect(intakeDaysFor(size)).toBe(Math.ceil(size / TARGET_PER_DAY));
   });
 
-  it('accepts a busier day rather than an endless window on a large import', () => {
-    // 6,328 items at 50 a day is 127 days; the ceiling trades that for ~53 a
-    // day over four months, which is the better of the two.
-    expect(intakeDaysFor(6_328)).toBe(MAX_INTAKE_DAYS);
-    expect(6_328 / MAX_INTAKE_DAYS).toBeLessThan(TARGET_PER_DAY * 1.25);
+  it('hands out imported items no faster than a session can absorb them', () => {
+    // The bug this pins: the intake target and the session size are the same
+    // quantity and were picked independently, so 6,328 items were handed out at
+    // 53 a day to a screen offering 15.
+    const rate = 6_328 / intakeDaysFor(6_328);
+    expect(rate).toBeLessThanOrEqual(TARGET_PER_DAY * 1.05);
+    expect(intakeDaysFor(6_328)).toBeLessThanOrEqual(MAX_INTAKE_DAYS);
   });
 
   it('keeps the window inside sane bounds', () => {

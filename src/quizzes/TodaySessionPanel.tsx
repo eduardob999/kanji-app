@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
 import type { QuizMode } from '../domain/modes';
-import { countDue } from '../domain/sessionPlanner';
+import { countDue, planSession, type Candidate } from '../domain/sessionPlanner';
+import { accuracyFrom, pace, throughputFrom, type Pacing } from '../domain/pacing';
+import { loadReviewHistory } from '../storage/reviewLog';
 import { useJapaneseVoice } from '../hooks/useJapaneseVoice';
 import { useReviewStates } from '../hooks/useReviewStates';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -35,11 +37,23 @@ export function TodaySessionPanel({ user }: { user: User }) {
 
   const [started, setStarted] = useState(false);
   const [counts, setCounts] = useState<{ due: number; unseen: number } | null>(null);
+  const [pacing, setPacing] = useState<Pacing | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const modes = voice ? WITH_VOICE : WITHOUT_VOICE;
 
   const loadQuiz = useCallback(() => loadQuizSource(modes, voice), [modes, voice]);
+
+  // Sized from the backlog and from what this learner actually gets through,
+  // rather than a flat fifteen. Held in a ref so the session it starts with does
+  // not change underneath it.
+  const buildQueue = useCallback(
+    (candidates: readonly Candidate[], lookup: Parameters<typeof planSession>[1], now: Date) =>
+      planSession(candidates, lookup, now, {
+        ...(pacing ? { maxItems: pacing.maxItems, maxNew: pacing.maxNew } : {}),
+      }),
+    [pacing],
+  );
 
   // The summary. Loads the same source the session will use — everything caches,
   // so starting costs nothing more.
@@ -48,9 +62,24 @@ export function TodaySessionPanel({ user }: { user: User }) {
 
     let live = true;
 
-    loadQuizSource(modes, voice).then(
-      ({ candidates }) => {
-        if (live) setCounts(countDue(candidates, lookup, new Date()));
+    Promise.all([loadQuizSource(modes, voice), loadReviewHistory(user.uid)]).then(
+      ([{ candidates }, history]) => {
+        if (!live) return;
+
+        const now = new Date();
+        const totals = countDue(candidates, lookup, now);
+        const { throughput, measured } = throughputFrom(history.map((r) => r.at), now);
+
+        setCounts(totals);
+        setPacing(
+          pace({
+            due: totals.due,
+            unseen: totals.unseen,
+            throughput,
+            accuracy: accuracyFrom(history, now),
+            measured,
+          }),
+        );
       },
       (caught: unknown) => {
         if (live) setError(caught instanceof Error ? caught.message : 'Could not load the decks.');
@@ -62,13 +91,14 @@ export function TodaySessionPanel({ user }: { user: User }) {
     };
     // `lookup` changes on every snapshot; the count is a snapshot of when the
     // screen opened and should not flicker as writes land.
-  }, [checking, statesLoading, started, modes, voice]);
+  }, [checking, statesLoading, started, modes, voice, user.uid]);
 
   if (started) {
     return (
       <QuizFrame
         user={user}
         loadQuiz={loadQuiz}
+        buildQueue={buildQueue}
         emptyTitle="Nothing due"
         emptyBody="Everything is scheduled for later. Random practice is there if you want to keep going."
       />
@@ -108,17 +138,20 @@ export function TodaySessionPanel({ user }: { user: User }) {
             <LegacyImport user={user} />
           ) : null}
 
-          {counts.due === 0 ? (
-            <p className="card__body">
-              Nothing is due. The session will introduce new material instead — or leave it, and
-              come back when something comes round.
-            </p>
-          ) : (
-            <p className="card__body">
-              All four question types, interleaved, most overdue first. A few new words are mixed
-              in so the pile does not stay still.
-            </p>
-          )}
+          {pacing ? (
+            <>
+              <p className={`notice notice--${pacing.state === 'behind' || pacing.state === 'struggling' ? 'warn' : 'muted'}`}>
+                {pacing.note}
+              </p>
+              <p className="card__body">
+                {pacing.maxItems} question{pacing.maxItems === 1 ? '' : 's'} this time, all four
+                types interleaved, most overdue first.
+                {pacing.state === 'behind'
+                  ? ` About ${pacing.sustainableRate} a day would stop the backlog growing.`
+                  : ''}
+              </p>
+            </>
+          ) : null}
 
           <button
             type="button"
