@@ -1,4 +1,4 @@
-import { levelRank, type Level, type StudyItem } from './items';
+import { baseLevel, levelRank, type Level, type StudyItem } from './items';
 import { reviewModeFor, type QuizMode, type ReviewMode } from './modes';
 import type { ItemReviewState } from './review';
 
@@ -69,8 +69,18 @@ const MILLISECONDS_PER_DAY = 86_400_000;
 
 export type ReviewLookup = (mode: ReviewMode, itemId: string) => ItemReviewState | null;
 
+/**
+ * What counts as "one kind of thing" for the purpose of not doing too much of
+ * it at once.
+ *
+ * Keyed on the *base* JLPT level, so the four stored quarters of N1 share a
+ * single allowance. Keying on the stored level let N1 contribute four times
+ * what any other level could — the cap that exists to prevent blocked practice,
+ * switched off for the largest level in the corpus by a change to how it was
+ * filed.
+ */
 function groupKey(mode: ReviewMode, level: Level): string {
-  return `${mode}:${level}`;
+  return `${mode}:${baseLevel(level)}`;
 }
 
 /** The identity a schedule is kept against: one memory, however it is asked. */

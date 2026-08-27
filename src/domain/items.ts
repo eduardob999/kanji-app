@@ -36,6 +36,22 @@ export function levelLabel(level: Level): string {
   return level.length === 1 ? `N${level}` : `N${level[0]} (${level.slice(1)})`;
 }
 
+/**
+ * The real JLPT level behind a stored one: `1a` through `1d` are all `1`.
+ *
+ * N1 is stored in quarters because it is over half the kanji and nearly half
+ * the vocabulary, and one undifferentiated block that size makes a progress bar
+ * that never visibly moves and a Firestore document larger than it needs to be.
+ *
+ * But the quarters are a storage and presentation convenience, not four levels.
+ * Anything reasoning about *how much of one level* to do at a time has to
+ * collapse them, or N1 silently gets four times the allowance every other level
+ * gets — which is what happened to the session planner's per-group cap.
+ */
+export function baseLevel(level: Level): string {
+  return level[0]!;
+}
+
 export type DeckType = 'kanji' | 'vocab';
 
 export interface KanjiItem {

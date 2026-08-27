@@ -92,6 +92,34 @@ describe('planSession', () => {
     expect(plan).toHaveLength(4);
   });
 
+  it('does not let a split level claim four times the allowance', () => {
+    // N1 is stored as four sub-levels, so a cap keyed on the stored level lets
+    // N1 supply 4 x maxPerGroup in one sitting while every other level supplies
+    // maxPerGroup. The cap exists to stop blocked practice, and splitting a
+    // level quietly turned it off for the largest level in the corpus.
+    const candidates = [
+      ...Array.from({ length: 10 }, (_, i) => candidate(`a${i}`, '1a')),
+      ...Array.from({ length: 10 }, (_, i) => candidate(`b${i}`, '1b')),
+      ...Array.from({ length: 10 }, (_, i) => candidate(`c${i}`, '1c')),
+      ...Array.from({ length: 10 }, (_, i) => candidate(`d${i}`, '1d')),
+    ];
+
+    const plan = planSession(candidates, NONE, NOW, { maxNew: 40, maxItems: 40, maxPerGroup: 5 });
+
+    expect(plan).toHaveLength(5);
+  });
+
+  it('still caps unsplit levels independently of each other', () => {
+    const candidates = [
+      ...Array.from({ length: 10 }, (_, i) => candidate(`five${i}`, '5')),
+      ...Array.from({ length: 10 }, (_, i) => candidate(`three${i}`, '3')),
+    ];
+
+    const plan = planSession(candidates, NONE, NOW, { maxNew: 40, maxItems: 40, maxPerGroup: 5 });
+
+    expect(plan).toHaveLength(10);
+  });
+
   it('interleaves groups rather than blocking them', () => {
     // Blocked practice — five N5 then five N3 — feels productive and transfers
     // poorly. This is the rule the whole planner exists for.
