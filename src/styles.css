@@ -1305,3 +1305,119 @@ code {
 .handwriting__credit a {
   color: var(--accent-soft);
 }
+
+/* Progress ---------------------------------------------------------------- */
+
+/*
+ * The activity strip: one cell per day for eight weeks, wrapping. Deliberately
+ * two-state rather than shaded by volume — a day of ten reviews and a day of
+ * two hundred are both days you turned up, and shading by volume rewards
+ * binges over habit.
+ */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(28, 1fr);
+  gap: 3px;
+  margin: 4px 0 2px;
+}
+
+.strip__day {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--bg-inset);
+}
+
+.strip__day--active {
+  background: var(--accent);
+}
+
+.levels {
+  list-style: none;
+  margin: 12px 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.levels__row {
+  display: grid;
+  grid-template-columns: 4.5em 1fr 3em;
+  align-items: center;
+  gap: 10px;
+}
+
+.levels__name {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.levels__bar {
+  display: flex;
+  height: 14px;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--bg-inset);
+}
+
+.levels__band {
+  display: block;
+  height: 100%;
+}
+
+/*
+ * Four steps of the accent rather than four different hues. The bands are one
+ * ordered scale — how long a memory is expected to last — and giving an ordered
+ * scale unrelated colours makes the reader learn a legend to read a bar.
+ */
+.levels__band--known {
+  background: var(--accent);
+}
+
+.levels__band--familiar {
+  background: color-mix(in srgb, var(--accent) 62%, transparent);
+}
+
+.levels__band--learning {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+.levels__band--unseen {
+  background: transparent;
+}
+
+.levels__figure {
+  font-size: 0.8rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.key {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.key__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.key__swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  /* The unseen band is transparent, so it needs an outline to be a swatch. */
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.key__count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}

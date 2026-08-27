@@ -22,6 +22,11 @@ the calibration curve.
 **The old CLI's scores**, imported once from `scores.txt` — 1,117 real streaks
 out of 16,769 stored numbers, with nothing invented for the rest.
 
+**Progress.** Per-level bars — the CLI's startup dashboard — measured by
+stability rather than by a count of correct answers, so a full bar means "you
+would still know this next month" rather than "you have answered this a lot".
+Plus streaks and an eight-week activity strip.
+
 **Its own look.** The palette is measured from the icon — washi paper
 `#faf4ea`, sumi ink `#121f2e`, a vermilion seal `#d74030` — and checked for
 contrast in both themes.
@@ -31,12 +36,6 @@ Handwriting's 1.5 MB of patterns is deliberately *not* precached and is cached
 on first use instead.
 
 ## Next
-
-### Progress
-
-Per-level completion bars — the CLI's startup dashboard — plus streaks and how
-much of each level is actually held. `Tools → Scheduler` already covers how well
-aimed the schedule is; this is the other half.
 
 ### About & credits
 

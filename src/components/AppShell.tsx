@@ -20,6 +20,7 @@ import { AppMark } from './AppMark';
 import { BrowsePanel } from './BrowsePanel';
 import { ComingSoon } from './ComingSoon';
 import { SchedulerPanel } from './SchedulerPanel';
+import { ProgressPanel } from './ProgressPanel';
 import { InputMethodPanel } from './InputMethodPanel';
 import { KanjiWritingPanel } from '../quizzes/KanjiWritingPanel';
 import { FillInPanel } from '../quizzes/FillInPanel';
@@ -108,12 +109,7 @@ export function AppShell({ user }: AppShellProps) {
       case 'browse':
         return <BrowsePanel />;
       case 'progress':
-        return (
-          <ComingSoon
-            title="Progress"
-            note="How much of each level you hold, and whether the schedule is aimed correctly."
-          />
-        );
+        return <ProgressPanel user={user} />;
       case 'input':
         return <InputMethodPanel user={user} />;
       case 'about':

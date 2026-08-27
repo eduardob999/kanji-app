@@ -14,6 +14,9 @@ import type { InputMethod } from '../domain/inputMethod';
 import type { QuizMode, ReviewMode } from '../domain/modes';
 import type { PracticeResult } from '../domain/review';
 import type { ReviewRecord } from '../domain/optimiser';
+import { dayKey } from '../domain/days';
+
+export { dayKey };
 
 /**
  * Every answer, kept.
@@ -79,13 +82,6 @@ export interface ReviewEvent {
   at?: Date;
 }
 
-/** `YYYY-MM-DD` in local time, so a day boundary is the learner's midnight. */
-export function dayKey(date: Date): string {
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
 
 /**
  * Appends one answer.
