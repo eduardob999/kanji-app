@@ -88,13 +88,26 @@ stripped-down Android. Declaring the common system faces costs nothing.
 
 `npm run ui`: 52 failing screen/viewport combinations → 0.
 
+5. **Interactive states.** The harness only loaded screens, so it never saw a
+   verdict. Teaching it to answer a question and press Start found two faults
+   behind one symptom: the review log was read in the same `Promise.all` as the
+   decks, so an unreadable log killed the screen and blamed the decks; and the
+   read did not fail but *retried indefinitely*, so the `.catch` never ran and
+   the screen sat on "Working out what is due…" for ever. Log reads now time
+   out and carry on without the history.
+6. **The quiz card's rhythm.** A flex column whose spacing came from whatever
+   margin each piece happened to bring, which is why the grade line sat flush
+   against the Next button. One gap on the card, margins reset on its children.
+7. **Handwriting at 360 px.** The densest screen in the app overflowed and put
+   Check underneath the tab bar. The canvas is now bounded by viewport height
+   as well as width, and the three controls fit one row.
+
 ## Still to do
 
-- Audit the **verdict state**, which needs the harness to answer a question
-  rather than only load one.
-- The **handwriting canvas** at 360 px, where the candidate row can wrap.
 - A pass over **Today's Session** and **Progress** for whether they read well,
   which no rule can judge.
+- The **light theme** at phone width; the audit runs phones in dark and wide
+  viewports in light, so no phone-sized light screenshot exists yet.
 
 ## Verification
 

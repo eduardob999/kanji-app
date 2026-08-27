@@ -12,7 +12,42 @@ import { KanjiWritingPanel } from '../quizzes/KanjiWritingPanel';
 import { RandomPanel } from '../quizzes/RandomPanel';
 import { TodaySessionPanel } from '../quizzes/TodaySessionPanel';
 import { VocabReadingPanel } from '../quizzes/VocabReadingPanel';
+import { AnswerInput } from '../input/AnswerInput';
 import { previewUser } from './fixtures';
+
+/**
+ * The answer inputs on their own.
+ *
+ * Handwriting and multiple choice only appear once chosen in a profile, which
+ * the harness has no way to set — and they are the two most layout-sensitive
+ * things in the app: a canvas that has to stay square and a candidate row that
+ * wraps. Rendering them directly is the only way to look at them.
+ */
+function InputPreview({ method }: { method: 'handwriting' | 'choice' }) {
+  const [value, setValue] = useState('');
+  return (
+    <section className="card quiz">
+      <div className="quiz__prompt">
+        <p className="quiz__readings" lang="ja">
+          ド・ト・つち
+        </p>
+        <p className="quiz__gloss">soil; earth; ground; Turkey</p>
+      </div>
+      <AnswerInput
+        method={method}
+        value={value}
+        onChange={setValue}
+        onSubmit={() => {}}
+        disabled={false}
+        placeholder="The character"
+        {...(method === 'choice' ? { choices: ['土', '士', '工', '干'] } : {})}
+      />
+      <button type="button" className="button button--primary button--block">
+        Check
+      </button>
+    </section>
+  );
+}
 
 /**
  * A way to look at every screen without signing in.
@@ -45,6 +80,8 @@ const SCREENS = {
   input: ['Input method', () => <InputMethodPanel user={previewUser} />],
   account: ['Account', () => <AccountPanel user={previewUser} />],
   about: ['About', () => <AboutPanel />],
+  handwriting: ['Handwriting input', () => <InputPreview method="handwriting" />],
+  choice: ['Multiple choice input', () => <InputPreview method="choice" />],
   signin: ['Sign in', () => <SignInScreen />],
 } as const satisfies Record<string, readonly [string, () => React.ReactNode]>;
 

@@ -53,6 +53,7 @@ const VIEWPORTS = [
 const SCREENS = [
   'today', 'random', 'reading', 'writing', 'fill', 'audio',
   'browse', 'progress', 'scheduler', 'input', 'account', 'about', 'signin',
+  'handwriting', 'choice',
 ];
 
 /**

@@ -1281,8 +1281,14 @@ code {
  * exactly the devices handwriting is most for.
  */
 .handwriting__canvas {
-  width: min(320px, 78vw);
-  height: min(320px, 78vw);
+  /*
+   * Also bounded by the viewport's *height*, because everything else on this
+   * screen — prompt, answer, candidates, three buttons, the credit line — has
+   * to fit around it. A square that only respects width pushes the rest off a
+   * short phone.
+   */
+  width: min(320px, 78vw, 34vh);
+  height: min(320px, 78vw, 34vh);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-elevated);
@@ -1328,16 +1334,26 @@ code {
   color: var(--text-muted);
 }
 
+/*
+ * Three controls on one row at 360px. They wrapped to two, which cost a row of
+ * height on the screen that has the least to spare.
+ */
 .handwriting__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  width: 100%;
+}
+
+.handwriting__actions .button {
+  padding: 10px 4px;
+  font-size: 0.8rem;
+  white-space: nowrap;
 }
 
 .handwriting__credit {
   margin: 4px 0 0;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   text-align: center;
 }
@@ -1699,7 +1715,15 @@ code {
 .content:has(.quiz) {
   flex: 1;
   min-height: 0;
-  grid-template-rows: minmax(0, 1fr);
+  /*
+   * `min-content` rather than 0 as the floor. With 0 the row was free to be
+   * shorter than the card, so a screen with more in it than fits — handwriting
+   * on a 360x780 phone, where a canvas and five controls follow the prompt —
+   * overflowed instead of scrolling, and the Check button ended up underneath
+   * the tab bar. This still fills the height when there is room and grows the
+   * page when there is not.
+   */
+  grid-template-rows: minmax(min-content, 1fr);
 }
 
 .quiz {
