@@ -4,6 +4,8 @@ import type { QuizMode } from '../domain/modes';
 import { countDue } from '../domain/sessionPlanner';
 import { useJapaneseVoice } from '../hooks/useJapaneseVoice';
 import { useReviewStates } from '../hooks/useReviewStates';
+import { useUserProfile } from '../hooks/useUserProfile';
+import { LegacyImport } from '../components/LegacyImport';
 import { QuizFrame } from './QuizFrame';
 import { loadQuizSource } from './source';
 
@@ -29,6 +31,7 @@ const WITHOUT_VOICE: readonly QuizMode[] = ['vocab-reading', 'kanji-writing', 'f
 export function TodaySessionPanel({ user }: { user: User }) {
   const { voice, checking } = useJapaneseVoice();
   const { lookup, loading: statesLoading } = useReviewStates(user);
+  const { profile } = useUserProfile(user);
 
   const [started, setStarted] = useState(false);
   const [counts, setCounts] = useState<{ due: number; unseen: number } | null>(null);
@@ -94,6 +97,19 @@ export function TodaySessionPanel({ user }: { user: User }) {
               <span className="tally__label">not yet seen</span>
             </div>
           </div>
+
+          {/*
+            The one-time import, offered here rather than only on the Account
+            screen. It is a thing you do once, on the first day, and burying it
+            two taps into Tools means starting from zero without ever knowing
+            there was an alternative. It disappears for good once run.
+          */}
+          {profile && !profile.kanjiba.legacyScoresImportedAt ? (
+            <div className="notice notice--muted">
+              <strong>Coming from the old command-line app?</strong>
+              <LegacyImport user={user} />
+            </div>
+          ) : null}
 
           {counts.due === 0 ? (
             <p className="card__body">

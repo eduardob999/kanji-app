@@ -18,7 +18,7 @@ import { EMPTY_MODEL } from '../storage/modelState';
 import { AccountPanel } from './AccountPanel';
 import { AppMark } from './AppMark';
 import { BrowsePanel } from './BrowsePanel';
-import { ComingSoon } from './ComingSoon';
+import { AboutPanel } from './AboutPanel';
 import { SchedulerPanel } from './SchedulerPanel';
 import { ProgressPanel } from './ProgressPanel';
 import { InputMethodPanel } from './InputMethodPanel';
@@ -113,12 +113,7 @@ export function AppShell({ user }: AppShellProps) {
       case 'input':
         return <InputMethodPanel user={user} />;
       case 'about':
-        return (
-          <ComingSoon
-            title="About & credits"
-            note="The data this app is built on, and the licences it ships under."
-          />
-        );
+        return <AboutPanel />;
     }
   }
 

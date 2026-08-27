@@ -1421,3 +1421,70 @@ code {
   font-variant-numeric: tabular-nums;
   color: var(--text);
 }
+
+/* About ------------------------------------------------------------------- */
+
+.about__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.about__version {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.about__version a,
+.credit__who a,
+.card__hint a {
+  color: var(--accent-soft);
+}
+
+.credits {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.credit {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.credit__what {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.credit__who {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 2px 0 4px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* The licence is the load-bearing part of a credit, so it is always visible. */
+.credit__licence {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-inset);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.credit__note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}

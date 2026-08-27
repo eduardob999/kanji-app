@@ -27,6 +27,9 @@ stability rather than by a count of correct answers, so a full bar means "you
 would still know this next month" rather than "you have answered this a lot".
 Plus streaks and an eight-week activity strip.
 
+**About & credits**, carrying the attribution the licences require to the
+people actually using the app, plus a plain statement of what is stored where.
+
 **Its own look.** The palette is measured from the icon — washi paper
 `#faf4ea`, sumi ink `#121f2e`, a vermilion seal `#d74030` — and checked for
 contrast in both themes.
@@ -36,12 +39,6 @@ Handwriting's 1.5 MB of patterns is deliberately *not* precached and is cached
 on first use instead.
 
 ## Next
-
-### About & credits
-
-`LICENSES.md` covers the legal obligation, but the app itself should say where
-its sentences and stroke data come from somewhere other than the handwriting
-panel's footer.
 
 ### Leeches
 

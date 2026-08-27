@@ -93,8 +93,13 @@ function serviceWorkerManifest(): Plugin {
   };
 }
 
+const version = JSON.parse(readFileSync(resolve(import.meta.dirname, 'package.json'), 'utf8')).version;
+
 export default defineConfig({
   base,
+  // So the About screen states the shipped version rather than a number kept in
+  // step by hand, which is a number that eventually is not.
+  define: { __APP_VERSION__: JSON.stringify(version) },
   plugins: [react(), serviceWorkerManifest()],
   build: {
     target: 'es2022',
