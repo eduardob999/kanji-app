@@ -1,26 +1,33 @@
 /**
- * The app's mark: 十 in a writing frame, matching public/icons.
+ * The app's mark.
  *
- * Drawn as rectangles rather than set as text. A CJK glyph in an SVG `<text>`
- * depends on the viewer having a Japanese font installed and falls back to a
- * tofu box when they do not — which is precisely the audience most likely to be
- * setting one up for the first time.
+ * Renders the icon itself rather than a hand-drawn approximation of it. An
+ * earlier version drew 十 out of SVG rectangles, which was the right answer
+ * when there was no artwork and the wrong one now: a brushed 漢 cannot be
+ * reproduced with rectangles, and a mark that merely resembles the icon is a
+ * mark that drifts from it.
+ *
+ * The file is already precached as part of the PWA icon set, so this costs
+ * nothing extra and is available offline.
  */
+// Resolved against Vite's build-time base, which is the Pages sub-path — the
+// same two-step the deck and sentence loaders use.
+const SRC = new URL(
+  'icons/icon-192.png',
+  new URL(import.meta.env.BASE_URL, window.location.href),
+).toString();
+
 export function AppMark({ size = 56 }: { size?: number }) {
   return (
-    <svg
+    <img
       className="app-mark"
+      src={SRC}
       width={size}
       height={size}
-      viewBox="0 0 64 64"
-      role="img"
-      aria-label="Kanjiba"
-    >
-      <rect width="64" height="64" rx="14" fill="#12131f" />
-      <rect x="10" y="10" width="44" height="44" fill="none" stroke="#3a3e60" strokeWidth="2.6" />
-      {/* The horizontal sits above the midpoint; centre it and this is a plus sign. */}
-      <rect x="16.6" y="27.4" width="30.8" height="5.2" fill="#5b6ee1" />
-      <rect x="29.4" y="13.9" width="5.2" height="36.2" fill="#5b6ee1" />
-    </svg>
+      alt="Kanjiba"
+      // Decorative wherever it sits beside the app's name; the alt text carries
+      // it where it stands alone.
+      draggable={false}
+    />
   );
 }

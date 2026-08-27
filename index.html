@@ -10,7 +10,12 @@
     />
 
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#5b6ee1" />
+    <!--
+      Two, so the browser chrome matches whichever theme is in use: washi paper
+      in light, the ink ground in dark.
+    -->
+    <meta name="theme-color" content="#faf4ea" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#101a24" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

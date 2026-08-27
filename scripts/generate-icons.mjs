@@ -1,43 +1,127 @@
 /**
- * Generates the PWA icon set — no image tooling, no binary blobs in git.
+ * Builds the PWA icon set from `data/icon-source.png`.
  *
- * A 十 inside a writing frame, which is about as much kanji as can be drawn
- * with axis-aligned rectangles and still read at 48 pixels. Deliberately not a
- * glyph rendered from a font: that would mean shipping a CJK font or depending
- * on whatever the build machine happens to have installed, and the two produce
- * different icons.
+ * Run with `npm run icons`. Replaces an earlier version that drew 十 out of
+ * rectangles because there was no artwork; there is now.
  *
- * These are real, valid PNGs at the right sizes, so the manifest passes install
- * checks today. Replace public/icons/* with proper artwork when you have it,
- * keeping the same filenames and sizes, or edit the drawing below and re-run
- * `npm run icons`.
+ * ## No image library
+ *
+ * There is no `sharp`, no ImageMagick and no PIL here, and adding a native
+ * dependency for four resizes that run once in a blue moon is a poor trade. So
+ * this decodes the PNG, resamples it and encodes the results itself. Node
+ * supplies the only hard part, zlib; the rest is scanline filtering and a box
+ * filter.
+ *
+ * The source is 214x200 — not square, and icons must be. It is padded with its
+ * own background colour, sampled from the corners rather than assumed, so the
+ * padding is invisible.
  */
-import { deflateSync } from 'node:zlib';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { deflateSync, inflateSync } from 'node:zlib';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const OUT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../public/icons');
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const SOURCE = resolve(ROOT, 'data/icon-source.png');
+const OUT_DIR = resolve(ROOT, 'public/icons');
 
-/** Rendering happens at 3x and is averaged down, which stands in for anti-aliasing. */
-const SUPERSAMPLE = 3;
+/* --- PNG decoding --------------------------------------------------------- */
 
-const COLOURS = {
-  background: [18, 19, 31],
-  /** The writing frame, as on genkou youshi manuscript paper. */
-  frame: [58, 62, 96],
-  stroke: [91, 110, 225],
-};
+/**
+ * Decodes an 8-bit PNG to RGBA.
+ *
+ * Handles the five scanline filters, which is the whole of the format once the
+ * IDAT chunks are inflated. Interlaced and 16-bit files are rejected rather
+ * than half-supported — this reads one known file.
+ */
+function decodePng(buffer) {
+  if (buffer.readUInt32BE(0) !== 0x89504e47) throw new Error('Not a PNG.');
 
-// PNG encoding ---------------------------------------------------------------
+  const width = buffer.readUInt32BE(16);
+  const height = buffer.readUInt32BE(20);
+  const depth = buffer[24];
+  const colourType = buffer[25];
+  const interlace = buffer[28];
+
+  if (depth !== 8) throw new Error(`Only 8-bit PNGs are supported (got ${depth}).`);
+  if (interlace !== 0) throw new Error('Interlaced PNGs are not supported.');
+
+  const channels = { 0: 1, 2: 3, 4: 2, 6: 4 }[colourType];
+  if (!channels) throw new Error(`Unsupported colour type ${colourType}.`);
+
+  const idat = [];
+  let offset = 8;
+  while (offset < buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const tag = buffer.toString('ascii', offset + 4, offset + 8);
+    if (tag === 'IDAT') idat.push(buffer.subarray(offset + 8, offset + 8 + length));
+    if (tag === 'IEND') break;
+    offset += 12 + length;
+  }
+
+  const raw = inflateSync(Buffer.concat(idat));
+  const stride = width * channels;
+  const rgba = Buffer.alloc(width * height * 4);
+
+  let previous = Buffer.alloc(stride);
+  let read = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    const filter = raw[read];
+    read += 1;
+    const line = Buffer.from(raw.subarray(read, read + stride));
+    read += stride;
+
+    for (let i = 0; i < stride; i += 1) {
+      const left = i >= channels ? line[i - channels] : 0;
+      const up = previous[i];
+      const upLeft = i >= channels ? previous[i - channels] : 0;
+      let value = line[i];
+
+      if (filter === 1) value += left;
+      else if (filter === 2) value += up;
+      else if (filter === 3) value += (left + up) >> 1;
+      else if (filter === 4) {
+        // Paeth: pick whichever neighbour the gradient predictor is closest to.
+        const predicted = left + up - upLeft;
+        const dLeft = Math.abs(predicted - left);
+        const dUp = Math.abs(predicted - up);
+        const dUpLeft = Math.abs(predicted - upLeft);
+        value += dLeft <= dUp && dLeft <= dUpLeft ? left : dUp <= dUpLeft ? up : upLeft;
+      }
+
+      line[i] = value & 0xff;
+    }
+
+    previous = line;
+
+    for (let x = 0; x < width; x += 1) {
+      const from = x * channels;
+      const to = (y * width + x) * 4;
+      if (channels >= 3) {
+        rgba[to] = line[from];
+        rgba[to + 1] = line[from + 1];
+        rgba[to + 2] = line[from + 2];
+        rgba[to + 3] = channels === 4 ? line[from + 3] : 255;
+      } else {
+        rgba[to] = line[from];
+        rgba[to + 1] = line[from];
+        rgba[to + 2] = line[from];
+        rgba[to + 3] = channels === 2 ? line[from + 1] : 255;
+      }
+    }
+  }
+
+  return { width, height, data: rgba };
+}
+
+/* --- PNG encoding --------------------------------------------------------- */
 
 const CRC_TABLE = (() => {
   const table = new Int32Array(256);
   for (let n = 0; n < 256; n += 1) {
     let c = n;
-    for (let k = 0; k < 8; k += 1) {
-      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    }
+    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
     table[n] = c;
   }
   return table;
@@ -45,21 +129,16 @@ const CRC_TABLE = (() => {
 
 function crc32(buffer) {
   let crc = 0xffffffff;
-  for (const byte of buffer) {
-    crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
-  }
+  for (const byte of buffer) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
   return (crc ^ 0xffffffff) >>> 0;
 }
 
 function chunk(type, data) {
   const length = Buffer.alloc(4);
   length.writeUInt32BE(data.length);
-
   const typeBytes = Buffer.from(type, 'ascii');
-
   const crc = Buffer.alloc(4);
   crc.writeUInt32BE(crc32(Buffer.concat([typeBytes, data])));
-
   return Buffer.concat([length, typeBytes, data, crc]);
 }
 
@@ -67,13 +146,9 @@ function encodePng(size, rgba) {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(size, 0);
   header.writeUInt32BE(size, 4);
-  header[8] = 8; // bit depth
-  header[9] = 6; // colour type: RGBA
-  header[10] = 0; // deflate
-  header[11] = 0; // adaptive filtering
-  header[12] = 0; // no interlacing
+  header[8] = 8;
+  header[9] = 6;
 
-  // Each scanline is prefixed with filter type 0 (none).
   const stride = size * 4;
   const raw = Buffer.alloc((stride + 1) * size);
   for (let y = 0; y < size; y += 1) {
@@ -89,133 +164,145 @@ function encodePng(size, rgba) {
   ]);
 }
 
-// Drawing --------------------------------------------------------------------
+/* --- Resampling ----------------------------------------------------------- */
 
-function createCanvas(size) {
-  return { size, data: Buffer.alloc(size * size * 4) };
+/** The paper colour, taken from the corners rather than assumed. */
+function backgroundOf(image) {
+  const { width, height, data } = image;
+  const corners = [
+    [2, 2],
+    [width - 3, 2],
+    [2, height - 3],
+    [width - 3, height - 3],
+  ];
+
+  const sum = [0, 0, 0];
+  for (const [x, y] of corners) {
+    const at = (y * width + x) * 4;
+    sum[0] += data[at];
+    sum[1] += data[at + 1];
+    sum[2] += data[at + 2];
+  }
+
+  return sum.map((total) => Math.round(total / corners.length));
 }
 
-function setPixel(canvas, x, y, [r, g, b]) {
-  if (x < 0 || y < 0 || x >= canvas.size || y >= canvas.size) return;
-  const offset = (y * canvas.size + x) * 4;
-  canvas.data[offset] = r;
-  canvas.data[offset + 1] = g;
-  canvas.data[offset + 2] = b;
-  canvas.data[offset + 3] = 255;
-}
+/** Pads to a square of `side`, centring the artwork on the paper colour. */
+function pad(image, side, background) {
+  const out = Buffer.alloc(side * side * 4);
+  for (let i = 0; i < side * side; i += 1) {
+    out[i * 4] = background[0];
+    out[i * 4 + 1] = background[1];
+    out[i * 4 + 2] = background[2];
+    out[i * 4 + 3] = 255;
+  }
 
-function fillRect(canvas, x, y, width, height, colour) {
-  const x0 = Math.round(x);
-  const y0 = Math.round(y);
-  const x1 = Math.round(x + width);
-  const y1 = Math.round(y + height);
+  const offsetX = Math.round((side - image.width) / 2);
+  const offsetY = Math.round((side - image.height) / 2);
 
-  for (let py = y0; py < y1; py += 1) {
-    for (let px = x0; px < x1; px += 1) {
-      setPixel(canvas, px, py, colour);
+  for (let y = 0; y < image.height; y += 1) {
+    const targetY = y + offsetY;
+    if (targetY < 0 || targetY >= side) continue;
+    for (let x = 0; x < image.width; x += 1) {
+      const targetX = x + offsetX;
+      if (targetX < 0 || targetX >= side) continue;
+
+      const from = (y * image.width + x) * 4;
+      const to = (targetY * side + targetX) * 4;
+      // Composite over the paper, so a source with transparency does not punch
+      // holes in the icon.
+      const alpha = image.data[from + 3] / 255;
+      for (let c = 0; c < 3; c += 1) {
+        out[to + c] = Math.round(image.data[from + c] * alpha + background[c] * (1 - alpha));
+      }
+      out[to + 3] = 255;
     }
   }
+
+  return { width: side, height: side, data: out };
 }
 
 /**
- * A writing frame with 十 in it.
+ * Box-filter resample.
  *
- * `contentScale` is the fraction of the canvas the frame occupies. Maskable
- * icons pass a smaller value so the drawing survives an aggressive circular
- * crop.
+ * Averaging every source pixel that falls inside a destination pixel, rather
+ * than picking the nearest one. Brush strokes taper to a hair at the ends and
+ * nearest-neighbour drops those entirely, which at 192px turns a brushed 漢
+ * into a broken one.
  */
-function drawIcon(size, contentScale) {
-  const canvas = createCanvas(size);
-  fillRect(canvas, 0, 0, size, size, COLOURS.background);
+function resample(image, side) {
+  const out = Buffer.alloc(side * side * 4);
+  const scaleX = image.width / side;
+  const scaleY = image.height / side;
 
-  const box = size * contentScale;
-  const x0 = (size - box) / 2;
-  const y0 = (size - box) / 2;
+  for (let y = 0; y < side; y += 1) {
+    const y0 = Math.floor(y * scaleY);
+    const y1 = Math.max(y0 + 1, Math.floor((y + 1) * scaleY));
 
-  // The frame, drawn as four bars rather than a filled square over the
-  // background, so the icon stays correct if the background ever goes
-  // transparent.
-  const rule = Math.max(1, size * 0.022);
-  fillRect(canvas, x0, y0, box, rule, COLOURS.frame);
-  fillRect(canvas, x0, y0 + box - rule, box, rule, COLOURS.frame);
-  fillRect(canvas, x0, y0, rule, box, COLOURS.frame);
-  fillRect(canvas, x0 + box - rule, y0, rule, box, COLOURS.frame);
+    for (let x = 0; x < side; x += 1) {
+      const x0 = Math.floor(x * scaleX);
+      const x1 = Math.max(x0 + 1, Math.floor((x + 1) * scaleX));
 
-  // 十. The horizontal sits above the midpoint and the vertical is the longer
-  // of the two — centre the crossing and even the lengths up, and it stops
-  // being a character and becomes a plus sign.
-  const weight = box * 0.12;
-  const horizontal = box * 0.72;
-  const vertical = box * 0.74;
-  const crossY = y0 + box * 0.45;
-
-  fillRect(
-    canvas,
-    x0 + (box - horizontal) / 2,
-    crossY - weight / 2,
-    horizontal,
-    weight,
-    COLOURS.stroke,
-  );
-  fillRect(
-    canvas,
-    x0 + box / 2 - weight / 2,
-    y0 + (box - vertical) / 2,
-    weight,
-    vertical,
-    COLOURS.stroke,
-  );
-
-  return canvas;
-}
-
-function downsample(canvas, targetSize) {
-  const factor = canvas.size / targetSize;
-  const out = createCanvas(targetSize);
-
-  for (let y = 0; y < targetSize; y += 1) {
-    for (let x = 0; x < targetSize; x += 1) {
       let r = 0;
       let g = 0;
       let b = 0;
+      let n = 0;
 
-      for (let sy = 0; sy < factor; sy += 1) {
-        for (let sx = 0; sx < factor; sx += 1) {
-          const offset = ((y * factor + sy) * canvas.size + (x * factor + sx)) * 4;
-          r += canvas.data[offset];
-          g += canvas.data[offset + 1];
-          b += canvas.data[offset + 2];
+      for (let sy = y0; sy < Math.min(y1, image.height); sy += 1) {
+        for (let sx = x0; sx < Math.min(x1, image.width); sx += 1) {
+          const at = (sy * image.width + sx) * 4;
+          r += image.data[at];
+          g += image.data[at + 1];
+          b += image.data[at + 2];
+          n += 1;
         }
       }
 
-      const samples = factor * factor;
-      setPixel(out, x, y, [
-        Math.round(r / samples),
-        Math.round(g / samples),
-        Math.round(b / samples),
-      ]);
+      const to = (y * side + x) * 4;
+      out[to] = Math.round(r / n);
+      out[to + 1] = Math.round(g / n);
+      out[to + 2] = Math.round(b / n);
+      out[to + 3] = 255;
     }
   }
 
-  return out;
+  return { width: side, height: side, data: out };
 }
 
-function writeIcon(filename, size, contentScale) {
-  const rendered = drawIcon(size * SUPERSAMPLE, contentScale);
-  const final = downsample(rendered, size);
-  const path = resolve(OUT_DIR, filename);
+/* --- Build ---------------------------------------------------------------- */
 
-  writeFileSync(path, encodePng(size, final.data));
-  console.log(`  ${filename}  (${size}x${size})`);
+const source = decodePng(readFileSync(SOURCE));
+const background = backgroundOf(source);
+const hex = `#${background.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+
+// Square first, at the source's own resolution, then down to each target. The
+// artwork already carries its own margin, so `any` icons use it as-is.
+const square = pad(source, Math.max(source.width, source.height), background);
+
+/**
+ * Maskable icons are cropped to a circle inscribed in the middle 80%, and
+ * anything in the corners is liable to be cut. The artwork is scaled into the
+ * middle and the rest is paper.
+ */
+function maskable(side, contentScale) {
+  const inner = resample(square, Math.round(side * contentScale));
+  return pad(inner, side, background);
 }
 
 mkdirSync(OUT_DIR, { recursive: true });
 
-console.log('Generating icons in public/icons:');
-writeIcon('icon-192.png', 192, 0.78);
-writeIcon('icon-512.png', 512, 0.78);
-// Maskable icons get cropped to a circle inscribed in the middle 80%, so the
-// drawing is pulled well inside that.
-writeIcon('maskable-512.png', 512, 0.52);
-writeIcon('apple-touch-icon.png', 180, 0.78);
-console.log('Done. Replace these with real artwork when you have it.');
+console.log(`Source ${source.width}x${source.height}, paper ${hex}`);
+
+for (const [name, size] of [
+  ['icon-192.png', 192],
+  ['icon-512.png', 512],
+  ['apple-touch-icon.png', 180],
+]) {
+  writeFileSync(resolve(OUT_DIR, name), encodePng(size, resample(square, size).data));
+  console.log(`  ${name.padEnd(22)} ${size}x${size}`);
+}
+
+writeFileSync(resolve(OUT_DIR, 'maskable-512.png'), encodePng(512, maskable(512, 0.68).data));
+console.log(`  ${'maskable-512.png'.padEnd(22)} 512x512  (inset for the safe zone)`);
+
+console.log(`\nPaper colour ${hex} — keep the manifest and theme-color in step with it.`);

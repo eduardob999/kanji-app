@@ -81,8 +81,15 @@ export function HandwritingInput({ value, onChange, onSubmit, disabled }: Answer
 
     // The writing frame: centre lines, as on genkou youshi. Faint enough not to
     // be mistaken for part of what you drew.
+    // Read from the stylesheet rather than hardcoded, so the canvas follows the
+    // theme like everything else — it is the one surface painted imperatively.
+    const styles = getComputedStyle(canvas);
+    const ink = styles.getPropertyValue('--text').trim() || '#f3ece0';
+    const guide = styles.getPropertyValue('--text-muted').trim() || '#97a6b3';
+
     ctx.save();
-    ctx.strokeStyle = 'rgba(148, 155, 184, 0.35)';
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = guide;
     ctx.setLineDash([6, 8]);
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -93,7 +100,7 @@ export function HandwritingInput({ value, onChange, onSubmit, disabled }: Answer
     ctx.stroke();
     ctx.restore();
 
-    ctx.strokeStyle = '#f2f4ff';
+    ctx.strokeStyle = ink;
     ctx.lineWidth = LINE_WIDTH;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';

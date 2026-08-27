@@ -22,16 +22,15 @@ the calibration curve.
 **The old CLI's scores**, imported once from `scores.txt` — 1,117 real streaks
 out of 16,769 stored numbers, with nothing invented for the rest.
 
+**Its own look.** The palette is measured from the icon — washi paper
+`#faf4ea`, sumi ink `#121f2e`, a vermilion seal `#d74030` — and checked for
+contrast in both themes.
+
 **Offline.** ~3.4 MB precached: the bundle, the decks and the sentence packs.
 Handwriting's 1.5 MB of patterns is deliberately *not* precached and is cached
 on first use instead.
 
 ## Next
-
-### The icon
-
-Waiting on `data/icon-source.png`. Everything else is in place:
-`scripts/generate-icons.mjs` currently draws 十 out of rectangles.
 
 ### Progress
 

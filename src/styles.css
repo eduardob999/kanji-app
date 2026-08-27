@@ -1,28 +1,44 @@
 /*
- * Tokens and shell styles, carried over from GHAPP (eduardob999/GHAPP) so the
- * two apps feel like siblings: same surface levels, same radii, same focus
- * ring.
+ * Tokens, taken from the app icon: sumi ink on washi paper, with a vermilion
+ * seal dot.
  *
- * The accent is the one deliberate difference. GHAPP's violet is close enough
- * to red that it would fight the correct/incorrect feedback this app leans on
- * constantly, so this one is indigo — 藍 — leaving green and red free to mean
- * only one thing each.
+ * The icon's three colours are measured from the artwork rather than guessed --
+ * paper #faf4ea, ink #121f2e, seal #d74030 -- and they do the work here:
+ *
+ *   - **Ink is the accent.** In the icon the character *is* the navy; the paper
+ *     is ground and the dot is punctuation. So buttons, active tabs and focus
+ *     rings are ink, which is what makes the app look like its own icon.
+ *   - **Vermilion means marked wrong, and nothing else.** An earlier version of
+ *     this file used indigo as the accent specifically to keep red free for
+ *     incorrect answers, and that constraint has not gone away -- it is
+ *     satisfied differently now. Red as the accent would have put the app's
+ *     primary button in the same colour as "you got that wrong". Reserving it
+ *     also happens to be the Japanese convention: 赤ペン is the marking pen.
+ *   - **Green stays for correct**, the one colour not in the icon, because two
+ *     verdicts that differ only in saturation are not two verdicts.
+ *
+ * Dark is the base and light is the override, inherited from GHAPP. Dark is the
+ * same paper and ink swapped: ink becomes the ground, cream becomes the
+ * writing, and the accent is ink diluted enough to read against it.
  */
 :root {
-  --accent: #5b6ee1;
-  --accent-soft: #8b9bf0;
+  /* Sumi diluted, so it reads as ink against an ink ground. */
+  --accent: #7fa9d6;
+  --accent-soft: #a9c6e4;
   /* Accent at low alpha, for active pills and washes. */
-  --accent-wash: rgba(91, 110, 225, 0.18);
-  --bg: #12131f;
-  --bg-elevated: #1a1c2e;
+  --accent-wash: rgba(127, 169, 214, 0.16);
+  --bg: #101a24;
+  --bg-elevated: #17242f;
   /* One level deeper than elevated: insets, diagram plates, empty meters. */
-  --bg-inset: #23263c;
-  --border: rgba(255, 255, 255, 0.07);
-  --text: #f2f4ff;
-  --text-muted: #949bb8;
+  --bg-inset: #1e2f3d;
+  --border: rgba(249, 243, 232, 0.1);
+  /* The paper colour, used as the writing. */
+  --text: #f3ece0;
+  --text-muted: #97a6b3;
   --ok: #4ade80;
-  --pending: #fbbf24;
-  --error: #fb7185;
+  --pending: #e0a33a;
+  /* The seal, lightened to carry on a dark ground. */
+  --error: #ef7360;
   --radius: 20px;
   --radius-sm: 12px;
   --radius-pill: 999px;
@@ -32,18 +48,28 @@
 
 @media (prefers-color-scheme: light) {
   :root {
-    --accent: #4356c8;
-    --accent-soft: #3546ad;
-    --accent-wash: rgba(67, 86, 200, 0.1);
-    --bg: #f6f7fc;
-    --bg-elevated: #ffffff;
-    --bg-inset: #dfe2f1;
-    --border: rgba(20, 23, 42, 0.09);
-    --text: #14172a;
-    --text-muted: #5d617e;
+    /* Full-strength sumi: this is the icon, as drawn. */
+    --accent: #1b3550;
+    --accent-soft: #40628a;
+    --accent-wash: rgba(27, 53, 80, 0.1);
+    /* Washi, sampled from the artwork's corners. */
+    --bg: #faf4ea;
+    --bg-elevated: #fffdf7;
+    --bg-inset: #f0e7d7;
+    --border: rgba(18, 31, 46, 0.12);
+    --text: #121f2e;
+    --text-muted: #5b6a78;
     --ok: #15803d;
-    --pending: #b45309;
-    --error: #dc2626;
+    --pending: #a86412;
+    /*
+     * The seal, taken down a tenth from the icon's own #d74030.
+     *
+     * At full strength it measures 4.11 against the page and 4.43 against a
+     * card, either side of WCAG AA's 4.5 for body text — and this colour is not
+     * decoration, it is the word "incorrect". Darkening it clears 4.88 and 5.25
+     * while staying visibly the same vermilion.
+     */
+    --error: #c23a2b;
   }
 }
 
@@ -148,8 +174,12 @@ code {
 }
 
 .app-mark {
-  border-radius: 14px;
-  box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
+  display: block;
+  border-radius: var(--radius-sm);
+  /* The artwork carries its own paper, so it needs a boundary against a
+     surface of a different colour. */
+  box-shadow: 0 0 0 1px var(--border);
+  user-select: none;
 }
 
 .signin__title {
