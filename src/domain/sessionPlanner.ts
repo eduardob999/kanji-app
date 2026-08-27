@@ -171,9 +171,18 @@ export function planSession(
 
   // Most overdue first.
   due.sort((a, b) => b.overdueDays - a.overdueDays);
-  // Easiest unseen material first; candidate order breaks ties, so the result
-  // is stable for a stable input.
-  fresh.sort((a, b) => levelRank(a.level) - levelRank(b.level));
+  // Easiest unseen material first, and within a level the most useful first.
+  //
+  // `rank` is the item's place in its level's introduction queue, ordered by how
+  // often it actually appears in Japanese. Before it existed the tie-break was
+  // deck order, which was the order of the source CSV — arbitrary, and at eight
+  // new items a day it decided what a learner spent most of a year on. Decks
+  // built without frequency data have no rank and fall back to that order.
+  fresh.sort(
+    (a, b) =>
+      levelRank(a.level) - levelRank(b.level) ||
+      (a.item.rank ?? Number.MAX_SAFE_INTEGER) - (b.item.rank ?? Number.MAX_SAFE_INTEGER),
+  );
 
   const chosen: PlannedQuestion[] = [];
   const perGroup = new Map<string, number>();

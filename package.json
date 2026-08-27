@@ -17,7 +17,8 @@
     "decks": "node scripts/build-decks.mjs",
     "sentences": "node scripts/build-sentences.mjs",
     "migrate": "node scripts/migrate-scores.mjs",
-    "strokes": "node scripts/build-strokes.mjs"
+    "strokes": "node scripts/build-strokes.mjs",
+    "frequency": "node scripts/build-frequency.mjs"
   },
   "dependencies": {
     "firebase": "^12.17.1",

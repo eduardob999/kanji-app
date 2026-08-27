@@ -8,8 +8,8 @@ import { countDue, planSession, type Candidate } from './sessionPlanner';
 const NOW = new Date('2026-08-26T09:00:00Z');
 const DAY = 86_400_000;
 
-function vocab(id: string): VocabItem {
-  return { id, word: id, reading: 'よみ', meaning: 'meaning' };
+function vocab(id: string, rank?: number): VocabItem {
+  return { id, word: id, reading: 'よみ', meaning: 'meaning', ...(rank ? { rank } : {}) };
 }
 
 function candidate(id: string, level: Level, quiz: QuizMode = 'vocab-reading'): Candidate {
@@ -57,6 +57,44 @@ describe('planSession', () => {
   it('includes an item due exactly now', () => {
     const lookup = lookupFrom({ a: state('a', 0) });
     expect(planSession([candidate('a', '5')], lookup, NOW)).toHaveLength(1);
+  });
+
+  it('introduces the most useful material in a level first', () => {
+    // Within a level the tie-break used to be the source CSV's order, which was
+    // arbitrary — and at eight new items a day it decided what a learner spent
+    // most of a year on.
+    const candidates: Candidate[] = [
+      { quiz: 'vocab-reading', item: vocab('rare', 900), level: '5' },
+      { quiz: 'vocab-reading', item: vocab('common', 1), level: '5' },
+      { quiz: 'vocab-reading', item: vocab('middling', 50), level: '5' },
+    ];
+
+    const plan = planSession(candidates, NONE, NOW, { maxPerGroup: 10 });
+
+    expect(plan.map((q) => q.item.id)).toEqual(['common', 'middling', 'rare']);
+  });
+
+  it('still puts an easier level ahead of a more useful item in a harder one', () => {
+    // Frequency orders *within* a level; it does not reorder the levels.
+    const candidates: Candidate[] = [
+      { quiz: 'vocab-reading', item: vocab('commonN1', 1), level: '1a' },
+      { quiz: 'vocab-reading', item: vocab('rareN5', 900), level: '5' },
+    ];
+
+    const plan = planSession(candidates, NONE, NOW, { maxPerGroup: 10 });
+
+    expect(plan.map((q) => q.item.id)).toEqual(['rareN5', 'commonN1']);
+  });
+
+  it('falls back to deck order when the decks carry no frequency data', () => {
+    const candidates: Candidate[] = [
+      { quiz: 'vocab-reading', item: vocab('first'), level: '5' },
+      { quiz: 'vocab-reading', item: vocab('second'), level: '5' },
+    ];
+
+    const plan = planSession(candidates, NONE, NOW, { maxPerGroup: 10 });
+
+    expect(plan.map((q) => q.item.id)).toEqual(['first', 'second']);
   });
 
   it('introduces unseen material easiest level first', () => {

@@ -61,6 +61,15 @@ export interface KanjiItem {
   /** On and kun readings, already split. A dot marks the okurigana boundary. */
   readings: string[];
   meaning: string;
+  /**
+   * Where this sits in its level's introduction queue, 1 first.
+   *
+   * Ordered by how often the thing actually appears in Japanese, measured over
+   * the Tatoeba corpus by `scripts/build-frequency.mjs`. Absent only if the
+   * decks were built without frequency data, in which case the planner falls
+   * back to deck order.
+   */
+  rank?: number;
 }
 
 export interface VocabItem {
@@ -86,6 +95,15 @@ export interface VocabItem {
    * scripts/build-decks.mjs.
    */
   accepts?: string[];
+  /**
+   * Where this sits in its level's introduction queue, 1 first.
+   *
+   * Ordered by how often the thing actually appears in Japanese, measured over
+   * the Tatoeba corpus by `scripts/build-frequency.mjs`. Absent only if the
+   * decks were built without frequency data, in which case the planner falls
+   * back to deck order.
+   */
+  rank?: number;
 }
 
 export type StudyItem = KanjiItem | VocabItem;

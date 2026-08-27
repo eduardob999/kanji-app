@@ -19,7 +19,7 @@
  *      review effort spent on the CSV's history rather than on Japanese. See
  *      `dedupe` below for what is kept.
  */
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -192,6 +192,77 @@ function dedupe(entries) {
   return { entries: [...byKey.values()], merged };
 }
 
+/* --- Introduction order --------------------------------------------------- */
+
+/**
+ * How far apart to push two entries that share a written form.
+ *
+ * Frequency alone puts them adjacent — the two readings of 分 have identical
+ * counts, so they sort together — and introducing まいげつ and まいつき on the
+ * same day is the most confusable possible pairing at the worst possible
+ * moment.
+ *
+ * Twenty places within a level is a couple of weeks apart at the default rate:
+ * long enough for the first reading to have been answered several times before
+ * the second turns up.
+ */
+const SAME_SURFACE_SPACING = 20;
+
+/**
+ * Assigns each item its place in the introduction queue *for its level*.
+ *
+ * Ordered by how often the thing actually appears in Japanese, because within a
+ * level the previous order was whatever the CSV happened to be in — and at
+ * eight new items a day, N3 vocabulary alone is 194 days, so that arbitrary
+ * order decided what a learner spent most of a year on.
+ *
+ * **Per level, not globally**, and that distinction is the whole reason the
+ * spacing below works. Ranking the whole corpus at once put 金/かね and 金/きん
+ * thirty global ranks apart — but the planner introduces within a level, and
+ * only eight of those thirty items were in N3, so they arrived eight apart. In
+ * the queue that actually exists, the gap has to be measured in the queue that
+ * actually exists.
+ *
+ * Items the corpus never attests keep a rank, at the end. They are not dropped:
+ * an absence in a 249,000-sentence corpus of everyday speech means "rare", not
+ * "not a word".
+ */
+function assignRanks(items, counts, surfaceOf) {
+  const scored = items.map((item, order) => ({
+    item,
+    count: counts[surfaceOf(item)] ?? 0,
+    order,
+  }));
+
+  // Commonest first; the original order breaks ties so the result is stable.
+  scored.sort((a, b) => b.count - a.count || a.order - b.order);
+
+  const seenSurface = new Map();
+  const placed = scored.map((entry, position) => {
+    const surface = surfaceOf(entry.item);
+    const seen = seenSurface.get(surface) ?? 0;
+    seenSurface.set(surface, seen + 1);
+    return { item: entry.item, at: position + seen * SAME_SURFACE_SPACING };
+  });
+
+  placed.sort((a, b) => a.at - b.at);
+  placed.forEach((entry, index) => {
+    entry.item.rank = index + 1;
+  });
+}
+
+function loadFrequency() {
+  const path = resolve(ROOT, 'data/frequency.json');
+  if (!existsSync(path)) {
+    console.warn(
+      '  ! data/frequency.json is missing, so items keep their CSV order.\n' +
+        '    Run `npm run sentences` then `npm run frequency` to build it.',
+    );
+    return null;
+  }
+  return JSON.parse(readFileSync(path, 'utf8'));
+}
+
 /* --- Build ---------------------------------------------------------------- */
 
 function bucketByLevel(items) {
@@ -214,7 +285,7 @@ function writeDeck(type, level, items) {
   return { id, type, level, count: items.length };
 }
 
-function buildKanji() {
+function buildKanji(frequency) {
   const rows = readCsv('Kanji.csv');
   const items = rows
     .filter((row) => row.Kanji)
@@ -231,13 +302,15 @@ function buildKanji() {
     console.warn(`  ! ${strays.length} kanji with an unrecognised level, skipped`);
   }
 
-  return LEVELS.map((level) =>
-    writeDeck(
+  return LEVELS.map((level) => {
+    const forLevel = buckets.get(level);
+    if (frequency) assignRanks(forLevel, frequency.kanji, (item) => item.kanji);
+    return writeDeck(
       'kanji',
       level,
-      buckets.get(level).map(({ level: _level, ...item }) => item),
-    ),
-  );
+      forLevel.map(({ level: _level, ...item }) => item),
+    );
+  });
 }
 
 /**
@@ -293,7 +366,7 @@ function markUnanswerablePrompts(items) {
   }
 }
 
-function buildVocab() {
+function buildVocab(frequency) {
   const rows = readCsv('Vocab.csv');
   const raw = rows
     .filter((row) => row.Kanji)
@@ -331,22 +404,25 @@ function buildVocab() {
     console.warn(`  ! ${strays.length} vocab entries with an unrecognised level, skipped`);
   }
 
-  return LEVELS.map((level) =>
-    writeDeck(
+  return LEVELS.map((level) => {
+    const forLevel = buckets.get(level);
+    if (frequency) assignRanks(forLevel, frequency.words, (item) => item.word);
+    return writeDeck(
       'vocab',
       level,
-      buckets.get(level).map(({ level: _level, ...item }) => item),
-    ),
-  );
+      forLevel.map(({ level: _level, ...item }) => item),
+    );
+  });
 }
 
 mkdirSync(OUT_DIR, { recursive: true });
 
 console.log('Building decks from data/*.csv:');
+const frequency = loadFrequency();
 console.log('kanji');
-const kanjiDecks = buildKanji();
+const kanjiDecks = buildKanji(frequency);
 console.log('vocab');
-const vocabDecks = buildVocab();
+const vocabDecks = buildVocab(frequency);
 
 const decks = [...kanjiDecks, ...vocabDecks];
 writeFileSync(
