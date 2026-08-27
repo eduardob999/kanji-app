@@ -18,7 +18,8 @@
     "sentences": "node scripts/build-sentences.mjs",
     "migrate": "node scripts/migrate-scores.mjs",
     "strokes": "node scripts/build-strokes.mjs",
-    "frequency": "node scripts/build-frequency.mjs"
+    "frequency": "node scripts/build-frequency.mjs",
+    "ui": "node scripts/ui-audit.mjs"
   },
   "dependencies": {
     "firebase": "^12.17.1",
@@ -30,6 +31,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.0.5",
+    "playwright-core": "^1.62.1",
     "typescript": "^7.0.2",
     "vite": "^8.2.1",
     "vitest": "^4.0.5"

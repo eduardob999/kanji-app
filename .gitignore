@@ -40,3 +40,6 @@ data/kanjicanvas/
 # -- anything in it is served. They live in data/, which is not.
 public/scores*.txt
 public/*.txt
+
+# Screenshots from `npm run ui`.
+.ui/

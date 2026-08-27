@@ -42,6 +42,19 @@
   --radius: 20px;
   --radius-sm: 12px;
   --radius-pill: 999px;
+  /*
+   * How much room the fixed tab bar needs at the bottom of a scrolling page.
+   *
+   * The bar is `position: fixed`, so it is out of flow and sits *over* content
+   * unless something reserves the space. Nothing did: the last 80px of every
+   * screen was underneath it — the end of a Browse list, the last paragraph of
+   * About, the "I don't know" button on a quiz.
+   *
+   * A token rather than a number repeated in two places, because the bar's own
+   * height and the space reserved for it are the same quantity and drifting
+   * apart is how this comes back.
+   */
+  --tabbar-clearance: calc(72px + env(safe-area-inset-bottom));
 
   color-scheme: dark light;
 }
@@ -71,6 +84,26 @@
      */
     --error: #c23a2b;
   }
+}
+
+/*
+ * Padding and borders count inside a declared width.
+ *
+ * Restored after going missing for the whole life of this file. The stylesheet
+ * was assembled by extracting rules from GHAPP's, and the extractor decided
+ * what a rule was by looking at its first non-comment line — so a selector that
+ * is literally `*` was read as the continuation of a block comment and dropped
+ * silently.
+ *
+ * The effect was everywhere and looked like nothing in particular: any element
+ * given `width: 100%` and padding came out wider than its container by the
+ * padding. The answer field on a quiz measured 350px inside a 316px card and
+ * pushed its focus ring off the edge, which is most of what "crammed" meant.
+ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 /*
@@ -122,7 +155,8 @@ code {
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  padding: 24px 0;
+  /* The bottom padding clears the fixed tab bar; see --tabbar-clearance. */
+  padding: 24px 0 var(--tabbar-clearance);
 }
 
 .card {
@@ -268,6 +302,12 @@ code {
   background: var(--accent);
   color: #fff;
   font-weight: 700;
+}
+
+/* A section title, as opposed to the name of the screen you are on. */
+.topbar__where--muted {
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
 /* Buttons ----------------------------------------------------------------- */
@@ -1526,4 +1566,163 @@ code {
  */
 .levels__band--learning {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* Phone ergonomics -------------------------------------------------------- */
+
+/*
+ * A floor on how small anything you tap may be.
+ *
+ * 44px is the smallest target a thumb hits reliably without looking, and an
+ * audit of every screen found almost nothing meeting it: "I don't know" was
+ * 116x33, every segmented option 37 tall, every tab-bar label 11.5px. This is a
+ * study app used one-handed on public transport; missing the button is the
+ * whole experience.
+ *
+ * Applied by raising padding rather than font size wherever the text is
+ * deliberately quiet, so the target grows without the type shouting.
+ */
+.button--small {
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+}
+
+.segmented__option {
+  min-height: 48px;
+  justify-content: center;
+  padding: 10px 8px;
+  font-size: 0.85rem;
+}
+
+.choices__option {
+  min-height: 72px;
+}
+
+.handwriting__candidate {
+  min-width: 56px;
+  min-height: 56px;
+}
+
+/*
+ * The tab bar is the most-used control in the app and had the smallest type in
+ * it. 13px is the floor for something read at a glance every time the app
+ * opens.
+ */
+.tabbar__tab {
+  min-height: 56px;
+  font-size: 0.8125rem;
+}
+
+/*
+ * Inline links inside prose cannot grow without breaking the line, so they get
+ * a larger target through vertical padding and a negative margin that keeps the
+ * text where it was.
+ */
+.card__hint a,
+.quiz__note a,
+.about__version a {
+  display: inline-block;
+  padding: 6px 2px;
+  margin: -6px 0;
+}
+
+/*
+ * The credit links are not inline in prose — each is the title of its own row —
+ * so the WCAG exception does not cover them and they get a full target.
+ */
+.credit__who a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
+  margin: 0 -4px;
+}
+
+/* Nothing meant to be read goes below 12px. */
+.credit__licence {
+  font-size: 0.75rem;
+}
+
+.levels__seen {
+  font-size: 0.75rem;
+}
+
+code {
+  font-size: 0.8125rem;
+}
+
+/*
+ * A Japanese face, declared rather than left to chance.
+ *
+ * Nothing in the stylesheet asked for one, so a device without a CJK font in
+ * its default stack renders every prompt as tofu — which is precisely what the
+ * headless browser used to audit these screens does. Naming the common system
+ * faces costs nothing and removes a failure that is invisible until it happens
+ * to someone.
+ */
+:lang(ja),
+.quiz__surface,
+.quiz__readings,
+.quiz__sentence,
+.itemlist__surface,
+.datalist__surface,
+.handwriting__text,
+.handwriting__candidate {
+  font-family: 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', 'Yu Gothic',
+    'Noto Sans CJK JP', 'Noto Sans JP', 'Source Han Sans JP', Meiryo,
+    'MS PGothic', system-ui, sans-serif;
+}
+
+/* Quiz: using the height there is ----------------------------------------- */
+
+/*
+ * A question should fill the screen it is asked on.
+ *
+ * The quiz card used to hug its content, which put every question in a box in
+ * the top third of a phone and left 296px — over a third of the viewport —
+ * blank beneath it. Everything ended up bunched under the status bar, at the
+ * far end of the screen from the thumb holding the phone.
+ *
+ * So the card claims the space between the header and the tab bar, the prompt
+ * takes the slack in the middle, and the answer and its buttons sit at the
+ * bottom where they can be reached one-handed. `:has()` scopes this to the
+ * screens that want it; Browse and Progress still scroll normally.
+ */
+/*
+ * `.content` is a grid; making its single row the full remaining height is what
+ * stretches the card, and is why this is not `min-height: 100%` on the card
+ * itself. That resolves against the padded height of `.content`, so the card
+ * came out its own padding taller than the space available and pushed "I don't
+ * know" underneath the tab bar.
+ */
+.content:has(.quiz) {
+  flex: 1;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.quiz {
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * The prompt takes whatever is left over and centres itself in it, so the
+ * question sits near the optical centre rather than wherever its own height
+ * happens to put it. `min-height: 0` lets it shrink instead of pushing the
+ * actions off-screen when a fill-in sentence runs long.
+ */
+.quiz__prompt {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* The verdict and everything after it belong with the actions, not the slack. */
+.quiz__reveal,
+.quiz__afterthoughts {
+  flex: none;
 }
