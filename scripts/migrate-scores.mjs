@@ -1,24 +1,28 @@
 /**
  * Salvages what is real out of the CLI's scores.
  *
- * Run with `npm run migrate`. Reads `data/legacy-scores.txt` — a dump the CLI
- * wrote at version 0.6.17 — and emits `public/legacy-seed.json`, which the app
- * offers to import once, at first sign-in.
+ * Run with `npm run migrate`. Reads `data/legacy-scores.txt`, a dump written by
+ * the CLI's score export, and emits `public/legacy-seed.json`, which the app
+ * offers to import once.
+ *
+ * The exporting version is read from the file's header, not assumed. Do not
+ * hardcode it: the first export used here was a stale v0.6.17 holding 1,117
+ * streaks, and the real v0.9.8 export holds 6,328.
  *
  * ## Why most of that file is not progress
  *
  * `reset_scores` in the CLI set every item to a baseline derived from its JLPT
  * level (N5 to 0, N4 to 1, … N1 to 4). `update_score` then added 1 for each
  * correct answer and dropped to 0 on a miss. So a score is only evidence of
- * anything in the amount by which it exceeds its own level's baseline, and
- * measured that way the file holds roughly 1,100 real streaks out of ~16,000
- * numbers. The rest is the JLPT level, restated.
+ * anything in the amount by which it exceeds its own level's baseline. Measured
+ * that way the current export holds 6,328 real streaks out of 16,769 numbers —
+ * 38%. The rest is the JLPT level, restated.
  *
  * This script emits **only** the items with a streak. Everything else gets no
  * seeded memory at all, and its level decides introduction order instead —
  * which is what `sessionPlanner.ts` already does with unseen material.
  *
- * Fabricating memory for 15,000 items nobody has been tested on would be worse
+ * Fabricating memory for 10,000 items nobody has been tested on would be worse
  * than starting clean: it would schedule confidently on an invention, and it
  * would poison the weight fitting in `optimiser.ts` from the first session,
  * because the model would be fitted against reviews that never happened.
@@ -96,7 +100,7 @@ function knownIds() {
 }
 
 if (!existsSync(SCORES)) {
-  console.error(`Missing ${SCORES}. Copy it from the CLI's source/public/scores.txt.`);
+  console.error(`Missing ${SCORES}. Export it from the CLI and put it there -- not in public/, which is served.`);
   process.exit(1);
 }
 if (!existsSync(DECK_DIR)) {
@@ -105,6 +109,13 @@ if (!existsSync(DECK_DIR)) {
 }
 
 const lines = readFileSync(SCORES, 'utf8').split('\n');
+
+// Read the exporting version out of the header rather than hardcoding it. The
+// first run of this script recorded "v0.6.17" for a file that was later
+// replaced with a v0.9.8 export holding five times the progress, and the stamp
+// carried on claiming the old one.
+const versionMatch = /\(version ([^)]+)\)/.exec(lines[0] ?? '');
+const version = versionMatch ? versionMatch[1] : 'unknown';
 const kanjiStart = lines.indexOf('Kanji Scores:') + 1;
 const vocabStart = lines.indexOf('Vocab Scores:');
 
@@ -194,7 +205,7 @@ if (mismatches > 0) {
 writeFileSync(
   OUT,
   `${JSON.stringify({
-    source: 'PracticeJapanese scores.txt (CLI v0.6.17)',
+    source: `PracticeJapanese scores.txt (CLI v${version})`,
     generatedAt: new Date().toISOString(),
     note: 'Only items whose score exceeded their JLPT level baseline; see scripts/migrate-scores.mjs.',
     entries,
@@ -202,7 +213,9 @@ writeFileSync(
 );
 
 const total = kanjiLines.length + vocabLines.length * 2;
-console.log(`Read ${kanjiLines.length} kanji and ${vocabLines.length} vocab rows, 0 mismatches.`);
+console.log(
+  `Read ${kanjiLines.length} kanji and ${vocabLines.length} vocab rows from a v${version} export, 0 mismatches.`,
+);
 console.log(`\n  streak  items`);
 for (const streak of [...distribution.keys()].sort((a, b) => a - b)) {
   console.log(`  ${String(streak).padStart(6)}  ${String(distribution.get(streak)).padStart(5)}`);

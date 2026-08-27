@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  INTAKE_DAYS,
+  MAX_INTAKE_DAYS,
+  TARGET_PER_DAY,
   countSeeds,
   difficultyForLevel,
   seedStateFor,
   stabilityForStreak,
+  intakeDaysFor,
   toBuckets,
   type LegacyEntry,
   type LegacySeedFile,
@@ -54,7 +56,7 @@ describe('difficultyForLevel', () => {
 
 describe('seedStateFor', () => {
   it('produces a usable state', () => {
-    const state = seedStateFor(entry(), NOW)!;
+    const state = seedStateFor(entry(), NOW, 3)!;
 
     expect(state.itemId).toBe('土');
     expect(state.stability).toBeGreaterThan(0);
@@ -67,30 +69,30 @@ describe('seedStateFor', () => {
     // Nothing predicted these. A fabricated value would be fed straight into
     // the calibration curve on the Scheduler screen as if it were a real
     // prediction the model had made and been judged on.
-    expect(seedStateFor(entry(), NOW)!.predictedRecall).toBeUndefined();
+    expect(seedStateFor(entry(), NOW, 3)!.predictedRecall).toBeUndefined();
   });
 
   it('dates the last review backwards, not to today', () => {
     // Saying it was reviewed today would tell the model a review happened that
     // did not, and make the item look fresher than the evidence supports.
-    const state = seedStateFor(entry(), NOW)!;
+    const state = seedStateFor(entry(), NOW, 3)!;
     expect(state.lastReviewedAt!.toMillis()).toBeLessThan(NOW.getTime());
   });
 
   it('rejects a level it does not recognise', () => {
-    expect(seedStateFor(entry({ l: 'N9' }), NOW)).toBeNull();
+    expect(seedStateFor(entry({ l: 'N9' }), NOW, 3)).toBeNull();
   });
 
   it('rejects a mode it does not recognise', () => {
-    expect(seedStateFor(entry({ m: 'nonsense' as LegacyEntry['m'] }), NOW)).toBeNull();
+    expect(seedStateFor(entry({ m: 'nonsense' as LegacyEntry['m'] }), NOW, 3)).toBeNull();
   });
 
   it('rejects a streak of zero', () => {
-    expect(seedStateFor(entry({ k: 0 }), NOW)).toBeNull();
+    expect(seedStateFor(entry({ k: 0 }), NOW, 3)).toBeNull();
   });
 
   it('is deterministic, so a re-import lands in the same place', () => {
-    expect(seedStateFor(entry(), NOW)).toEqual(seedStateFor(entry(), NOW));
+    expect(seedStateFor(entry(), NOW, 3)).toEqual(seedStateFor(entry(), NOW, 3));
   });
 });
 
@@ -110,7 +112,7 @@ describe('toBuckets', () => {
   });
 
   it('spreads due dates across the intake window rather than piling them on one day', () => {
-    // 1,117 items all due at the same instant is a wall no session can clear,
+    // Thousands of items all due at once is a wall no session can clear,
     // followed by weeks of nothing.
     const entries = Array.from({ length: 300 }, (_, i) => entry({ i: `item-${i}` }));
     const buckets = toBuckets(file(entries), NOW);
@@ -120,8 +122,47 @@ describe('toBuckets', () => {
       .map((state) => Math.floor((state.dueAt!.toMillis() - NOW.getTime()) / DAY));
 
     expect(new Set(days).size).toBeGreaterThan(3);
-    expect(Math.max(...days)).toBeLessThanOrEqual(INTAKE_DAYS);
+    expect(Math.max(...days)).toBeLessThanOrEqual(MAX_INTAKE_DAYS);
     expect(Math.min(...days)).toBeGreaterThanOrEqual(0);
+  });
+
+  it('widens the window with the size of the import', () => {
+    // A fortnight was right for 1,117 items and is nonsense for 6,328: it would
+    // ask for 450 reviews a day, so the backlog would never clear.
+    expect(intakeDaysFor(200)).toBeLessThan(intakeDaysFor(6_000));
+  });
+
+  it('holds the daily rate at the target until the ceiling bites', () => {
+    const size = 2_000;
+    expect(intakeDaysFor(size)).toBe(Math.ceil(size / TARGET_PER_DAY));
+  });
+
+  it('accepts a busier day rather than an endless window on a large import', () => {
+    // 6,328 items at 50 a day is 127 days; the ceiling trades that for ~53 a
+    // day over four months, which is the better of the two.
+    expect(intakeDaysFor(6_328)).toBe(MAX_INTAKE_DAYS);
+    expect(6_328 / MAX_INTAKE_DAYS).toBeLessThan(TARGET_PER_DAY * 1.25);
+  });
+
+  it('keeps the window inside sane bounds', () => {
+    expect(intakeDaysFor(1)).toBeGreaterThanOrEqual(14);
+    expect(intakeDaysFor(1_000_000)).toBeLessThanOrEqual(MAX_INTAKE_DAYS);
+  });
+
+  it('brings the weakest evidence back first', () => {
+    // A streak of one is a guess worth checking soon; a streak of five can
+    // wait, which is also what its larger stability implies.
+    const entries = [
+      entry({ i: 'strong', k: 5 }),
+      entry({ i: 'weak', k: 1 }),
+      entry({ i: 'middling', k: 3 }),
+    ];
+    const buckets = toBuckets(file(entries), NOW);
+    const all = [...buckets.values()].flatMap((b) => [...b.entries()]);
+    const due = Object.fromEntries(all.map(([id, s]) => [id, s.dueAt!.toMillis()]));
+
+    expect(due['weak']).toBeLessThan(due['middling']!);
+    expect(due['middling']).toBeLessThan(due['strong']!);
   });
 
   it('drops entries it cannot place instead of guessing', () => {

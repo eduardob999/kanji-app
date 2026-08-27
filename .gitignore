@@ -35,3 +35,8 @@ public/decks/
 # Cloned by `npm run strokes`. The built patterns in public/strokes/ are what
 # ships; this is the 7 MB source they come from.
 data/kanjicanvas/
+
+# The CLI's exported scores are personal study data and public/ is the web root
+# -- anything in it is served. They live in data/, which is not.
+public/scores*.txt
+public/*.txt

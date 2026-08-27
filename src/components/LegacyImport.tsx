@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
-import { countSeeds, toBuckets, type LegacySeedFile } from '../domain/legacySeed';
+import { countSeeds, intakeDaysFor, toBuckets, type LegacySeedFile } from '../domain/legacySeed';
 import { markLegacyScoresImported } from '../storage/userState';
 import { seedReviewBuckets } from '../storage/reviewState';
 
@@ -12,13 +12,19 @@ import { seedReviewBuckets } from '../storage/reviewState';
  * unset and the import offerable again. Re-running is safe; skipping a
  * half-finished one is not.
  *
- * The copy is honest about how little is being imported, because the number is
- * surprising: 1,117 items out of ~16,700 scores. Someone expecting years of
- * progress to arrive should know before they press it that most of that file
- * was the JLPT level written down again.
+ * The counts in the copy are read from the seed file rather than written into
+ * it. They were hardcoded once, against a 1,117-item export that was later
+ * replaced by one holding 6,328, and the screen went on quoting the old figure
+ * — which is exactly the number someone uses to decide whether this is worth
+ * pressing.
  */
 
-type Status = 'idle' | 'working' | 'done' | 'error';
+type Status = 'idle' | 'loading' | 'working' | 'done' | 'error';
+
+/** Roughly how many will come due per day, from the same rule `toBuckets` uses. */
+function perDay(count: number): number {
+  return Math.max(1, Math.round(count / intakeDaysFor(count)));
+}
 
 function seedUrl(): string {
   return new URL(
@@ -28,20 +34,38 @@ function seedUrl(): string {
 }
 
 export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void }) {
-  const [status, setStatus] = useState<Status>('idle');
+  const [status, setStatus] = useState<Status>('loading');
   const [message, setMessage] = useState<string | null>(null);
+  const [seed, setSeed] = useState<LegacySeedFile | null>(null);
+
+  // Fetched up front so the offer can state what it would actually do.
+  useEffect(() => {
+    let live = true;
+
+    fetch(seedUrl())
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error('missing'))))
+      .then((file: LegacySeedFile) => {
+        if (!live) return;
+        setSeed(file);
+        setStatus('idle');
+      })
+      .catch(() => {
+        if (!live) return;
+        setStatus('error');
+        setMessage('Could not read the exported scores.');
+      });
+
+    return () => {
+      live = false;
+    };
+  }, []);
 
   async function run() {
     setStatus('working');
     setMessage(null);
 
     try {
-      const response = await fetch(seedUrl());
-      if (!response.ok) {
-        throw new Error(`Could not read the seed file (${response.status}).`);
-      }
-
-      const file = (await response.json()) as LegacySeedFile;
+      const file = seed ?? ((await (await fetch(seedUrl())).json()) as LegacySeedFile);
       const buckets = toBuckets(file, new Date());
       const seeded = countSeeds(buckets);
 
@@ -52,7 +76,9 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
       await markLegacyScoresImported(user.uid);
 
       setStatus('done');
-      setMessage(`${seeded} items imported, spread over the next two weeks.`);
+      setMessage(
+        `${seeded.toLocaleString()} items imported, coming due at about ${perDay(seeded)} a day.`,
+      );
       onDone?.();
     } catch (error) {
       console.error('[migrate] Legacy score import failed.', error);
@@ -71,17 +97,27 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
     );
   }
 
+  const count = seed?.entries.length ?? 0;
+
   return (
     <div className="field">
       <p className="card__body">
-        Bring across what the old command-line app knew. Of its ~16,700 stored scores, about 1,100
-        are a real record of answering something correctly — the rest were its way of writing down
-        a word’s JLPT level, and are not evidence of anything.
+        Bring across what the old command-line app knew.{' '}
+        {count > 0 ? (
+          <>
+            <strong>{count.toLocaleString()} items</strong> in its records were answered correctly
+            at least once — the rest of that file was its way of writing down a word’s JLPT level,
+            which is not evidence of anything.
+          </>
+        ) : (
+          'Reading the export…'
+        )}
       </p>
       <p className="card__hint">
-        Those 1,100 start with a small amount of remembered strength and come due over the next
-        fortnight. Everything else starts unseen, in level order. Nothing is invented for words you
-        were never tested on.
+        They start with a small amount of remembered strength and come back for checking at about{' '}
+        {count > 0 ? perDay(count) : '—'} a day, weakest evidence first. Everything else starts
+        unseen, in level order. Nothing is invented for words you were never tested on, and the
+        first real answer replaces the guess with something measured.
       </p>
 
       {status === 'error' ? (
@@ -94,7 +130,7 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
         type="button"
         className="button button--primary button--block"
         onClick={() => void run()}
-        disabled={status === 'working'}
+        disabled={status === 'working' || status === 'loading' || count === 0}
       >
         {status === 'working' ? 'Importing…' : 'Import my old scores'}
       </button>

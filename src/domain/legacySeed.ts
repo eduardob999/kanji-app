@@ -7,15 +7,17 @@ import type { ItemReviewState } from './review';
 /**
  * Turning the CLI's correct-answer streaks into FSRS memory.
  *
- * `scripts/migrate-scores.mjs` has already thrown away everything that was
- * only a JLPT level restated; what arrives here is ~1,117 items that were
- * genuinely answered correctly one or two times in a row before a miss.
+ * `scripts/migrate-scores.mjs` has already thrown away everything that was only
+ * a JLPT level restated; what arrives here is ~6,300 items that were genuinely
+ * answered correctly, between one and five times in a row, before any miss.
  *
- * That is thin evidence, and it is treated as thin evidence. A streak of one
- * says "known well enough to get right once", not "known" — so the seeded
- * stability is small, the schedule brings the item back within days, and the
- * first real review under FSRS immediately overwrites the guess with something
- * measured.
+ * That is still thin evidence and is treated as thin evidence. The CLI asked
+ * whichever item had the lowest score, which often meant asking the same word
+ * again minutes later — so a run of five correct answers is not five *spaced*
+ * reviews, and the stability it implies is far short of what five real reps
+ * would earn. The seeded numbers are deliberately small: the schedule brings
+ * each item back within days, and the first real review overwrites the guess
+ * with something measured.
  *
  * Pure, with `now` passed in, like everything else in this directory.
  */
@@ -41,17 +43,19 @@ export interface LegacySeedFile {
 /**
  * Days of stability implied by a streak.
  *
- * Two correct answers in the CLI is not two spaced reviews — its scheduler
- * asked whatever had the lowest score, which often meant the same day. So
- * these are deliberately short: a couple of days for one success, under a week
- * for two. The point is to start the item somewhere other than "never seen",
- * not to claim it is learnt.
+ * Sub-linear and capped, because the streaks are worth less than their size
+ * suggests: the CLI asked whichever item had the lowest score, so consecutive
+ * correct answers were frequently minutes apart rather than days. Five in a row
+ * earns under a fortnight here, where five properly spaced reps would earn
+ * months.
+ *
+ * The point is to start an item somewhere other than "never seen", not to claim
+ * it is learnt.
  */
 export function stabilityForStreak(streak: number): number {
   if (streak <= 0) return 0;
   if (streak === 1) return 2;
   if (streak === 2) return 4.5;
-  // The CLI's data does not go above 2, but a hand-edited file could.
   return Math.min(14, 4.5 + (streak - 2) * 2);
 }
 
@@ -68,25 +72,37 @@ export function difficultyForLevel(level: Level): number {
 }
 
 /**
- * How far out to schedule an item, spread across the intake window.
+ * How many imported items should come due on an average day.
  *
- * Without the spread, importing 1,117 items would make every one of them due
- * at the same instant — a wall on day one that no session can clear, followed
- * by weeks of nothing. Hashing the id scatters them deterministically, so a
- * re-run of the import puts each item back where it was.
+ * The intake window is derived from this and the size of the import, rather
+ * than fixed. A fixed fortnight was right for the 1,117 items the first export
+ * held and is nonsense for 6,328 — it would ask for 450 reviews a day, which no
+ * one does, so the backlog would simply never clear and the app would show a
+ * number that only went up.
  */
-export const INTAKE_DAYS = 14;
+export const TARGET_PER_DAY = 50;
 
-function hash(text: string): number {
-  let value = 0x811c9dc5;
-  for (let i = 0; i < text.length; i += 1) {
-    value ^= text.charCodeAt(i);
-    value = Math.imul(value, 0x01000193) >>> 0;
-  }
-  return value;
+/** Floor and ceiling on the window, so neither a tiny nor a vast import is silly. */
+export const MIN_INTAKE_DAYS = 14;
+export const MAX_INTAKE_DAYS = 120;
+
+export function intakeDaysFor(count: number): number {
+  const needed = Math.ceil(count / TARGET_PER_DAY);
+  return Math.min(MAX_INTAKE_DAYS, Math.max(MIN_INTAKE_DAYS, needed));
 }
 
-export function seedStateFor(entry: LegacyEntry, now: Date): ItemReviewState | null {
+/**
+ * One item's seeded state.
+ *
+ * `dueInDays` comes from the caller rather than from the entry, because where
+ * an item sits in the queue is a property of the whole import — see
+ * `toBuckets`, which orders by how weak the evidence is.
+ */
+export function seedStateFor(
+  entry: LegacyEntry,
+  now: Date,
+  dueInDays: number,
+): ItemReviewState | null {
   if (!isLevel(entry.l)) return null;
   if (!(REVIEW_MODES as readonly string[]).includes(entry.m)) return null;
 
@@ -95,13 +111,6 @@ export function seedStateFor(entry: LegacyEntry, now: Date): ItemReviewState | n
 
   const difficulty = difficultyForLevel(entry.l);
   const interval = intervalFor(stability);
-
-  // When it comes back: scattered across the intake window, and *not* clamped
-  // to the interval. Clamping was the obvious thing and it was wrong — a streak
-  // of one implies a two-day interval, so every one of the 1,117 items would
-  // have landed inside 48 hours. That is the wall this spread exists to
-  // prevent, rebuilt out of the thing meant to prevent it.
-  const dueInDays = (hash(`${entry.m}:${entry.i}`) % (INTAKE_DAYS * 1000)) / 1000;
 
   // Dated one interval into the past, so the item reads as "reviewed then" and
   // is due about now — rather than as reviewed today, which would tell the
@@ -141,8 +150,18 @@ export function toBuckets(
 ): Map<string, Map<string, ItemReviewState>> {
   const buckets = new Map<string, Map<string, ItemReviewState>>();
 
-  for (const entry of file.entries) {
-    const state = seedStateFor(entry, now);
+  // Weakest evidence first. A streak of one is a guess worth checking soon; a
+  // streak of five can wait, and waiting is also what its larger stability
+  // implies. Ties break on the item id so the whole layout is deterministic and
+  // a re-import puts everything back where it was.
+  const ordered = [...file.entries].sort(
+    (a, b) => a.k - b.k || `${a.m}:${a.i}`.localeCompare(`${b.m}:${b.i}`),
+  );
+  const window = intakeDaysFor(ordered.length);
+
+  for (const [index, entry] of ordered.entries()) {
+    const dueInDays = ordered.length <= 1 ? 0 : (index / (ordered.length - 1)) * window;
+    const state = seedStateFor(entry, now, dueInDays);
     if (!state || !isLevel(entry.l)) continue;
 
     const id = bucketId(entry.m, entry.l);
