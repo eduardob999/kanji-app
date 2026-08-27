@@ -126,7 +126,24 @@ export interface HistoryOptions {
   sinceDays?: number;
   /** Only this memory, for fitting weights per mode. */
   mode?: ReviewMode;
+  /** Override the wait before giving up and answering with nothing. */
+  timeoutMs?: number;
 }
+
+/**
+ * How long to wait for the log before carrying on without it.
+ *
+ * `getDocs` is a server read, and on a connection that is reachable but not
+ * answering it retries rather than failing — indefinitely, with no rejection to
+ * catch. Every caller here wants the log for something optional: pacing,
+ * streaks, the calibration curve, fitting weights. All of them are better off
+ * with an empty history than with a promise that never settles, which is what
+ * left Today's Session on "Working out what is due…" for ever.
+ *
+ * Offline with a warm cache this never fires — Firestore answers from IndexedDB
+ * immediately. It is the flaky-connection case this exists for.
+ */
+export const HISTORY_TIMEOUT_MS = 8_000;
 
 /**
  * Reads the log back, oldest first.
@@ -135,6 +152,23 @@ export interface HistoryOptions {
  * fetch per day, and Firestore serves it from the local cache when offline
  * without any special handling.
  */
+/** Resolves to `fallback` if `work` has not answered in time. */
+async function withTimeout<T>(work: Promise<T>, ms: number, fallback: T, what: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const expiry = new Promise<T>((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(`[firestore] ${what} did not answer in ${ms}ms; continuing without it.`);
+      resolve(fallback);
+    }, ms);
+  });
+
+  try {
+    return await Promise.race([work, expiry]);
+  } finally {
+    clearTimeout(timer!);
+  }
+}
+
 export async function loadReviewHistory(
   uid: string,
   options: HistoryOptions = {},
@@ -143,9 +177,14 @@ export async function loadReviewHistory(
   const from = new Date(Date.now() - sinceDays * 86_400_000);
 
   const logs = collection(db, USERS_COLLECTION, uid, LOG_SUBCOLLECTION);
-  const snapshot = await getDocs(
-    query(logs, where(documentId(), '>=', dayKey(from))),
+  const snapshot = await withTimeout(
+    getDocs(query(logs, where(documentId(), '>=', dayKey(from)))),
+    options.timeoutMs ?? HISTORY_TIMEOUT_MS,
+    null,
+    'the review log',
   );
+
+  if (snapshot === null) return [];
 
   const records: ReviewRecord[] = [];
 
@@ -179,7 +218,14 @@ export async function loadReviewHistory(
 export async function countReviews(uid: string, sinceDays = 730): Promise<number> {
   const from = new Date(Date.now() - sinceDays * 86_400_000);
   const logs = collection(db, USERS_COLLECTION, uid, LOG_SUBCOLLECTION);
-  const snapshot = await getDocs(query(logs, where(documentId(), '>=', dayKey(from))));
+  const snapshot = await withTimeout(
+    getDocs(query(logs, where(documentId(), '>=', dayKey(from)))),
+    HISTORY_TIMEOUT_MS,
+    null,
+    'the review log',
+  );
+
+  if (snapshot === null) return 0;
 
   let total = 0;
   for (const day of snapshot.docs) {

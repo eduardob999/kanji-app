@@ -55,6 +55,46 @@ const SCREENS = [
   'browse', 'progress', 'scheduler', 'input', 'account', 'about', 'signin',
 ];
 
+/**
+ * States a screen can be in that only appear after you interact with it.
+ *
+ * A screen that is fine on load can still be broken once answered — the verdict
+ * adds a banner, a reveal table and two more buttons to a card that was already
+ * full, and nothing about loading the page shows that. Each entry drives the
+ * page into the state and then the same checks run against it.
+ */
+const STATES = {
+  reading: [
+    {
+      name: 'verdict',
+      async reach(page) {
+        await page.fill('.textinput--answer', 'まちがい');
+        await page.click('.button--block');
+        await page.waitForSelector('.verdict', { timeout: 5_000 });
+      },
+    },
+  ],
+  writing: [
+    {
+      name: 'verdict',
+      async reach(page) {
+        await page.fill('.textinput--answer', 'x');
+        await page.click('.button--block');
+        await page.waitForSelector('.verdict', { timeout: 5_000 });
+      },
+    },
+  ],
+  today: [
+    {
+      name: 'started',
+      async reach(page) {
+        await page.click('.button--block');
+        await page.waitForSelector('.quiz', { timeout: 10_000 });
+      },
+    },
+  ],
+};
+
 /** Smallest comfortably hittable target. */
 const MIN_TAP = 44;
 const MIN_FONT = 12;
@@ -152,11 +192,31 @@ for (const viewport of VIEWPORTS) {
     colorScheme: viewport.width < 700 ? 'dark' : 'light',
   });
 
-  for (const screen of SCREENS) {
+  // Each screen on load, plus any interactive state it can be driven into.
+  const runs = SCREENS.flatMap((screen) => [
+    { screen, state: null },
+    ...(STATES[screen] ?? []).map((state) => ({ screen, state })),
+  ]);
+
+  for (const { screen, state } of runs) {
+    const label = state ? `${screen}:${state.name}` : screen;
     const page = await context.newPage();
     const errors = [];
-    page.on('console', (m) => m.type() === 'error' && errors.push(m.text().slice(0, 120)));
-    page.on('pageerror', (e) => errors.push(String(e).slice(0, 120)));
+    /**
+     * Firestore is deliberately unconfigured in the preview harness, so its
+     * complaints are a fact about the harness rather than about the screen.
+     * Everything else is reported.
+     */
+    const environmental = (text) => text.includes('@firebase') || text.includes('Firestore');
+
+    page.on('console', (m) => {
+      const text = m.text().slice(0, 120);
+      if (m.type() === 'error' && !environmental(text)) errors.push(text);
+    });
+    page.on('pageerror', (e) => {
+      const text = String(e).slice(0, 120);
+      if (!environmental(text)) errors.push(text);
+    });
 
     try {
       await page.goto(`${BASE}/#/preview/${screen}`, { waitUntil: 'networkidle', timeout: 30_000 });
@@ -164,6 +224,24 @@ for (const viewport of VIEWPORTS) {
       // A screen that never goes idle is worth knowing about but not fatal.
     }
     await page.waitForTimeout(700);
+
+    if (state) {
+      try {
+        await state.reach(page);
+        await page.waitForTimeout(400);
+      } catch (error) {
+        // Reaching the state is itself a result: a verdict that cannot be
+        // reached is worth reporting, not swallowing.
+        problems += 1;
+        summary.push({
+          screen: label,
+          viewport: viewport.name,
+          issues: [`could not reach state: ${String(error).split('\n')[0].slice(0, 100)}`],
+        });
+        await page.close();
+        continue;
+      }
+    }
 
     const result = await page.evaluate(
       ([tap, font]) => inspectImpl(tap, font),
@@ -174,7 +252,7 @@ for (const viewport of VIEWPORTS) {
       return page.evaluate(([tap, font]) => window.inspectImpl(tap, font), [MIN_TAP, MIN_FONT]);
     });
 
-    await page.screenshot({ path: resolve(OUT, `${screen}-${viewport.name}.png`), fullPage: true });
+    await page.screenshot({ path: resolve(OUT, `${label}-${viewport.name}.png`), fullPage: true });
 
     const issues = [];
     if (result.scrollWidth > result.viewport + 1) {
@@ -195,7 +273,7 @@ for (const viewport of VIEWPORTS) {
 
     if (issues.length) {
       problems += 1;
-      summary.push({ screen, viewport: viewport.name, issues });
+      summary.push({ screen: label, viewport: viewport.name, issues });
     }
 
     await page.close();

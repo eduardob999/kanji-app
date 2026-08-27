@@ -62,7 +62,18 @@ export function TodaySessionPanel({ user }: { user: User }) {
 
     let live = true;
 
-    Promise.all([loadQuizSource(modes, voice), loadReviewHistory(user.uid)]).then(
+    // The history is for pacing only, so a failure to read it must not stop the
+    // session. It used to be inside the same Promise.all as the decks, which
+    // meant an unreadable review log — offline on a device whose log cache is
+    // cold — killed the whole screen, and reported "could not load the decks"
+    // about decks that had loaded perfectly. Pacing without history is a state
+    // `pace` already handles: it is what a new account gets.
+    const history = loadReviewHistory(user.uid).catch((caught: unknown) => {
+      console.warn('[pacing] Could not read the review log; using default pacing.', caught);
+      return [] as Awaited<ReturnType<typeof loadReviewHistory>>;
+    });
+
+    Promise.all([loadQuizSource(modes, voice), history]).then(
       ([{ candidates }, history]) => {
         if (!live) return;
 
@@ -82,6 +93,7 @@ export function TodaySessionPanel({ user }: { user: User }) {
         );
       },
       (caught: unknown) => {
+        // Only the decks can land here now, so the message is accurate again.
         if (live) setError(caught instanceof Error ? caught.message : 'Could not load the decks.');
       },
     );

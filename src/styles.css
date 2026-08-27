@@ -1705,6 +1705,23 @@ code {
 .quiz {
   display: flex;
   flex-direction: column;
+  /*
+   * One rhythm for the whole card, rather than each piece bringing its own
+   * margin. The pieces were written at different times and did not agree: the
+   * grade line ("Missed") had a top margin and no bottom one, so it sat flush
+   * against the Next button underneath it.
+   */
+  gap: 14px;
+}
+
+/*
+ * Margins are the card's own business now. Reset on direct children only, so
+ * anything nested — the reveal's datalist, the buttons in the afterthoughts row
+ * — keeps its internal spacing.
+ */
+.quiz > * {
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 /*
