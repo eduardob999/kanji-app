@@ -43,7 +43,7 @@ export function TodaySessionPanel({ user }: { user: User }) {
   const { profile } = useUserProfile(user);
 
   const [started, setStarted] = useState(false);
-  const [counts, setCounts] = useState<{ due: number; unseen: number } | null>(null);
+  const [counts, setCounts] = useState<ReturnType<typeof countDue> | null>(null);
   const [historyStats, setHistoryStats] = useState<
     { throughput: number; measured: boolean; accuracy: number } | null
   >(null);
@@ -94,6 +94,7 @@ export function TodaySessionPanel({ user }: { user: User }) {
         ? pace({
             due: counts.due,
             unseen: counts.unseen,
+            arrivals: counts.arrivals,
             throughput: historyStats?.throughput ?? 0,
             accuracy: historyStats?.accuracy ?? 1,
             measured: historyStats?.measured ?? false,
@@ -216,7 +217,7 @@ export function TodaySessionPanel({ user }: { user: User }) {
         <>
           <div className="tally">
             <div className="tally__figure">
-              <span className="tally__number">{counts.due}</span>
+              <span className="tally__number">{counts.due.toLocaleString()}</span>
               <span className="tally__label">due</span>
             </div>
             <div className="tally__figure tally__figure--muted">
@@ -244,7 +245,7 @@ export function TodaySessionPanel({ user }: { user: User }) {
                 {pacing.maxItems} question{pacing.maxItems === 1 ? '' : 's'} this time, all four
                 types interleaved, most overdue first.
                 {pacing.state === 'behind'
-                  ? ` About ${pacing.sustainableRate} a day would stop the backlog growing.`
+                  ? ` About ${pacing.sustainableRate.toLocaleString()} a day keeps pace with what falls due; the backlog on top of that comes down slower.`
                   : ''}
               </p>
             </>

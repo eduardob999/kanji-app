@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { loadAllDecks } from '../domain/decks';
-import { levelLabel, type Deck, type StudyItem } from '../domain/items';
+import { isKanjiItem, levelLabel, type Deck, type StudyItem } from '../domain/items';
+import { isSlipping, slipScore } from '../domain/leech';
+import { DEFAULT_MAX_SLIPPING } from '../domain/sessionPlanner';
 import { REVIEW_MODES, deckTypeForReviewMode, reviewModeLabel, type ReviewMode } from '../domain/modes';
 import {
   BANDS,
@@ -29,6 +31,9 @@ import { loadReviewHistory } from '../storage/reviewLog';
  */
 
 const PERCENT = new Intl.NumberFormat(undefined, { style: 'percent', maximumFractionDigits: 0 });
+
+/** Enough to act on. A list of forty is a list nobody reads. */
+const STICKING_SHOWN = 12;
 
 export function ProgressPanel({ user }: { user: User }) {
   const { lookup, loading: statesLoading } = useReviewStates(user);
@@ -78,6 +83,35 @@ export function ProgressPanel({ user }: { user: User }) {
     () => (loaded ? summarise(loaded, mode, lookup, new Date()) : null),
     [loaded, mode, lookup],
   );
+
+  /**
+   * The handful you keep failing, worst first.
+   *
+   * Worth a section of its own because they are otherwise invisible: they never
+   * show up as a falling number, only as a session that feels like it is not
+   * going anywhere. Naming them is what makes them something you can do
+   * something about — write a mnemonic, look at the components, decide it is
+   * not worth the fight this month.
+   */
+  const sticking = useMemo(() => {
+    if (!loaded) return [];
+
+    const found: { item: StudyItem; lapses: number; reps: number; score: number }[] = [];
+    for (const deck of loaded) {
+      for (const item of deck.items) {
+        const state = lookup(mode, item.id);
+        if (!isSlipping(state)) continue;
+        found.push({
+          item,
+          lapses: state?.lapses ?? 0,
+          reps: state?.totalReps ?? 0,
+          score: slipScore(state),
+        });
+      }
+    }
+
+    return found.sort((a, b) => b.score - a.score);
+  }, [loaded, lookup, mode]);
 
   return (
     <section className="card">
@@ -194,6 +228,43 @@ export function ProgressPanel({ user }: { user: User }) {
               </li>
             ))}
           </ul>
+
+          {sticking.length > 0 ? (
+            <>
+              <h2 className="card__subtitle">Sticking points</h2>
+              <p className="card__body">
+                {sticking.length} {sticking.length === 1 ? 'item keeps' : 'items keep'} slipping in{' '}
+                {reviewModeLabel(mode).toLowerCase()} — failed often relative to how often{' '}
+                {sticking.length === 1 ? 'it has' : 'they have'} come up. A session takes at most{' '}
+                {DEFAULT_MAX_SLIPPING} of them at a time, so the rest of it stays useful.
+              </p>
+
+              <ul className="itemlist">
+                {sticking.slice(0, STICKING_SHOWN).map(({ item, lapses, reps }) => (
+                  <li key={item.id} className="itemlist__row">
+                    <span className="itemlist__surface" lang="ja">
+                      {isKanjiItem(item) ? item.kanji : item.word}
+                    </span>
+                    <span className="itemlist__detail">
+                      <span className="itemlist__reading" lang="ja">
+                        {isKanjiItem(item) ? item.readings.join('・') : item.reading}
+                      </span>
+                      <span className="itemlist__meaning">{item.meaning || '—'}</span>
+                    </span>
+                    <span className="itemlist__count">
+                      {lapses}/{reps}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <p className="card__hint">
+                Missed out of asked. Nothing here is hidden or suspended — these are the JLPT
+                lists, and burying a word would be burying the syllabus. They are rationed, not
+                removed.
+              </p>
+            </>
+          ) : null}
 
           <p className="card__hint">
             <strong>Held</strong> counts only what the schedule can vouch for: known is a month or

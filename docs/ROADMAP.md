@@ -49,16 +49,17 @@ accurately rather than measured from throughput, which cannot work: throughput
 is measured from the reviews you did and the session decides how many you were
 offered, so the loop's input was its own output and eight was a fixed point.
 
+**Rationed sticking points.** Items failed often relative to how often they
+have come up are capped at three a session, so the tail of things you cannot
+learn stops crowding out the things you can, and Progress names them. Not
+suspended: this corpus is the JLPT lists, and burying a word would be burying
+the syllabus.
+
 **Offline.** ~3.4 MB precached: the bundle, the decks and the sentence packs.
 Handwriting's 1.5 MB of patterns is deliberately *not* precached and is cached
 on first use instead.
 
 ## Next
-
-### Leeches
-
-Items failed over and over currently cycle forever. They should be flagged and
-handled differently — a mnemonic prompt, or suspension until asked for.
 
 ### Handwriting coverage
 

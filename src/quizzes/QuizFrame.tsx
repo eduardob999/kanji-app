@@ -4,6 +4,7 @@ import { DEFAULT_INPUT_METHOD } from '../domain/inputMethod';
 import { gradeAnswer, gradeLabel, downgrade } from '../domain/grading';
 import { observeResponse, profileFor } from '../domain/fluency';
 import { retrievability } from '../domain/fsrs';
+import { isSlipping } from '../domain/leech';
 import type { ItemReviewState, PracticeResult } from '../domain/review';
 import { describeInterval } from '../domain/scheduler';
 import { planSession, type Candidate, type PlannedQuestion, type ReviewLookup } from '../domain/sessionPlanner';
@@ -490,6 +491,9 @@ export function QuizFrame({
         <span className="pill">
           {index + 1} / {queue.length}
         </span>
+        {isSlipping(question.state) ? (
+          <span className="pill pill--slipping">keeps slipping</span>
+        ) : null}
         <span className="pill pill--muted">
           {tally.right}✓ {tally.wrong}✗
         </span>

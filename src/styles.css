@@ -1059,11 +1059,26 @@ code {
   display: grid;
   gap: 2px;
   min-width: 0;
+  /*
+   * Claims the middle of the row, so anything after it — the miss count on a
+   * sticking point — is pushed to the far edge and forms a column instead of
+   * trailing the reading like part of it.
+   */
+  flex: 1;
 }
 
 .itemlist__reading {
   color: var(--accent-soft);
   font-size: 0.95rem;
+}
+
+/* Missed out of asked, on a sticking point. Tabular so the column lines up. */
+.itemlist__count {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .itemlist__meaning {
@@ -1204,6 +1219,16 @@ code {
 .pill--muted {
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * On a question you keep failing. Marked rather than hidden: knowing that this
+ * one has beaten you before is the difference between "why does this keep
+ * coming back" and "right, this one again".
+ */
+.pill--slipping {
+  color: var(--pending);
+  background: color-mix(in srgb, var(--pending) 14%, transparent);
 }
 
 /* Scheduler --------------------------------------------------------------- */

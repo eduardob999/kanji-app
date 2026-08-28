@@ -47,6 +47,15 @@ export interface Load {
   /** Whether there is enough history for `throughput` and `accuracy` to mean anything. */
   measured: boolean;
   /**
+   * Reviews falling due per day from the existing schedule.
+   *
+   * The inflow, as opposed to `due`, which is the stock that has piled up. It
+   * is the honest answer to "what would keep me level", and without it the only
+   * available answer was the backlog itself — which told anyone with an
+   * imported one to do five thousand reviews a day.
+   */
+  arrivals?: number;
+  /**
    * How much new material this learner has earned the right to be offered.
    *
    * Optional: absent means "no record yet", which is the same as the default.
@@ -172,10 +181,14 @@ export function pace(load: Load): Pacing {
   // MAX_SESSION may do that.
   const maxItems = clamp(due + maxNew, MIN_SESSION, Math.max(ceiling, Math.min(due + maxNew, MAX_SESSION)));
 
-  // What it would take to stop the backlog growing. Reported whether or not it
-  // is comfortable, because an encouraging number that is wrong is worse than a
-  // discouraging one that is right.
-  const sustainableRate = Math.max(due, Math.round(throughput));
+  // What it would take to stop the backlog growing: the rate things fall due,
+  // not the pile that already has. Reported whether or not it is comfortable,
+  // because an encouraging number that is wrong is worse than a discouraging
+  // one that is right — but it has to be a rate to be either.
+  const sustainableRate = Math.max(
+    1,
+    Math.round(load.arrivals ?? Math.max(due, throughput)),
+  );
 
   const state: PaceState = struggling
     ? 'struggling'
@@ -199,7 +212,7 @@ function noteFor(state: PaceState, due: number, maxNew: number): string {
         ? `Keeping up. ${maxNew} new ${maxNew === 1 ? 'item' : 'items'} mixed in.`
         : 'Keeping up. No new material today — the queue comes first.';
     case 'behind':
-      return `${due} due is more than you have been getting through, so nothing new is being introduced until it comes down.`;
+      return `${due.toLocaleString()} due is more than you have been getting through, so nothing new is being introduced until it comes down.`;
     case 'struggling':
       return 'A lot of misses lately, so nothing new today. Consolidating what you have is the faster route.';
     case 'starting':

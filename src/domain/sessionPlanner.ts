@@ -1,4 +1,5 @@
 import { baseLevel, levelRank, type Level, type StudyItem } from './items';
+import { isSlipping } from './leech';
 import { reviewModeFor, type QuizMode, type ReviewMode } from './modes';
 import type { ItemReviewState } from './review';
 
@@ -49,6 +50,8 @@ export interface PlanSessionOptions {
   maxNew?: number;
   /** Cap per mode-and-level group, before interleaving. */
   maxPerGroup?: number;
+  /** Cap on items you keep failing — see `domain/leech.ts`. */
+  maxSlipping?: number;
 }
 
 /** Short enough to finish standing up. */
@@ -64,6 +67,20 @@ export const DEFAULT_MAX_ITEMS = 15;
 export const DEFAULT_MAX_NEW = 8;
 
 export const DEFAULT_MAX_PER_GROUP = 5;
+
+/**
+ * How many things you keep failing one sitting may contain.
+ *
+ * They are always due — that is what failing does to a schedule — so they are
+ * always at the front of the queue, and a large enough tail of them is a
+ * session made entirely of the material you have never managed to learn. Three
+ * is enough to keep working at them and few enough that the rest of the session
+ * is still the rest of the session.
+ *
+ * The ones left over are not dropped or suspended: they stay due and come round
+ * next time. See `domain/leech.ts` for why hiding them would be wrong here.
+ */
+export const DEFAULT_MAX_SLIPPING = 3;
 
 const MILLISECONDS_PER_DAY = 86_400_000;
 
@@ -132,6 +149,7 @@ export function planSession(
   const maxItems = options.maxItems ?? DEFAULT_MAX_ITEMS;
   const maxNew = options.maxNew ?? DEFAULT_MAX_NEW;
   const maxPerGroup = options.maxPerGroup ?? DEFAULT_MAX_PER_GROUP;
+  const maxSlipping = options.maxSlipping ?? DEFAULT_MAX_SLIPPING;
 
   const due: PlannedQuestion[] = [];
   const fresh: PlannedQuestion[] = [];
@@ -197,8 +215,14 @@ export function planSession(
     return true;
   };
 
+  let slipping = 0;
   for (const question of due) {
     if (chosen.length >= maxItems) break;
+    if (isSlipping(question.state)) {
+      if (slipping >= maxSlipping) continue;
+      if (take(question)) slipping += 1;
+      continue;
+    }
     take(question);
   }
 
@@ -222,10 +246,11 @@ export function countDue(
   candidates: readonly Candidate[],
   lookup: ReviewLookup,
   now: Date,
-): { due: number; unseen: number } {
+): { due: number; unseen: number; arrivals: number } {
   const seen = new Set<string>();
   let due = 0;
   let unseen = 0;
+  let arrivals = 0;
 
   for (const candidate of candidates) {
     const mode = reviewModeFor(candidate.quiz);
@@ -239,9 +264,25 @@ export function countDue(
       continue;
     }
 
+    /*
+     * How often this memory comes round, summed into a rate.
+     *
+     * An item on a ten-day interval contributes a tenth of a review per day.
+     * Added up over everything with a schedule, that is the *inflow* — the
+     * number of questions that will fall due tomorrow whatever anyone does,
+     * and so the rate that holds the backlog level.
+     *
+     * The distinction matters more than it sounds. The backlog itself is a
+     * stock; treating it as the rate to sustain is how the screen came to tell
+     * someone with an imported backlog that five thousand reviews a day would
+     * keep them level.
+     */
+    const interval = Math.max(state.intervalDays ?? state.stability ?? 1, 1);
+    arrivals += 1 / interval;
+
     const dueAt = dueDateOf(state);
     if (dueAt === null || dueAt.getTime() <= now.getTime()) due += 1;
   }
 
-  return { due, unseen };
+  return { due, unseen, arrivals };
 }

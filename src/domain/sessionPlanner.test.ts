@@ -3,7 +3,12 @@ import { describe, expect, it } from 'vitest';
 import type { Level, VocabItem } from './items';
 import type { QuizMode, ReviewMode } from './modes';
 import type { ItemReviewState } from './review';
-import { countDue, planSession, type Candidate } from './sessionPlanner';
+import {
+  DEFAULT_MAX_SLIPPING,
+  countDue,
+  planSession,
+  type Candidate,
+} from './sessionPlanner';
 
 const NOW = new Date('2026-08-26T09:00:00Z');
 const DAY = 86_400_000;
@@ -233,13 +238,113 @@ describe('countDue', () => {
       { quiz: 'audio', item, level: '5' },
     ];
 
-    expect(countDue(candidates, NONE, NOW)).toEqual({ due: 0, unseen: 1 });
+    expect(countDue(candidates, NONE, NOW)).toEqual({ due: 0, unseen: 1, arrivals: 0 });
   });
 
   it('separates what is due from what has never been seen', () => {
     const candidates = [candidate('a', '5'), candidate('b', '5'), candidate('c', '5')];
     const lookup = lookupFrom({ a: state('a', 2), b: state('b', -2) });
 
-    expect(countDue(candidates, lookup, NOW)).toEqual({ due: 1, unseen: 1 });
+    expect(countDue(candidates, lookup, NOW)).toMatchObject({ due: 1, unseen: 1 });
+  });
+});
+
+describe('items you keep failing', () => {
+  const slipping = (id: string): ItemReviewState => ({
+    itemId: id,
+    lapses: 9,
+    totalReps: 12,
+    dueAt: Timestamp.fromMillis(NOW.getTime() - 10 * DAY),
+  });
+
+  const ordinary = (id: string): ItemReviewState => ({
+    itemId: id,
+    lapses: 0,
+    totalReps: 4,
+    dueAt: Timestamp.fromMillis(NOW.getTime() - DAY),
+  });
+
+  it('cannot take over a sitting', () => {
+    // Ten of them, all long overdue, so without a cap they sort to the front
+    // and are the entire session.
+    const ids = Array.from({ length: 10 }, (_, i) => `slip-${i}`);
+    const lookup = lookupFrom(Object.fromEntries(ids.map((id) => [id, slipping(id)])));
+
+    const plan = planSession(
+      ids.map((id) => candidate(id, '5')),
+      lookup,
+      NOW,
+      { maxItems: 15, maxNew: 0, maxPerGroup: 15 },
+    );
+
+    expect(plan).toHaveLength(DEFAULT_MAX_SLIPPING);
+  });
+
+  it('leaves room for the material that is actually being learnt', () => {
+    const stuck = Array.from({ length: 10 }, (_, i) => `slip-${i}`);
+    const fine = Array.from({ length: 6 }, (_, i) => `fine-${i}`);
+
+    const lookup = lookupFrom({
+      ...Object.fromEntries(stuck.map((id) => [id, slipping(id)])),
+      ...Object.fromEntries(fine.map((id) => [id, ordinary(id)])),
+    });
+
+    const plan = planSession(
+      [...stuck, ...fine].map((id) => candidate(id, '5')),
+      lookup,
+      NOW,
+      { maxItems: 15, maxNew: 0, maxPerGroup: 15 },
+    );
+
+    expect(plan.filter((q) => (q.state?.lapses ?? 0) >= 6)).toHaveLength(DEFAULT_MAX_SLIPPING);
+    expect(plan).toHaveLength(DEFAULT_MAX_SLIPPING + fine.length);
+  });
+
+  it('does not ration ordinary overdue material', () => {
+    const ids = Array.from({ length: 8 }, (_, i) => `fine-${i}`);
+    const lookup = lookupFrom(Object.fromEntries(ids.map((id) => [id, ordinary(id)])));
+
+    const plan = planSession(
+      ids.map((id) => candidate(id, '5')),
+      lookup,
+      NOW,
+      { maxItems: 15, maxNew: 0, maxPerGroup: 15 },
+    );
+
+    expect(plan).toHaveLength(8);
+  });
+});
+
+
+describe('what falls due per day', () => {
+  it('is a rate, not the pile that has already built up', () => {
+    // Three items on a ten-day interval produce three tenths of a review a day
+    // between them, however many of them happen to be overdue right now.
+    const candidates = ['a', 'b', 'c'].map((id) => candidate(id, '5'));
+    const lookup = lookupFrom(
+      Object.fromEntries(
+        ['a', 'b', 'c'].map((id) => [
+          id,
+          {
+            itemId: id,
+            intervalDays: 10,
+            totalReps: 4,
+            lapses: 0,
+            dueAt: Timestamp.fromMillis(NOW.getTime() - 30 * DAY),
+          } satisfies ItemReviewState,
+        ]),
+      ),
+    );
+
+    const counted = countDue(candidates, lookup, NOW);
+    expect(counted.due).toBe(3);
+    expect(counted.arrivals).toBeCloseTo(0.3, 5);
+  });
+
+  it('treats an interval under a day as one a day rather than as many', () => {
+    const lookup = lookupFrom({
+      a: { itemId: 'a', intervalDays: 0.02, dueAt: Timestamp.fromMillis(NOW.getTime()) },
+    });
+    expect(countDue([candidate('a', '5')], lookup, NOW).arrivals).toBe(1);
   });
 });

@@ -236,3 +236,28 @@ describe('the earned new-item ration', () => {
     expect(nextAppetite(11, { finished: false, offered: 0, answered: 0, right: 0 })).toBe(11);
   });
 });
+
+describe('the rate that keeps you level', () => {
+  const behind = {
+    due: 5_277,
+    unseen: 5_778,
+    throughput: 40,
+    accuracy: 0.9,
+    measured: true,
+  };
+
+  it('is what falls due, not the pile that has built up', () => {
+    // The screen used to tell someone with an imported backlog that five
+    // thousand reviews a day would stop it growing. The backlog is a stock; the
+    // thing it takes to keep level is a flow.
+    expect(pace({ ...behind, arrivals: 61.4 }).sustainableRate).toBe(61);
+  });
+
+  it('falls back to something defensible when the inflow is unknown', () => {
+    expect(pace(behind).sustainableRate).toBeGreaterThan(0);
+  });
+
+  it('is never zero, so the number always means something', () => {
+    expect(pace({ ...behind, due: 0, arrivals: 0.2 }).sustainableRate).toBe(1);
+  });
+});

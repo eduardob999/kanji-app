@@ -15,6 +15,7 @@ import type { QuizMode, ReviewMode } from '../domain/modes';
 import type { PracticeResult } from '../domain/review';
 import type { ReviewRecord } from '../domain/optimiser';
 import { dayKey } from '../domain/days';
+import { isPreview, previewHistory } from '../preview/fixtures';
 
 export { dayKey };
 
@@ -173,6 +174,12 @@ export async function loadReviewHistory(
   uid: string,
   options: HistoryOptions = {},
 ): Promise<ReviewRecord[]> {
+  // The preview harness has no Firestore and this read simply times out there,
+  // which left the streak and the activity strip permanently empty — the two
+  // things on Progress that only exist once there is a history to draw.
+  // `import.meta.env.DEV` is compile-time, so none of this ships.
+  if (import.meta.env.DEV && isPreview()) return previewHistory();
+
   const sinceDays = options.sinceDays ?? 730;
   const from = new Date(Date.now() - sinceDays * 86_400_000);
 
