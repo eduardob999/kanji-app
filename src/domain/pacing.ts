@@ -46,6 +46,14 @@ export interface Load {
   accuracy: number;
   /** Whether there is enough history for `throughput` and `accuracy` to mean anything. */
   measured: boolean;
+  /**
+   * How much new material this learner has earned the right to be offered.
+   *
+   * Optional: absent means "no record yet", which is the same as the default.
+   * See `nextAppetite` for where the number comes from and why it cannot be
+   * derived from throughput.
+   */
+  appetite?: number;
 }
 
 export type PaceState = 'starting' | 'ahead' | 'steady' | 'behind' | 'struggling';
@@ -68,6 +76,21 @@ export const MIN_REVIEWS_TO_MEASURE = 30;
 /** The session size for someone with no history yet. */
 export const BASE_SESSION = 15;
 export const BASE_NEW = 8;
+
+/**
+ * The bounds on the earned ration.
+ *
+ * The floor is below `BASE_NEW` on purpose: someone who keeps abandoning
+ * sessions should be offered less new material than a beginner, not the same.
+ */
+export const MIN_APPETITE = 4;
+export const MAX_APPETITE = 30;
+
+/** Above this share of a session answered correctly, the size was comfortable. */
+export const COMFORTABLE_ABOVE = 0.85;
+
+/** A session this far through counts as done, whether or not it was finished. */
+export const FINISHED_FROM = 0.8;
 
 /** A session is never shorter than this when there is anything to ask. */
 export const MIN_SESSION = 5;
@@ -104,15 +127,26 @@ function clamp(value: number, low: number, high: number): number {
 
 export function pace(load: Load): Pacing {
   const { due, unseen, throughput, accuracy, measured } = load;
+  const appetite = clamp(Math.round(load.appetite ?? BASE_NEW), MIN_APPETITE, MAX_APPETITE);
 
   // No history: the defaults, which are a guess but a well-behaved one.
+  //
+  // This is the branch that used to hand out eight questions a day for ever.
+  // Nothing due means the session *is* the new-item ration, and the ration was
+  // a constant that only ever moved down. It is the earned one now.
   if (!measured) {
+    const maxNew = Math.min(appetite, unseen);
     return {
-      maxItems: BASE_SESSION,
-      maxNew: Math.min(BASE_NEW, unseen),
+      maxItems: Math.min(Math.max(BASE_SESSION, due + maxNew), MAX_SESSION),
+      maxNew,
       sustainableRate: BASE_SESSION,
       state: 'starting',
-      note: 'Finding your rhythm — the session settles once there is enough history to measure.',
+      // Names the ration, because it is the number someone notices and wonders
+      // about — and says which way it moves, because until now it did not.
+      note:
+        maxNew > 0
+          ? `Finding your rhythm. ${maxNew} new ${maxNew === 1 ? 'item' : 'items'} this time, which grows as you finish sessions.`
+          : 'Finding your rhythm — nothing left to introduce in these modes.',
     };
   }
 
@@ -129,11 +163,14 @@ export function pace(load: Load): Pacing {
 
   let maxNew = 0;
   if (!behind && !struggling) {
-    maxNew = clamp(Math.floor(headroom / NEW_ITEM_COST), 0, BASE_NEW);
+    maxNew = clamp(Math.floor(headroom / NEW_ITEM_COST), 0, appetite);
   }
   maxNew = Math.min(maxNew, unseen);
 
-  const maxItems = clamp(due + maxNew, MIN_SESSION, ceiling);
+  // The ceiling caps how much *due* material is offered. It must never truncate
+  // material the rules above have already decided is affordable — only
+  // MAX_SESSION may do that.
+  const maxItems = clamp(due + maxNew, MIN_SESSION, Math.max(ceiling, Math.min(due + maxNew, MAX_SESSION)));
 
   // What it would take to stop the backlog growing. Reported whether or not it
   // is comfortable, because an encouraging number that is wrong is worse than a
@@ -206,4 +243,53 @@ export function accuracyFrom(results: readonly { result: string; at: number }[],
   if (recent.length === 0) return 1;
 
   return recent.filter((r) => r.result !== 'fail').length / recent.length;
+}
+
+
+/**
+ * How the new-item ration is earned, and why it is not simply measured.
+ *
+ * The obvious way to size new material is from throughput: offer as much as
+ * this learner gets through. It does not work, and the reason is worth stating
+ * plainly — **throughput is measured from the reviews they did, and the session
+ * decides how many they were offered.** Offer eight, they answer eight,
+ * throughput reads eight, the ceiling stays eight. The control loop's input is
+ * its own output, and the only learner who ever escapes it is the one who
+ * reaches for Random practice, whose reviews also count.
+ *
+ * So growth has to run on evidence that exists *even when the offer is the
+ * binding constraint*. Finishing everything offered, accurately, is exactly
+ * that: it says the size was comfortable without needing them to exceed it.
+ *
+ * Asymmetric on purpose. Growth is earned two at a time on evidence; strain
+ * costs three immediately. Overestimating what someone will sustain is the
+ * error that produces a backlog, and a backlog is what this module exists to
+ * prevent.
+ */
+export interface SessionOutcome {
+  /** Whether the session ran out of questions rather than being walked away from. */
+  finished: boolean;
+  offered: number;
+  answered: number;
+  right: number;
+}
+
+export function nextAppetite(current: number | undefined, outcome: SessionOutcome): number {
+  const base = clamp(Math.round(current ?? BASE_NEW), MIN_APPETITE, MAX_APPETITE);
+
+  // A session with nothing in it is not evidence of anything.
+  if (outcome.offered <= 0 || outcome.answered <= 0) return base;
+
+  const completion = outcome.answered / outcome.offered;
+  const accuracy = outcome.right / outcome.answered;
+
+  // Someone who answered eighteen of twenty and closed the tab did not reject
+  // the size of the session; treating that as abandonment would punish the
+  // wrong thing.
+  const done = outcome.finished || completion >= FINISHED_FROM;
+
+  if (!done || accuracy < STRUGGLING_BELOW) return clamp(base - 3, MIN_APPETITE, MAX_APPETITE);
+  if (accuracy >= COMFORTABLE_ABOVE) return clamp(base + 2, MIN_APPETITE, MAX_APPETITE);
+
+  return base;
 }

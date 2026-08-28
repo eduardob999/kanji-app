@@ -2,8 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
 import type { QuizMode } from '../domain/modes';
 import { countDue, planSession, type Candidate } from '../domain/sessionPlanner';
-import { accuracyFrom, pace, throughputFrom, type Pacing } from '../domain/pacing';
+import {
+  accuracyFrom,
+  nextAppetite,
+  pace,
+  throughputFrom,
+  type Pacing,
+} from '../domain/pacing';
 import { loadReviewHistory } from '../storage/reviewLog';
+import { finishSession, settleAbandonedSession, startSession } from '../storage/userState';
 import { useJapaneseVoice } from '../hooks/useJapaneseVoice';
 import { useReviewStates } from '../hooks/useReviewStates';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -44,6 +51,34 @@ export function TodaySessionPanel({ user }: { user: User }) {
 
   const modes = voice ? WITH_VOICE : WITHOUT_VOICE;
 
+  const appetite = profile?.kanjiba.appetite;
+
+  /*
+   * A session record still marked unfinished belongs to a sitting that was
+   * walked away from — there is no other way for one to survive.
+   *
+   * Settled here, on the next visit, rather than when it happened: nothing
+   * fires reliably when a tab closes, and this needs no hook at all. Clearing
+   * the record is what stops the same abandonment being charged twice.
+   */
+  const abandoned = profile?.kanjiba.session;
+  useEffect(() => {
+    // Not while one is running: starting a session writes exactly this record,
+    // and this panel stays mounted behind the quiz. Without the guard the app
+    // would settle the session the learner is in the middle of.
+    if (started) return;
+    if (!abandoned || abandoned.finished || abandoned.offered <= 0) return;
+
+    void settleAbandonedSession(user.uid, nextAppetite(appetite, abandoned)).catch(
+      (caught: unknown) => {
+        console.error('[firestore] Could not settle the abandoned session.', caught);
+      },
+    );
+    // `appetite` is deliberately absent: this must run once for a given record,
+    // and the write it makes changes the appetite.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abandoned, started, user.uid]);
+
   const loadQuiz = useCallback(() => loadQuizSource(modes, voice), [modes, voice]);
 
   /**
@@ -62,9 +97,32 @@ export function TodaySessionPanel({ user }: { user: User }) {
             throughput: historyStats?.throughput ?? 0,
             accuracy: historyStats?.accuracy ?? 1,
             measured: historyStats?.measured ?? false,
+            ...(appetite === undefined ? {} : { appetite }),
           })
         : null,
-    [counts, historyStats],
+    [appetite, counts, historyStats],
+  );
+
+  const onPlanned = useCallback(
+    (offered: number) => {
+      void startSession(user.uid, offered).catch((caught: unknown) => {
+        console.error('[firestore] Could not record the start of the session.', caught);
+      });
+    },
+    [user.uid],
+  );
+
+  const onFinished = useCallback(
+    (outcome: { offered: number; answered: number; right: number }) => {
+      void finishSession(
+        user.uid,
+        { ...outcome, finished: true },
+        nextAppetite(appetite, { ...outcome, finished: true }),
+      ).catch((caught: unknown) => {
+        console.error('[firestore] Could not record the end of the session.', caught);
+      });
+    },
+    [appetite, user.uid],
   );
 
   // Sized from the backlog and from what this learner actually gets through,
@@ -136,6 +194,8 @@ export function TodaySessionPanel({ user }: { user: User }) {
         user={user}
         loadQuiz={loadQuiz}
         buildQueue={buildQueue}
+        onPlanned={onPlanned}
+        onFinished={onFinished}
         emptyTitle="Nothing due"
         emptyBody="Everything is scheduled for later. Random practice is there if you want to keep going."
       />

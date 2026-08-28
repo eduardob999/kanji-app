@@ -66,6 +66,16 @@ export interface QuizFrameProps {
   /** Shown when the queue comes back empty. */
   emptyTitle?: string;
   emptyBody?: string;
+  /**
+   * How many questions the planner produced, once it has.
+   *
+   * Only Today's Session cares: it is the denominator that makes "finished" and
+   * "walked away from" different things. Random has no such notion — it refills
+   * for ever — and passes neither of these.
+   */
+  onPlanned?: (offered: number) => void;
+  /** The queue ran out. Fires once per round. */
+  onFinished?: (outcome: { offered: number; answered: number; right: number }) => void;
 }
 
 interface Verdict {
@@ -94,6 +104,8 @@ export function QuizFrame({
   buildQueue = planSession,
   emptyTitle = 'Nothing due',
   emptyBody = 'Everything in this mode is scheduled for later. Come back when something is due, or pick another mode.',
+  onPlanned,
+  onFinished,
 }: QuizFrameProps) {
   const { lookup, error: reviewError } = useReviewStates(user);
   const { profile } = useUserProfile(user);
@@ -134,6 +146,10 @@ export function QuizFrame({
   const lookupRef = useRef(lookup);
   lookupRef.current = lookup;
 
+  // The finish fires from an effect, and the condition that triggers it stays
+  // true for every subsequent render. Guarded rather than debounced.
+  const reported = useRef(false);
+
   const askedAt = useRef<number>(Date.now());
   // Whether the prompt gave anything away before the answer came in.
   const helped = useRef(false);
@@ -157,7 +173,9 @@ export function QuizFrame({
         setTally({ right: 0, wrong: 0 });
         askedAt.current = Date.now();
         helped.current = false;
+        reported.current = false;
         setStatus(planned.length > 0 ? 'ready' : 'empty');
+        if (planned.length > 0) onPlanned?.(planned.length);
       },
       (error: unknown) => {
         if (!live) return;
@@ -172,7 +190,7 @@ export function QuizFrame({
     // Bumping `round` is what restarts the session. `lookup` is deliberately
     // absent: it changes on every snapshot, and is read through the ref so a
     // landing write cannot reshuffle the queue mid-session.
-  }, [buildQueue, loadQuiz, round]);
+  }, [buildQueue, loadQuiz, onPlanned, round]);
 
   const question = queue[index];
   // Every per-question behaviour — how it is prompted, marked and timed —
@@ -394,6 +412,19 @@ export function QuizFrame({
     askedAt.current = Date.now();
     helped.current = false;
   }, [resetCorrection, user.uid, verdict]);
+
+  // Reaching the end of the queue, reported once.
+  useEffect(() => {
+    if (status !== 'ready' || queue.length === 0) return;
+    if (index < queue.length || reported.current) return;
+
+    reported.current = true;
+    onFinished?.({
+      offered: queue.length,
+      answered: tally.right + tally.wrong,
+      right: tally.right,
+    });
+  }, [index, onFinished, queue.length, status, tally]);
 
   /*
    * The way out, after twenty seconds of being stuck.

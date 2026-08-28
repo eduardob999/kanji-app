@@ -14,7 +14,7 @@ import { db } from '../firebase';
 import { isInputMethod } from '../domain/inputMethod';
 import { toAdaptiveModel } from './modelState';
 import type { InputMethod } from '../domain/inputMethod';
-import type { KanjibaProfile, ProfileSnapshot, UserProfile } from '../types';
+import type { KanjibaProfile, ProfileSnapshot, SessionRecord, UserProfile } from '../types';
 
 /**
  * Every read and write of user-scoped data goes through this module. The rest
@@ -55,6 +55,22 @@ function userDoc(uid: string): DocumentReference<DocumentData> {
   return doc(db, USERS_COLLECTION, uid);
 }
 
+function toSessionRecord(raw: unknown): SessionRecord | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const record = raw as Record<string, unknown>;
+  const count = (key: string): number =>
+    typeof record[key] === 'number' && Number.isFinite(record[key]) ? (record[key] as number) : 0;
+
+  return {
+    startedAt: (record['startedAt'] ?? null) as Timestamp | null,
+    offered: count('offered'),
+    answered: count('answered'),
+    right: count('right'),
+    finished: record['finished'] === true,
+  };
+}
+
 function toUserProfile(uid: string, data: DocumentData | undefined): UserProfile | null {
   if (!data) return null;
 
@@ -72,6 +88,10 @@ function toUserProfile(uid: string, data: DocumentData | undefined): UserProfile
       legacyScoresImportedAt: (kanjiba['legacyScoresImportedAt'] ?? null) as Timestamp | null,
       lastOpenedAt: (kanjiba['lastOpenedAt'] ?? null) as Timestamp | null,
       adaptive: toAdaptiveModel(kanjiba),
+      ...(typeof kanjiba['appetite'] === 'number' && Number.isFinite(kanjiba['appetite'])
+        ? { appetite: kanjiba['appetite'] as number }
+        : {}),
+      session: toSessionRecord(kanjiba['session']),
     },
   };
 }
@@ -191,4 +211,48 @@ export async function markLegacyScoresImported(uid: string): Promise<void> {
     { kanjiba: { legacyScoresImportedAt: serverTimestamp() } },
     { merge: true },
   );
+}
+
+
+/**
+ * Records that a session has begun, and how much it offered.
+ *
+ * The counterpart to `finishSession`. Between the two calls the record sits
+ * marked unfinished, which is the whole mechanism: whatever reads it next knows
+ * a session was started and never ended.
+ */
+export async function startSession(uid: string, offered: number): Promise<void> {
+  await setDoc(
+    userDoc(uid),
+    {
+      kanjiba: {
+        session: { startedAt: serverTimestamp(), offered, answered: 0, right: 0, finished: false },
+      },
+    },
+    { merge: true },
+  );
+}
+
+/** Closes the record and stores the ration the outcome earned. */
+export async function finishSession(
+  uid: string,
+  session: Omit<SessionRecord, 'startedAt'>,
+  appetite: number,
+): Promise<void> {
+  await setDoc(
+    userDoc(uid),
+    { kanjiba: { appetite, session: { ...session, startedAt: serverTimestamp() } } },
+    { merge: true },
+  );
+}
+
+/**
+ * Settles an abandoned session: the ration it earned, and the record cleared.
+ *
+ * Separate from `finishSession` because it happens on the *next* visit rather
+ * than at the end of anything, and because it must clear the record — leaving
+ * it would charge the same abandonment again on every subsequent visit.
+ */
+export async function settleAbandonedSession(uid: string, appetite: number): Promise<void> {
+  await setDoc(userDoc(uid), { kanjiba: { appetite, session: null } }, { merge: true });
 }

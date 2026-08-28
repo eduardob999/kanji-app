@@ -250,6 +250,23 @@ present but broken, which the voice check cannot detect.
 2. **The correction step**, which needs (1) to be usable at all.
 3. **The ration**, which is pure domain work and touches no layout.
 
+## Done
+
+All four, verified at 222 tests and 0 failing screen/viewport combinations.
+
+What the audit could not see, and now can: the quiz's dock shipped
+**underneath the fixed tab bar** — overflow, tap size and text size all passed
+it, and the button was simply not visible. Anything `sticky` or `fixed` that
+overlaps the bar is reported now, because unlike content in normal flow it has
+nowhere to scroll to. That check immediately found a second instance: the
+handwriting canvas was three pixels too tall for its dock to be placed clear of
+the bar, so sticky gave up and sat under it.
+
+The first attempt at (1) was worse than doing nothing, and worth remembering:
+pinning the buttons alone meant sticky pulled them up *over the answer field*,
+so the buttons were reachable and the thing you type into was behind the
+keyboard. Whatever is pinned has to be the whole apparatus or none of it.
+
 ## Verification
 
 `npm test` throughout, `npm run ui` after each of (1) and (2) — the count of

@@ -52,6 +52,32 @@ export interface KanjibaProfile {
    * `src/storage/modelState.ts`.
    */
   adaptive: AdaptiveModel;
+  /**
+   * How much new material a session may introduce, earned rather than measured.
+   *
+   * See `nextAppetite` in `src/domain/pacing.ts` for why this cannot simply be
+   * derived from how many reviews the learner does. Absent until the first
+   * session ends, which the pacing model reads as the default.
+   */
+  appetite?: number;
+  /**
+   * The session in progress, or the last one, whichever is more recent.
+   *
+   * Written when a session starts and updated when it ends. A record still
+   * marked unfinished when the *next* session begins is how abandonment is
+   * detected — no `beforeunload`, no visibility hooks, and it survives the tab
+   * simply being closed.
+   */
+  session?: SessionRecord | null;
+}
+
+export interface SessionRecord {
+  startedAt: Timestamp | null;
+  /** Questions the planner put in the queue. */
+  offered: number;
+  answered: number;
+  right: number;
+  finished: boolean;
 }
 
 /**

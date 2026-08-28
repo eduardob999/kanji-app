@@ -34,6 +34,21 @@ people actually using the app, plus a plain statement of what is stored where.
 `#faf4ea`, sumi ink `#121f2e`, a vermilion seal `#d74030` — and checked for
 contrast in both themes.
 
+**Reachable on a phone.** The answer field, the primary button and "I don't
+know" travel together in one dock that clears the on-screen keyboard, measured
+from `visualViewport` for the browsers that do not resize their layout viewport
+when an IME opens.
+
+**A miss costs a rehearsal.** The answer has to be written out once before the
+question is left behind — marked by the same function that marked the question,
+so it can never be stricter, and recorded nowhere, because it is rehearsal
+rather than evidence.
+
+**A session that grows.** The new-item ration is earned from finishing sessions
+accurately rather than measured from throughput, which cannot work: throughput
+is measured from the reviews you did and the session decides how many you were
+offered, so the loop's input was its own output and eight was a fixed point.
+
 **Offline.** ~3.4 MB precached: the bundle, the decks and the sentence packs.
 Handwriting's 1.5 MB of patterns is deliberately *not* precached and is cached
 on first use instead.
