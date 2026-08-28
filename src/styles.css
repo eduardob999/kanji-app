@@ -1114,6 +1114,23 @@ code {
 }
 
 /*
+ * The line asking for the answer to be written out again.
+ *
+ * `.card__hint` brings a top margin that the dock's own gap already covers.
+ */
+.quiz__copyprompt {
+  margin-top: 0;
+  text-align: center;
+}
+
+/* Said after a reproduction that did not match. Quiet: it is not a grade. */
+.quiz__copyhint {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  align-self: center;
+}
+
+/*
  * What you actually wrote, on a miss.
  *
  * The answer field used to stay on screen, disabled, and carry this by
@@ -1149,7 +1166,13 @@ code {
  */
 .quiz__dock {
   position: sticky;
-  bottom: calc(var(--keyboard-inset) + 8px);
+  /*
+   * Clear of everything else that is pinned to the bottom of the window: the
+   * keyboard, and the tab bar. They are never both there — the bar hides while
+   * the keyboard is up, which is what zeroes the clearance — so this reads as
+   * "whatever is down there, plus a gap".
+   */
+  bottom: calc(var(--keyboard-inset) + var(--tabbar-clearance) + 8px);
   /* Under the tab bar's 5: on a browser mid-animation, the bar wins. */
   z-index: 4;
   display: flex;
@@ -1391,9 +1414,14 @@ code {
    * screen — prompt, answer, candidates, three buttons, the credit line — has
    * to fit around it. A square that only respects width pushes the rest off a
    * short phone.
+   *
+   * 32vh rather than 34: the canvas now shares the dock with the primary
+   * button, and at 34 the whole dock was three pixels too tall to be placed
+   * clear of the tab bar. Sticky cannot honour an offset it has no room for,
+   * so it simply sat under the bar.
    */
-  width: min(320px, 78vw, 34vh);
-  height: min(320px, 78vw, 34vh);
+  width: min(320px, 78vw, 32vh);
+  height: min(320px, 78vw, 32vh);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-elevated);

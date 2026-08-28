@@ -114,6 +114,21 @@ export function QuizFrame({
   const [tally, setTally] = useState({ right: 0, wrong: 0 });
   const [round, setRound] = useState(0);
 
+  /*
+   * Reproducing the answer after a miss.
+   *
+   * `copy` is what is being written, `copyAttempts` counts the tries that did
+   * not match, and `corrected` is what releases the Next button. Skipping is
+   * offered once it has cost something — two failed attempts or twenty seconds
+   * — because required is not the same as trapped and there are honest ways to
+   * be stuck: a recogniser that will not produce the character, or one of the
+   * 205 kanji with no reference pattern at all.
+   */
+  const [copy, setCopy] = useState('');
+  const [copyAttempts, setCopyAttempts] = useState(0);
+  const [corrected, setCorrected] = useState(false);
+  const [canSkipCopy, setCanSkipCopy] = useState(false);
+
   // The lookup changes on every snapshot; planning must not. Held in a ref so
   // the planning effect can read the current value without depending on it.
   const lookupRef = useRef(lookup);
@@ -138,6 +153,7 @@ export function QuizFrame({
         setIndex(0);
         setAnswer('');
         setVerdict(null);
+        resetCorrection();
         setTally({ right: 0, wrong: 0 });
         askedAt.current = Date.now();
         helped.current = false;
@@ -283,13 +299,51 @@ export function QuizFrame({
    */
   const giveUp = useCallback(() => resolve(false), [resolve]);
 
+  const resetCorrection = useCallback(() => {
+    setCopy('');
+    setCopyAttempts(0);
+    setCorrected(false);
+    setCanSkipCopy(false);
+  }, []);
+
+  /**
+   * Marking the reproduction.
+   *
+   * Marked by `definition.check` — the very function that marked the question —
+   * so it can never be stricter than the question was, and an item with several
+   * accepted readings needs no second rule.
+   *
+   * Nothing is recorded. The grade and all three writes happened in `resolve`
+   * before this appeared: the correction is rehearsal, not evidence. Grading it
+   * would mean every failure was immediately followed by a success, and the
+   * model would stop being able to learn anything from failures at all.
+   */
+  const submitCopy = useCallback(
+    (given?: string) => {
+      if (!question || !definitions) return;
+
+      const trimmed = (given ?? copy).trim();
+      if (!trimmed) return;
+
+      if (definitions[question.quiz].check(trimmed, question.item)) {
+        setCorrected(true);
+        return;
+      }
+
+      setCopy('');
+      setCopyAttempts((n) => n + 1);
+    },
+    [copy, definitions, question],
+  );
+
   const next = useCallback(() => {
     setVerdict(null);
     setAnswer('');
+    resetCorrection();
     setIndex((current) => current + 1);
     askedAt.current = Date.now();
     helped.current = false;
-  }, []);
+  }, [resetCorrection]);
 
   /**
    * "That was a typo."
@@ -336,9 +390,23 @@ export function QuizFrame({
     }));
     setVerdict(null);
     setAnswer('');
+    resetCorrection();
     askedAt.current = Date.now();
     helped.current = false;
-  }, [user.uid, verdict]);
+  }, [resetCorrection, user.uid, verdict]);
+
+  /*
+   * The way out, after twenty seconds of being stuck.
+   *
+   * Deliberately not offered immediately: an escape that is there from the
+   * first frame is the button everyone presses, and the copying is the point.
+   */
+  const stuck = verdict !== null && !verdict.correct && !corrected;
+  useEffect(() => {
+    if (!stuck) return;
+    const timer = window.setTimeout(() => setCanSkipCopy(true), 20_000);
+    return () => window.clearTimeout(timer);
+  }, [stuck]);
 
   if (status === 'loading') {
     return (
@@ -435,26 +503,86 @@ export function QuizFrame({
             {verdict.intervalDays > 0 ? ` — back in ${describeInterval(verdict.intervalDays)}` : ''}
           </p>
 
-          <div className="quiz__dock">
-            <button type="button" className="button button--primary button--block" onClick={next}>
-              Next
-            </button>
+          {stuck ? (
+            /*
+             * Write it once before moving on.
+             *
+             * Copying after a failed recall is the only rehearsal that miss was
+             * ever going to get, and it costs a moment that was dead anyway.
+             * The answer stays on screen throughout — this is copying, not a
+             * second attempt, and hiding it would just be asking the same
+             * question twice.
+             *
+             * The input is whatever the learner already uses, so nobody is
+             * asked for an IME they do not have: multiple choice re-presents
+             * the options and wants the right one, handwriting wants it drawn,
+             * which on a writing question is the whole exercise.
+             */
+            <div className="quiz__dock">
+              <p className="card__hint quiz__copyprompt">
+                Write it out once — that is what makes it stick.
+              </p>
 
-            <div className="quiz__afterthoughts">
-              {verdict.correct && !verdict.overridden && downgrade(verdict.result) !== verdict.result ? (
-                <button
-                  type="button"
-                  className="button button--ghost button--small"
-                  onClick={softenGrade}
-                >
-                  That was harder than it looked
-                </button>
-              ) : null}
-              <button type="button" className="button button--ghost button--small" onClick={undo}>
-                Undo
+              <AnswerInput
+                method={inputMethod}
+                value={copy}
+                onChange={setCopy}
+                onSubmit={submitCopy}
+                disabled={false}
+                placeholder={definition.placeholder}
+                {...(inputMethod === 'choice'
+                  ? { choices: buildChoices(question.item, pool, question.quiz) }
+                  : {})}
+              />
+
+              <button
+                type="button"
+                className="button button--primary button--block"
+                onClick={() => submitCopy()}
+                disabled={copy.trim() === ''}
+              >
+                Done
               </button>
+
+              <div className="quiz__afterthoughts">
+                {copyAttempts > 0 ? (
+                  <span className="quiz__copyhint" role="status">
+                    Not quite — it is on screen above.
+                  </span>
+                ) : null}
+                {canSkipCopy || copyAttempts >= 2 ? (
+                  <button
+                    type="button"
+                    className="button button--ghost button--small"
+                    onClick={() => setCorrected(true)}
+                  >
+                    Skip this
+                  </button>
+                ) : null}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="quiz__dock">
+              <button type="button" className="button button--primary button--block" onClick={next}>
+                Next
+              </button>
+
+              <div className="quiz__afterthoughts">
+                {verdict.correct && !verdict.overridden && downgrade(verdict.result) !== verdict.result ? (
+                  <button
+                    type="button"
+                    className="button button--ghost button--small"
+                    onClick={softenGrade}
+                  >
+                    That was harder than it looked
+                  </button>
+                ) : null}
+                <button type="button" className="button button--ghost button--small" onClick={undo}>
+                  Undo
+                </button>
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <div className="quiz__dock">

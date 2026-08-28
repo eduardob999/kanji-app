@@ -150,6 +150,36 @@ const STATES = {
         await page.waitForSelector('.verdict', { timeout: 5_000 });
       },
     },
+    {
+      /*
+       * All the way through a miss: answer wrongly, then write the answer out
+       * before Next is offered.
+       *
+       * The answer is read off the verdict line rather than known in advance,
+       * which is the only way a harness with no deck data can do this — and it
+       * doubles as a check that what the verdict shows is genuinely what the
+       * correction accepts. If those two ever disagree, this state cannot be
+       * reached and the audit says so.
+       */
+      name: 'corrected',
+      async reach(page) {
+        await page.fill('.textinput--answer', 'まちがい');
+        await page.click('.button--primary');
+        await page.waitForSelector('.quiz__copyprompt', { timeout: 5_000 });
+
+        const answer = (await page.textContent('.verdict'))?.trim() ?? '';
+        if (!answer) throw new Error('the verdict did not name the answer');
+
+        await page.fill('.textinput--answer', answer);
+        await page.click('.button--primary');
+        await page.waitForSelector('.quiz__dock .button--primary:not([disabled])', {
+          timeout: 5_000,
+        });
+
+        const label = (await page.textContent('.quiz__dock .button--primary'))?.trim();
+        if (label !== 'Next') throw new Error(`copying the answer left the dock on "${label}"`);
+      },
+    },
     openKeyboard,
   ],
   writing: [
@@ -186,6 +216,22 @@ function inspect(minTap, minFont) {
   const overflowing = [];
   const smallTaps = [];
   const smallText = [];
+  const occluded = [];
+
+  /*
+   * The tab bar is `position: fixed`, so it covers whatever shares its band of
+   * the viewport. For content in normal flow that is fine — you scroll, and it
+   * comes out from under. For anything *pinned* it is permanent: the element
+   * has nowhere to scroll to.
+   *
+   * This is how the quiz's dock shipped underneath the tab bar while every
+   * other rule here passed it. Overflow, tap size and contrast were all
+   * correct; the button was simply not visible.
+   */
+  const bar = document.querySelector('.tabbar');
+  const barBox = bar && getComputedStyle(bar).display !== 'none'
+    ? bar.getBoundingClientRect()
+    : null;
 
   const describe = (el) => {
     const cls = typeof el.className === 'string' ? el.className.split(' ')[0] : '';
@@ -207,6 +253,17 @@ function inspect(minTap, minFont) {
           right: Math.round(box.right),
           width: Math.round(box.width),
         });
+      }
+    }
+
+    if (barBox && !bar.contains(el)) {
+      const pinned = getComputedStyle(el).position;
+      if (
+        (pinned === 'sticky' || pinned === 'fixed') &&
+        box.bottom > barBox.top + 1 &&
+        box.top < barBox.bottom
+      ) {
+        occluded.push({ el: describe(el), by: Math.round(box.bottom - barBox.top) });
       }
     }
 
@@ -246,6 +303,7 @@ function inspect(minTap, minFont) {
     viewport,
     scrollWidth: doc.scrollWidth,
     overflowing: overflowing.slice(0, 8),
+    occluded: occluded.slice(0, 4),
     smallTaps: smallTaps.slice(0, 8),
     smallText: smallText.slice(0, 6),
   };
@@ -338,6 +396,10 @@ for (const viewport of VIEWPORTS) {
     if (result.overflowing.length) {
       issues.push(`${result.overflowing.length} element(s) past the edge: ` +
         result.overflowing.map((o) => `${o.el}(${o.left}..${o.right})`).join(', '));
+    }
+    if (result.occluded.length) {
+      issues.push(`pinned under the tab bar: ` +
+        result.occluded.map((o) => `${o.el} by ${o.by}px`).join(', '));
     }
     if (result.smallTaps.length) {
       issues.push(`${result.smallTaps.length} small tap target(s): ` +
