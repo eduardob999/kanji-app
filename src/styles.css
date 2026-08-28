@@ -56,6 +56,13 @@
    */
   --tabbar-clearance: calc(72px + env(safe-area-inset-bottom));
 
+  /*
+   * How much of the window the on-screen keyboard is covering, published by
+   * `src/viewport.ts`. Zero here so every rule that uses it works before the
+   * first measurement, on a browser with no visualViewport, and in a test.
+   */
+  --keyboard-inset: 0px;
+
   color-scheme: dark light;
 }
 
@@ -84,6 +91,23 @@
      */
     --error: #c23a2b;
   }
+}
+
+/*
+ * While the keyboard is up, the tab bar is dead weight — and on a browser that
+ * does not resize the layout viewport it is *behind* the keyboard, so it is not
+ * even reachable. Hiding it hands its space to the thing being typed into, and
+ * lets the action bar sit directly on top of the keyboard.
+ *
+ * Equal specificity to the `:root` block above, so ordering is what makes this
+ * win. It has to stay below it.
+ */
+[data-keyboard='open'] {
+  --tabbar-clearance: 0px;
+}
+
+[data-keyboard='open'] .tabbar {
+  display: none;
 }
 
 /*
@@ -140,7 +164,17 @@ code {
 .screen {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  /*
+   * The keyboard's share of the window is not ours to lay out in.
+   *
+   * On a browser that resizes the layout viewport when the IME opens this
+   * subtracts nothing, because `100dvh` has already shrunk. On one that does
+   * not, this is what makes the two behave the same — and it is the mechanism
+   * that keeps the quiz's buttons reachable, rather than the sticky dock
+   * below: with the column shortened, the prompt gives up its slack and
+   * everything lands above the keyboard in normal flow, overlapping nothing.
+   */
+  min-height: calc(100dvh - var(--keyboard-inset));
   padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
 }
 
@@ -1080,6 +1114,56 @@ code {
 }
 
 /*
+ * What you actually wrote, on a miss.
+ *
+ * The answer field used to stay on screen, disabled, and carry this by
+ * accident. It lives in the dock now and the verdict replaces the dock, so the
+ * information had to become deliberate — and it is better this way: it reads
+ * the same whether the answer was typed, drawn or tapped.
+ */
+.quiz__given {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/*
+ * Answering, all in one place: the input, the primary action, and the quiet row
+ * under it.
+ *
+ * They travel together because separating them is what broke the first attempt
+ * at this. Pinning only the buttons meant that on a screen tall enough to
+ * scroll, sticky pulled them up *over the answer field* — the buttons were
+ * reachable and the thing you were meant to type into was behind the keyboard.
+ * Whatever is pinned has to be the whole apparatus or none of it.
+ *
+ * Sticky rather than fixed. When the card fits the screen — which, thanks to
+ * the height compression on `.screen`, is nearly always — this is simply the
+ * bottom of the card and overlaps nothing. It floats only once there is
+ * genuinely something to scroll, and then it is the prompt that scrolls behind
+ * it, which is the right thing to lose sight of.
+ *
+ * Sticky is silently defeated by `overflow` on any ancestor, so if this ever
+ * stops sticking, look at what was added to `.card` or `.content` rather than
+ * at this rule.
+ */
+.quiz__dock {
+  position: sticky;
+  bottom: calc(var(--keyboard-inset) + 8px);
+  /* Under the tab bar's 5: on a browser mid-animation, the bar wins. */
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* Bleeds to the card's edges, so what scrolls under it is actually covered. */
+  margin: 0 -20px -20px;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+/*
  * Undo and the grade override. Deliberately quiet and below the primary action:
  * they matter, and they are not what you press fifteen times a session.
  */
@@ -1088,7 +1172,10 @@ code {
   justify-content: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 12px;
+}
+
+.quiz__afterthoughts:empty {
+  display: none;
 }
 
 .pill--muted {
@@ -1786,8 +1873,8 @@ code {
   justify-content: center;
 }
 
-/* The verdict and everything after it belong with the actions, not the slack. */
+/* The verdict and everything after it belong with the dock, not the slack. */
 .quiz__reveal,
-.quiz__afterthoughts {
+.quiz__dock {
   flex: none;
 }

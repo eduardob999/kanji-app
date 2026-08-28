@@ -76,6 +76,14 @@ interface Verdict {
   /** What was stored before this answer, so an undo can put it back. */
   previous: ItemReviewState | null;
   overridden: boolean;
+  /**
+   * What was actually given, so a miss can show it beside the right answer.
+   *
+   * Carried on the verdict rather than read from the live answer state, because
+   * the answer field is no longer on screen once the verdict is: it lives in
+   * the dock, which the verdict replaces. Empty for "I don't know".
+   */
+  given: string;
 }
 
 type Status = 'loading' | 'ready' | 'empty' | 'error';
@@ -163,7 +171,7 @@ export function QuizFrame({
    * recall the item, and the schedule should hear that.
    */
   const resolve = useCallback(
-    (correct: boolean) => {
+    (correct: boolean, given = '') => {
     if (!question || verdict) return;
 
     const elapsedMs = Date.now() - askedAt.current;
@@ -234,7 +242,7 @@ export function QuizFrame({
         console.error('[firestore] Review did not reach the server.', error);
       });
 
-    setVerdict({ question, correct, result, intervalDays: 0, previous, overridden: false });
+    setVerdict({ question, correct, result, intervalDays: 0, previous, overridden: false, given });
     setTally((current) => ({
       right: current.right + (correct ? 1 : 0),
       wrong: current.wrong + (correct ? 0 : 1),
@@ -255,7 +263,7 @@ export function QuizFrame({
       const active = definitions?.[question.quiz];
       if (!active) return;
 
-      resolve(active.check(trimmed, question.item));
+      resolve(active.check(trimmed, question.item), trimmed);
     },
     [answer, definitions, question, resolve, verdict],
   );
@@ -402,18 +410,6 @@ export function QuizFrame({
         })}
       </div>
 
-      <AnswerInput
-        method={inputMethod}
-        value={answer}
-        onChange={setAnswer}
-        onSubmit={submit}
-        disabled={verdict !== null}
-        placeholder={definition.placeholder}
-        {...(inputMethod === 'choice'
-          ? { choices: buildChoices(question.item, pool, question.quiz) }
-          : {})}
-      />
-
       {verdict ? (
         <>
           <p
@@ -425,6 +421,13 @@ export function QuizFrame({
               : definitions?.[verdict.question.quiz].answerOf(verdict.question.item)}
           </p>
 
+          {!verdict.correct && verdict.given ? (
+            <p className="quiz__given">
+              You wrote{' '}
+              <span lang="ja">{verdict.given}</span>
+            </p>
+          ) : null}
+
           <div className="quiz__reveal">{definition.renderReveal(question.item)}</div>
 
           <p className="card__hint">
@@ -432,27 +435,41 @@ export function QuizFrame({
             {verdict.intervalDays > 0 ? ` — back in ${describeInterval(verdict.intervalDays)}` : ''}
           </p>
 
-          <button type="button" className="button button--primary button--block" onClick={next}>
-            Next
-          </button>
-
-          <div className="quiz__afterthoughts">
-            {verdict.correct && !verdict.overridden && downgrade(verdict.result) !== verdict.result ? (
-              <button
-                type="button"
-                className="button button--ghost button--small"
-                onClick={softenGrade}
-              >
-                That was harder than it looked
-              </button>
-            ) : null}
-            <button type="button" className="button button--ghost button--small" onClick={undo}>
-              Undo
+          <div className="quiz__dock">
+            <button type="button" className="button button--primary button--block" onClick={next}>
+              Next
             </button>
+
+            <div className="quiz__afterthoughts">
+              {verdict.correct && !verdict.overridden && downgrade(verdict.result) !== verdict.result ? (
+                <button
+                  type="button"
+                  className="button button--ghost button--small"
+                  onClick={softenGrade}
+                >
+                  That was harder than it looked
+                </button>
+              ) : null}
+              <button type="button" className="button button--ghost button--small" onClick={undo}>
+                Undo
+              </button>
+            </div>
           </div>
         </>
       ) : (
-        <>
+        <div className="quiz__dock">
+          <AnswerInput
+            method={inputMethod}
+            value={answer}
+            onChange={setAnswer}
+            onSubmit={submit}
+            disabled={false}
+            placeholder={definition.placeholder}
+            {...(inputMethod === 'choice'
+              ? { choices: buildChoices(question.item, pool, question.quiz) }
+              : {})}
+          />
+
           <button
             type="button"
             className="button button--primary button--block"
@@ -472,7 +489,7 @@ export function QuizFrame({
               I don’t know
             </button>
           </div>
-        </>
+        </div>
       )}
     </section>
   );

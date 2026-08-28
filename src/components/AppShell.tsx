@@ -98,6 +98,8 @@ export function AppShell({ user }: AppShellProps) {
         return <TodaySessionPanel user={user} />;
       case 'random':
         return <RandomPanel user={user} />;
+      case 'random-silent':
+        return <RandomPanel user={user} silent />;
       case 'vocab-reading':
         return <VocabReadingPanel user={user} />;
       case 'kanji-writing':

@@ -19,6 +19,7 @@
 export type ScreenId =
   | 'today'
   | 'random'
+  | 'random-silent'
   | 'vocab-reading'
   | 'kanji-writing'
   | 'fill-in'
@@ -75,6 +76,12 @@ export const NAV_ROOT: NavNode = {
           blurb: 'Any word, any of the four question types, for as long as you want.',
           screen: 'random',
           needsSpeech: true,
+        },
+        {
+          id: 'study.random-silent',
+          title: 'Random (silent)',
+          blurb: 'The same, minus listening. For a bus, a library, or a shared room.',
+          screen: 'random-silent',
         },
         {
           id: 'study.vocab-reading',

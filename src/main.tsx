@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { PreviewApp } from './preview/PreviewApp';
 import { registerServiceWorker } from './pwa/registerServiceWorker';
+import { watchKeyboardInset } from './viewport';
 import './styles.css';
 
 const container = document.getElementById('root');
@@ -24,3 +25,7 @@ createRoot(container).render(
 );
 
 registerServiceWorker();
+
+// Publishes --keyboard-inset, which is what keeps the quiz's buttons above the
+// on-screen keyboard. Started here so the preview harness gets it too.
+watchKeyboardInset();

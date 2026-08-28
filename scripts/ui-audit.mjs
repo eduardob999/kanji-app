@@ -16,6 +16,8 @@
  *   - **Text too small to read**, under 12 px.
  *   - **Console errors**, because a screen that logs on every render is usually
  *     also doing something expensive on every render.
+ *   - **Reachability with the keyboard open** — see `openKeyboard` below, which
+ *     is a stated simulation rather than a real IME.
  *
  * Screenshots go to `.ui/` for looking at; the report goes to stdout for
  * deciding what to fix.
@@ -57,7 +59,7 @@ const VIEWPORTS = [
 ];
 
 const SCREENS = [
-  'today', 'random', 'reading', 'writing', 'fill', 'audio',
+  'today', 'random', 'random-silent', 'reading', 'writing', 'fill', 'audio',
   'browse', 'progress', 'scheduler', 'input', 'account', 'about', 'signin',
   'handwriting', 'choice',
 ];
@@ -70,6 +72,74 @@ const SCREENS = [
  * full, and nothing about loading the page shows that. Each entry drives the
  * page into the state and then the same checks run against it.
  */
+/**
+ * The keyboard, simulated — and it is worth being precise about how.
+ *
+ * A headless browser cannot raise a soft keyboard, and there is no API to make
+ * it pretend. What *can* be reproduced exactly is the thing the CSS reacts to:
+ * `--keyboard-inset` and `data-keyboard`, which `src/viewport.ts` publishes
+ * from `window.visualViewport`. Setting them by hand tests every rule that
+ * depends on them, at the cost of not testing the measurement itself.
+ *
+ * So this catches a regression in the layout and cannot catch a regression in
+ * the measurement. The second one needs a phone.
+ *
+ * 45% of the viewport is a middling Android keyboard; iOS is a little less.
+ */
+const KEYBOARD_FRACTION = 0.45;
+
+const openKeyboard = {
+  name: 'keyboard',
+  async reach(page, viewport) {
+    const inset = Math.round(viewport.height * KEYBOARD_FRACTION);
+    await page.focus('.textinput--answer');
+    await page.evaluate((px) => {
+      document.documentElement.style.setProperty('--keyboard-inset', `${px}px`);
+      document.documentElement.dataset.keyboard = 'open';
+    }, inset);
+  },
+  async check(page, viewport) {
+    const line = viewport.height - Math.round(viewport.height * KEYBOARD_FRACTION);
+    return page.evaluate((keyboardTop) => {
+      const found = [];
+      const dock = document.querySelector('.quiz__dock');
+      if (!dock) return ['no .quiz__dock to keep above the keyboard'];
+
+      const box = dock.getBoundingClientRect();
+      if (box.bottom > keyboardTop + 1) {
+        found.push(`the dock sits ${Math.round(box.bottom - keyboardTop)}px into the keyboard`);
+      }
+      if (box.top < 0) {
+        found.push('the dock is cut off at the top of the viewport');
+      }
+
+      // The dock is only useful if every part of it is: the field being typed
+      // into, the primary action, and the way out of a question you cannot
+      // answer. Checking the container alone would pass a dock whose last row
+      // had wrapped below the fold.
+      for (const [what, selector] of [
+        ['the answer field', '.textinput--answer, .choices, .handwriting'],
+        ['the primary button', '.button--primary'],
+        ['"I don\u2019t know"', '.quiz__afterthoughts .button'],
+      ]) {
+        const el = dock.querySelector(selector);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        if (rect.bottom > keyboardTop + 1) {
+          found.push(`${what} is ${Math.round(rect.bottom - keyboardTop)}px into the keyboard`);
+        }
+      }
+
+      const tabbar = document.querySelector('.tabbar');
+      if (tabbar && getComputedStyle(tabbar).display !== 'none') {
+        found.push('the tab bar is still taking space with the keyboard open');
+      }
+
+      return found;
+    }, line);
+  },
+};
+
 const STATES = {
   reading: [
     {
@@ -80,6 +150,7 @@ const STATES = {
         await page.waitForSelector('.verdict', { timeout: 5_000 });
       },
     },
+    openKeyboard,
   ],
   writing: [
     {
@@ -90,6 +161,7 @@ const STATES = {
         await page.waitForSelector('.verdict', { timeout: 5_000 });
       },
     },
+    openKeyboard,
   ],
   today: [
     {
@@ -232,7 +304,7 @@ for (const viewport of VIEWPORTS) {
 
     if (state) {
       try {
-        await state.reach(page);
+        await state.reach(page, viewport);
         await page.waitForTimeout(400);
       } catch (error) {
         // Reaching the state is itself a result: a verdict that cannot be
@@ -275,6 +347,11 @@ for (const viewport of VIEWPORTS) {
       issues.push(`tiny text: ` + result.smallText.map((t) => `${t.el} ${t.size}px`).join(', '));
     }
     if (errors.length) issues.push(`console: ${errors[0]}`);
+
+    // Whatever this particular state is here to prove.
+    if (state?.check) {
+      issues.push(...(await state.check(page, viewport)));
+    }
 
     if (issues.length) {
       problems += 1;

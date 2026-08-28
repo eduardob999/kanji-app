@@ -33,18 +33,20 @@ function InputPreview({ method }: { method: 'handwriting' | 'choice' }) {
         </p>
         <p className="quiz__gloss">soil; earth; ground; Turkey</p>
       </div>
-      <AnswerInput
-        method={method}
-        value={value}
-        onChange={setValue}
-        onSubmit={() => {}}
-        disabled={false}
-        placeholder="The character"
-        {...(method === 'choice' ? { choices: ['土', '士', '工', '干'] } : {})}
-      />
-      <button type="button" className="button button--primary button--block">
-        Check
-      </button>
+      <div className="quiz__dock">
+        <AnswerInput
+          method={method}
+          value={value}
+          onChange={setValue}
+          onSubmit={() => {}}
+          disabled={false}
+          placeholder="The character"
+          {...(method === 'choice' ? { choices: ['土', '士', '工', '干'] } : {})}
+        />
+        <button type="button" className="button button--primary button--block">
+          Check
+        </button>
+      </div>
     </section>
   );
 }
@@ -70,6 +72,7 @@ function InputPreview({ method }: { method: 'handwriting' | 'choice' }) {
 const SCREENS = {
   today: ['Today’s Session', () => <TodaySessionPanel user={previewUser} />],
   random: ['Random', () => <RandomPanel user={previewUser} />],
+  'random-silent': ['Random (silent)', () => <RandomPanel user={previewUser} silent />],
   reading: ['Vocab reading', () => <VocabReadingPanel user={previewUser} />],
   writing: ['Kanji writing', () => <KanjiWritingPanel user={previewUser} />],
   fill: ['Fill in the blank', () => <FillInPanel user={previewUser} />],
