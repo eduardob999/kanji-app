@@ -1,5 +1,13 @@
 /**
- * Does this actually work on a train?
+ * Does the service worker do its two jobs?
+ *
+ * It has exactly two, and neither had ever been run. One is serving the app
+ * with no network. The other is shipping a new version to someone already
+ * running an old one — which matters more than it sounds, because this worker
+ * deliberately does *not* take control on its own, so if the hand-off is
+ * broken a learner sits on a stale bundle indefinitely and nothing says so.
+ *
+ * Part one: does this actually work on a train?
  *
  * The whole design leans on it — decks and sentences are precached rather than
  * fetched, writes are deliberately not awaited because Firestore leaves them
@@ -30,7 +38,7 @@
  */
 import { chromium } from 'playwright-core';
 import { homedir } from 'node:os';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
@@ -147,14 +155,85 @@ note(
 );
 
 /*
+ * ## Part two: can someone actually receive an update?
+ *
+ * A deploy changes the bundle's fingerprints, which changes the precache
+ * manifest, which changes the worker's bytes. Patching the version string in
+ * place is the same thing without a rebuild.
+ *
+ * The worker does not `skipWaiting()` on install, on purpose — taking control
+ * mid-session swaps the assets under someone part-way through a quiz. So the
+ * new one installs, waits, and the page offers it. All of which is only true
+ * if the offer appears and the button works.
+ */
+const workerPath = resolve(ROOT, 'dist/service-worker.js');
+const original = readFileSync(workerPath, 'utf8');
+
+try {
+  writeFileSync(
+    workerPath,
+    original.replace(/"version":"([^"]+)"/, (_, v) => `"version":"${v}-next"`),
+  );
+
+  await page.reload({ waitUntil: 'load' });
+
+  const offered = await page
+    .waitForSelector('[data-testid="update-bar"]', { timeout: 15_000 })
+    .then(() => true)
+    .catch(() => false);
+  note(offered, 'a new version is offered to a page already running the old one');
+
+  if (offered) {
+    const before = await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.ready;
+      return { waiting: Boolean(registration.waiting), caches: (await caches.keys()).length };
+    });
+    note(before.waiting, 'the new worker waits rather than taking over mid-session');
+
+    await page.click('[data-testid="update-apply"]');
+    // Applying posts SKIP_WAITING, which triggers a controllerchange and a
+    // reload; the check is that the page comes back on the new worker.
+    await page.waitForTimeout(3_000);
+
+    const after = await page.evaluate(async () => {
+      const registration = await navigator.serviceWorker.ready;
+      const names = await caches.keys();
+      return {
+        active: registration.active?.state ?? null,
+        waiting: Boolean(registration.waiting),
+        names,
+      };
+    });
+
+    note(after.active === 'activated' && !after.waiting, 'applying it hands over', after.active ?? '');
+    // Activation drops every cache but its own; a version that accumulated one
+    // per deploy would fill a phone quietly.
+    note(after.names.length === 1, 'and drops the old cache', after.names.join(', '));
+  }
+} finally {
+  writeFileSync(workerPath, original);
+}
+
+// Back to the version the rest of this checks, so the reverted worker is the
+// one in control before the network goes away.
+await page.reload({ waitUntil: 'load' });
+await page.waitForTimeout(2_000);
+
+/*
  * The other half of the precache decision.
  *
  * The handwriting patterns are deliberately left out of the precache so that
  * someone who never draws never downloads 1.6 MB — which is only a good trade
- * if they are actually cached the first time they *are* used. That is the
- * service worker's runtime path, and nothing had ever checked it.
+ * if they are cached the first time they *are* used. That is the worker's
+ * runtime path, and nothing had ever checked it.
  *
- * Fetching once here stands in for turning handwriting on.
+ * Primed *after* the update phase on purpose, and the reason is worth knowing
+ * rather than working around: activating a new worker drops every cache but
+ * its own, so a deploy costs anyone using handwriting that 1.6 MB again. That
+ * is the correct trade for an asset with no fingerprint in its name — the
+ * alternative is serving yesterday's stroke data after a build that changed it,
+ * which this one did for 41 characters — but it is a real cost and it belongs
+ * written down.
  */
 await page.evaluate(async () => {
   await fetch('strokes/kanji.json').then((r) => r.arrayBuffer());
@@ -162,7 +241,7 @@ await page.evaluate(async () => {
 // The worker writes the cache after answering, so give it a moment to land.
 await page.waitForTimeout(1_500);
 
-// 2. Take the network away for real.
+// 3. Take the network away for real.
 await stop(server);
 
 const reloadErrors = [];
@@ -198,7 +277,7 @@ note(shell.rendered, 'the app shell renders with the network off', shell.text);
  */
 const bootErrors = [...reloadErrors];
 
-// 3. The data the quizzes need, offline.
+// 4. The data the quizzes need, offline.
 const data = await offlinePage.evaluate(async (paths) => {
   const out = [];
   for (const path of paths) {
@@ -216,7 +295,7 @@ for (const [path, ok, status] of data) {
   note(ok, `${path} is served from cache`, ok ? '' : `status ${status}`);
 }
 
-// 4. And the thing that is deliberately *not* precached, to prove the
+// 5. And the thing that is deliberately *not* precached, to prove the
 //    distinction is real rather than accidental.
 const strokes = await offlinePage.evaluate(async () => {
   try {

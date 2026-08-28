@@ -75,6 +75,13 @@ character comes first 96.7% of the time and is offered at all 99.9% — 乙 and 
 are the two it cannot find, and the "type it instead" button is there for
 them.
 
+**Updates that arrive.** A new build installs and waits rather than taking
+control mid-quiz; the page offers it and "Later" means later. `npm run offline`
+drives that hand-off end to end — offered, waiting, applied, old cache dropped
+— because a worker that deliberately does not take over on its own leaves
+someone on a stale bundle indefinitely if the offer is broken, and nothing says
+so.
+
 **Offline, checked.** 3.65 MB precached: the bundle (0.93), the decks (1.14),
 the sentence packs (1.35) and the icons. Handwriting's 1.61 MB of patterns is
 deliberately *not* precached and is cached on first use instead. `npm run offline` proves it by starting a server,
