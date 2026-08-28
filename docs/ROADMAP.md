@@ -55,19 +55,16 @@ learn stops crowding out the things you can, and Progress names them. Not
 suspended: this corpus is the JLPT lists, and burying a word would be burying
 the syllabus.
 
+**Handwriting for every character in the corpus.** 2,211 of 2,211. Kanji
+Canvas publishes 2,006; the rest are generated from KanjiVG at build time and
+checked by rebuilding characters that *are* covered and confirming the
+recogniser still ranks them first.
+
 **Offline.** ~3.4 MB precached: the bundle, the decks and the sentence packs.
 Handwriting's 1.5 MB of patterns is deliberately *not* precached and is cached
 on first use instead.
 
 ## Next
-
-### Handwriting coverage
-
-205 of 2,211 kanji have no reference pattern (mostly jinmeiyō: 哉, 舜, 慧, 麟).
-There is a "type it instead" button, deliberately always present rather than
-appearing only for those characters — showing it conditionally would leak the
-answer. Closing the gap properly means generating patterns from KanjiVG for the
-missing characters.
 
 ### Retire the CLI
 

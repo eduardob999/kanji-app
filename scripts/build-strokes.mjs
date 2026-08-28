@@ -34,19 +34,52 @@
  * `momentNormalize` → `extractFeatures` pipeline the app uses at recognition
  * time — imported from `src/input/handwriting/pipeline.js` rather than
  * reimplemented, so the two cannot drift.
+ *
+ * ## The 205
+ *
+ * Kanji Canvas covers 2,006 characters and this corpus wants 2,211. The rest
+ * are mostly jinmeiyō — 哉, 舜, 慧, 麟 — and handwriting fell back to the
+ * keyboard for every one of them. They are generated here from KanjiVG, which
+ * Kanji Canvas itself derives from; see `lib/kanjivg.mjs` for why SVG paths
+ * are as good as the digitised points the published patterns came from, and
+ * the self-check below for the evidence rather than the argument.
  */
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import vm from 'node:vm';
-import { extractFeatures, momentNormalize } from '../src/input/handwriting/pipeline.js';
+import { gunzipSync } from 'node:zlib';
+import {
+  coarseClassification,
+  extractFeatures,
+  fineClassification,
+  momentNormalize,
+} from '../src/input/handwriting/pipeline.js';
+import { readKanjiVG } from './lib/kanjivg.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE_DIR = resolve(ROOT, 'data/kanjicanvas');
 const DECK_DIR = resolve(ROOT, 'public/decks');
 const OUT_DIR = resolve(ROOT, 'public/strokes');
 const REPO = 'https://github.com/asdfjkl/kanjicanvas.git';
+const KANJIVG = resolve(ROOT, 'data/kanjivg.xml.gz');
+const KANJIVG_URL =
+  'https://github.com/KanjiVG/kanjivg/releases/download/r20250816/kanjivg-20250816.xml.gz';
+
+/**
+ * How well a regenerated pattern has to do before the generated ones are
+ * trusted.
+ *
+ * Measured against characters Kanji Canvas already covers: rebuild them from
+ * KanjiVG, hand each back to the recogniser, and see whether the published
+ * pattern for that same character still comes first. It is the closest thing
+ * to a ground truth available without a person drawing 205 kanji, and it fails
+ * the build rather than warning, because a pattern nobody can be recognised by
+ * is worse than an honest fallback to the keyboard.
+ */
+const SELF_CHECK_SAMPLE = 120;
+const SELF_CHECK_FLOOR = 0.9;
 
 /** The resampling interval the published patterns were generated with. */
 const FEATURE_INTERVAL = 20.0;
@@ -126,6 +159,58 @@ function loadKana() {
   return out;
 }
 
+function ensureKanjiVG() {
+  if (existsSync(KANJIVG)) return;
+
+  console.log(`Downloading ${KANJIVG_URL}…`);
+  const fetched = spawnSync('curl', ['-sL', '--fail', '-o', KANJIVG, KANJIVG_URL], {
+    stdio: 'inherit',
+  });
+  if (fetched.status !== 0) {
+    console.error('Could not download KanjiVG; the 205 uncovered kanji will stay uncovered.');
+  }
+}
+
+/**
+ * Rebuild characters that are already covered, and see whether the recogniser
+ * still knows them.
+ *
+ * The point is not that the numbers match — they will not, these are different
+ * digitisations of the same strokes — but that a KanjiVG-derived pattern is
+ * *interchangeable with* a published one as far as the classifier is
+ * concerned. If it is, the generated 205 belong in the same file.
+ */
+function selfCheck(xml, refPatterns) {
+  const sample = refPatterns
+    .filter((entry) => entry[1] >= 2)
+    .filter((_, i) => i % 23 === 0)
+    .slice(0, SELF_CHECK_SAMPLE);
+
+  const rebuilt = readKanjiVG(xml, new Set(sample.map((entry) => entry[0])));
+
+  let checked = 0;
+  let first = 0;
+  const misses = [];
+
+  for (const [character] of sample) {
+    const strokes = rebuilt.get(character);
+    if (!strokes) continue;
+    checked += 1;
+
+    const features = extractFeatures(momentNormalize(strokes), FEATURE_INTERVAL);
+    const ranked = fineClassification(
+      features,
+      coarseClassification(features, refPatterns),
+      refPatterns,
+    );
+
+    if (ranked[0] === character) first += 1;
+    else misses.push(`${character}→${ranked.slice(0, 3).join('')}`);
+  }
+
+  return { checked, first, misses };
+}
+
 /** Every kanji this app can ask about. */
 function corpusKanji() {
   const wanted = new Set();
@@ -155,7 +240,45 @@ for (const [character, strokes, pattern] of published) {
   covered.add(character);
 }
 
-const missing = [...wanted].filter((k) => !covered.has(k));
+let missing = [...wanted].filter((k) => !covered.has(k));
+let generated = 0;
+
+if (missing.length > 0) {
+  ensureKanjiVG();
+}
+
+if (missing.length > 0 && existsSync(KANJIVG)) {
+  console.log(`Filling ${missing.length} gaps from KanjiVG…`);
+  const xml = gunzipSync(readFileSync(KANJIVG)).toString('utf8');
+
+  const check = selfCheck(xml, kanji);
+  const rate = check.checked > 0 ? check.first / check.checked : 0;
+  console.log(
+    `  self-check           ${check.first}/${check.checked} rebuilt characters still rank first`,
+  );
+  if (check.misses.length > 0) {
+    console.log(`    ${check.misses.slice(0, 8).join(' ')}`);
+  }
+
+  if (check.checked === 0 || rate < SELF_CHECK_FLOOR) {
+    console.error(
+      `\nKanjiVG-derived patterns only reach ${(rate * 100).toFixed(0)}%, under the ` +
+        `${SELF_CHECK_FLOOR * 100}% floor. Not generating any: a pattern nothing can be ` +
+        'recognised by is worse than falling back to the keyboard.',
+    );
+    process.exit(1);
+  }
+
+  const filled = readKanjiVG(xml, new Set(missing));
+  for (const [character, strokes] of filled) {
+    const features = extractFeatures(momentNormalize(strokes), FEATURE_INTERVAL);
+    kanji.push([character, strokes.length, quantise(features)]);
+    covered.add(character);
+    generated += 1;
+  }
+
+  missing = missing.filter((k) => !covered.has(k));
+}
 
 console.log('Converting kana…');
 const kana = loadKana();
@@ -166,7 +289,10 @@ const licence = {
   source: 'Kanji Canvas (https://github.com/asdfjkl/kanjicanvas)',
   copyright: '(c) 2019-2024 Dominik Klein; (c) 2020 Seth Clydesdale',
   licence: 'MIT',
-  derivedFrom: 'KanjiVG (c) Ulrich Apel, CC BY-SA 3.0',
+  derivedFrom: 'KanjiVG (c) Ulrich Apel, CC BY-SA 3.0 — https://kanjivg.tagaini.net',
+  note:
+    'Patterns Kanji Canvas does not publish are generated here directly from KanjiVG, ' +
+    'through the same normalisation the recogniser uses.',
 };
 
 writeFileSync(

@@ -14,6 +14,11 @@ src/firebaseConfig.ts
 # ~200 MB; the built sentence packs in public/sentences/ are what ships.
 data/tatoeba/
 
+# KanjiVG's full stroke dump, downloaded on demand by scripts/build-strokes.mjs.
+# Only the 205 characters Kanji Canvas lacks are taken from it, and the result
+# is committed in public/strokes/.
+data/kanjivg.xml.gz
+
 *.log
 npm-debug.log*
 .DS_Store

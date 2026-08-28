@@ -85,8 +85,9 @@ export function AboutPanel() {
           name="KanjiVG"
           licence="CC BY-SA 3.0"
         >
-          © Ulrich Apel. Kanji Canvas's reference patterns derive from it, so the patterns shipped
-          here carry the same terms.
+          © Ulrich Apel. Kanji Canvas's reference patterns derive from it, and the 205 characters
+          it does not cover — mostly the kanji that turn up in names — are generated here from
+          KanjiVG directly. Either way the patterns shipped here carry the same terms.
         </Credit>
 
         <Credit
