@@ -56,7 +56,15 @@ export function nextDue(itemId: string, type: DeckType, lookup: ReviewLookup): N
  * nobody plans around whether a word is back in 19 or 21 days.
  */
 export function describeDue(at: Date | null, now: Date): string {
-  if (at === null) return 'not started';
+  /*
+   * An em dash rather than "not started".
+   *
+   * On a new account every row is unstarted, so the words repeat down the whole
+   * list and say nothing — a column of identical text where a schedule should
+   * be. The dash is the same "nothing here" this app already uses for a missing
+   * meaning, and it lets the column speak only when it has something to say.
+   */
+  if (at === null) return '—';
 
   const days = (at.getTime() - now.getTime()) / 86_400_000;
   if (days <= 0) return 'due now';

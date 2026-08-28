@@ -3,7 +3,12 @@ import type { User } from 'firebase/auth';
 import { DEFAULT_INPUT_METHOD } from '../domain/inputMethod';
 import { QUIZ_MODES, quizModeLabel } from '../domain/modes';
 import { isAdapted, profileFor } from '../domain/fluency';
-import { calibration, calibrationBias, type CalibrationBucket } from '../domain/optimiser';
+import {
+  MIN_REVIEWS_TO_FIT,
+  calibration,
+  calibrationBias,
+  type CalibrationBucket,
+} from '../domain/optimiser';
 import { useModelFit } from '../hooks/useModelFit';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { EMPTY_MODEL, weightsFor } from '../storage/modelState';
@@ -176,18 +181,37 @@ export function SchedulerPanel({ user }: { user: User }) {
         </ul>
       ) : null}
 
-      <button
-        type="button"
-        className="button button--primary button--block"
-        onClick={refit}
-        disabled={running}
-      >
-        {running ? 'Fitting…' : 'Refit now'}
-      </button>
-      <p className="card__hint">
-        Runs on its own once enough new answers have built up. A fit is only kept if it predicts
-        held-out items better than what it would replace.
-      </p>
+      {/*
+        Offered as an action only when it is one.
+        
+        A fit needs a few hundred reviews before it can tell a real improvement
+        from luck, and on a new account this was the most prominent button on
+        the screen — full width, filled, at the top of the eye's path — with
+        nothing it could do. Now it says what it is waiting for, and becomes a
+        button when the wait is over.
+      */}
+      {reviews !== null && reviews < MIN_REVIEWS_TO_FIT ? (
+        <p className="notice notice--muted">
+          Not enough history to fit anything yet: {reviews.toLocaleString()} of the{' '}
+          {MIN_REVIEWS_TO_FIT.toLocaleString()} answers it takes before an improvement can be told
+          from luck. It runs on its own once there are.
+        </p>
+      ) : (
+        <>
+          <button
+            type="button"
+            className="button button--primary button--block"
+            onClick={refit}
+            disabled={running}
+          >
+            {running ? 'Fitting…' : 'Refit now'}
+          </button>
+          <p className="card__hint">
+            Runs on its own once enough new answers have built up. A fit is only kept if it predicts
+            held-out items better than what it would replace.
+          </p>
+        </>
+      )}
 
       <h2 className="card__subtitle">Your answering speed</h2>
       <dl className="datalist">

@@ -60,7 +60,9 @@ describe('saying when', () => {
     expect(from(500)).toBe('in over a year');
   });
 
-  it('has something to say about an item never studied', () => {
-    expect(describeDue(null, NOW)).toBe('not started');
+  it('says nothing loudly for an item never studied', () => {
+    // Every row on a new account is this one, so the word would repeat down
+    // the whole list. The dash is the app's existing "nothing here".
+    expect(describeDue(null, NOW)).toBe('—');
   });
 });
