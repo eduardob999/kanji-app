@@ -146,6 +146,22 @@ note(
   `${cached}/${manifest.precache.length}`,
 );
 
+/*
+ * The other half of the precache decision.
+ *
+ * The handwriting patterns are deliberately left out of the precache so that
+ * someone who never draws never downloads 1.6 MB — which is only a good trade
+ * if they are actually cached the first time they *are* used. That is the
+ * service worker's runtime path, and nothing had ever checked it.
+ *
+ * Fetching once here stands in for turning handwriting on.
+ */
+await page.evaluate(async () => {
+  await fetch('strokes/kanji.json').then((r) => r.arrayBuffer());
+});
+// The worker writes the cache after answering, so give it a moment to land.
+await page.waitForTimeout(1_500);
+
 // 2. Take the network away for real.
 await stop(server);
 
@@ -211,9 +227,25 @@ const strokes = await offlinePage.evaluate(async () => {
   }
 });
 note(
-  !strokes,
-  'handwriting patterns are not precached',
-  strokes ? 'they were served offline, so someone who never draws is paying 1.5 MB' : '',
+  strokes,
+  'handwriting patterns are cached once used',
+  strokes ? '' : 'drawn once online and still unavailable offline',
+);
+
+// And the distinction is real rather than accidental: nothing else under
+// strokes/ should have come along for the ride.
+const unused = await offlinePage.evaluate(async () => {
+  try {
+    const response = await fetch('strokes/kana.json');
+    return response.ok;
+  } catch {
+    return false;
+  }
+});
+note(
+  !unused,
+  'and only what was used',
+  unused ? 'kana patterns are cached without having been asked for' : '',
 );
 
 note(bootErrors.length === 0, 'the app boots offline without console errors', bootErrors[0] ?? '');

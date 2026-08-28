@@ -121,11 +121,11 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
-    event.respondWith(handleNavigation(request));
+    event.respondWith(handleNavigation(event));
     return;
   }
 
-  event.respondWith(handleAsset(request));
+  event.respondWith(handleAsset(event));
 });
 
 /**
@@ -134,14 +134,19 @@ self.addEventListener('fetch', (event) => {
  * The SPA has a single HTML entry point, so any navigation that cannot reach
  * the network can still be answered with index.html and routed client-side.
  */
-async function handleNavigation(request) {
+async function handleNavigation(event) {
+  const request = event.request;
+
   try {
     const response = await fetch(request);
 
     if (response.ok) {
-      const cache = await caches.open(CACHE_NAME);
-      // Stored from a clone, so the response being returned keeps its own body.
-      void forCache(response.clone()).then((copy) => cache.put(INDEX_URL, copy));
+      // Stored from a clone, so the response being returned keeps its own body,
+      // and held open with waitUntil: the browser is free to stop the worker as
+      // soon as respondWith settles, and a fire-and-forget put is a cache entry
+      // that sometimes exists. That matters more since `forCache` started
+      // reading the whole body before writing it.
+      event.waitUntil(store(INDEX_URL, response.clone()));
     }
 
     return response;
@@ -166,7 +171,9 @@ async function handleNavigation(request) {
  * stale — a new build produces new URLs, and the old cache is dropped whole on
  * activate.
  */
-async function handleAsset(request) {
+async function handleAsset(event) {
+  const request = event.request;
+
   const cached = await caches.match(request);
   if (cached) return cached;
 
@@ -177,11 +184,16 @@ async function handleAsset(request) {
   // Only store real, complete, same-origin responses: opaque and partial
   // responses would poison the cache with bodies we cannot read back.
   if (response.ok && response.type === 'basic') {
-    const cache = await caches.open(CACHE_NAME);
-    void forCache(response.clone()).then((copy) => cache.put(request, copy));
+    event.waitUntil(store(request, response.clone()));
   }
 
   return response;
+}
+
+/** Normalise and store, as one thing that can be handed to `waitUntil`. */
+async function store(key, response) {
+  const cache = await caches.open(CACHE_NAME);
+  await cache.put(key, await forCache(response));
 }
 
 self.addEventListener('message', (event) => {
