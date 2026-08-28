@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
+import type { User } from 'firebase/auth';
 import { useDeck } from '../hooks/useDeck';
+import { useReviewStates } from '../hooks/useReviewStates';
+import { describeDue, nextDue } from '../domain/schedulePreview';
 import {
   LEVELS,
   isKanjiItem,
@@ -18,6 +21,10 @@ import {
  * A deck runs to 1,548 entries, so the list is filtered and capped rather than
  * rendered whole. Virtualising it would be the next step if this ever became a
  * screen people scrolled rather than searched.
+ *
+ * Each row carries when the item is next coming round, which is what the nav
+ * has always promised this screen does and what it did not do: "look a word up
+ * and find out when I next see it" is most of why anyone opens it.
  */
 
 const RENDER_LIMIT = 300;
@@ -32,12 +39,17 @@ function matches(item: StudyItem, needle: string): boolean {
   return haystack.some((field) => field.toLowerCase().includes(needle));
 }
 
-export function BrowsePanel() {
+export function BrowsePanel({ user }: { user: User }) {
+  const { lookup } = useReviewStates(user);
   const [type, setType] = useState<DeckType>('kanji');
   const [level, setLevel] = useState<(typeof LEVELS)[number]>('5');
   const [query, setQuery] = useState('');
 
   const { value: deck, loading, error } = useDeck(type, level);
+
+  // Taken once per render rather than per row, so a long list cannot show two
+  // different "now"s.
+  const now = new Date();
 
   const filtered = useMemo(() => {
     if (!deck) return [];
@@ -109,19 +121,32 @@ export function BrowsePanel() {
           </p>
 
           <ul className="itemlist">
-            {filtered.slice(0, RENDER_LIMIT).map((item) => (
-              <li key={item.id} className="itemlist__row">
-                <span className="itemlist__surface" lang="ja">
-                  {isKanjiItem(item) ? item.kanji : item.word}
-                </span>
-                <span className="itemlist__detail">
-                  <span className="itemlist__reading" lang="ja">
-                    {isKanjiItem(item) ? item.readings.join('・') : item.reading}
+            {filtered.slice(0, RENDER_LIMIT).map((item) => {
+              const due = nextDue(item.id, type, lookup);
+              return (
+                <li key={item.id} className="itemlist__row">
+                  <span className="itemlist__surface" lang="ja">
+                    {isKanjiItem(item) ? item.kanji : item.word}
                   </span>
-                  <span className="itemlist__meaning">{item.meaning || '—'}</span>
-                </span>
-              </li>
-            ))}
+                  <span className="itemlist__detail">
+                    <span className="itemlist__reading" lang="ja">
+                      {isKanjiItem(item) ? item.readings.join('・') : item.reading}
+                    </span>
+                    <span className="itemlist__meaning">{item.meaning || '—'}</span>
+                  </span>
+                  <span
+                    className={`itemlist__due${due.at === null ? ' itemlist__due--new' : ''}`}
+                    title={
+                      due.started < due.total
+                        ? `${due.started} of ${due.total} ways of asking this have been started`
+                        : undefined
+                    }
+                  >
+                    {describeDue(due.at, now)}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
 
           {filtered.length === 0 ? (

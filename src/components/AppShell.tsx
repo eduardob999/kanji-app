@@ -109,7 +109,7 @@ export function AppShell({ user }: AppShellProps) {
       case 'audio':
         return <AudioPanel user={user} />;
       case 'browse':
-        return <BrowsePanel />;
+        return <BrowsePanel user={user} />;
       case 'progress':
         return <ProgressPanel user={user} />;
       case 'input':

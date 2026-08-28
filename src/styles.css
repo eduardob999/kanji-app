@@ -1114,6 +1114,27 @@ code {
   font-size: 0.95rem;
 }
 
+/*
+ * When this item is next coming round.
+ *
+ * Right-aligned into a column of its own so the eye can run down it, and
+ * quieter than the word itself — it is an answer to a question you only
+ * sometimes have.
+ */
+.itemlist__due {
+  flex: none;
+  margin-left: auto;
+  color: var(--accent-soft);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+/* Nothing scheduled yet: quieter still, since it is the default state of most
+ * of a nine-thousand item corpus. */
+.itemlist__due--new {
+  color: var(--text-muted);
+}
+
 /* Missed out of asked, on a sticking point. Tabular so the column lines up. */
 .itemlist__count {
   flex: none;

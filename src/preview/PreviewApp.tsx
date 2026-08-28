@@ -107,7 +107,7 @@ const SCREENS = {
   writing: ['Kanji writing', () => <KanjiWritingPanel user={previewUser} />],
   fill: ['Fill in the blank', () => <FillInPanel user={previewUser} />],
   audio: ['Listening', () => <AudioPanel user={previewUser} />],
-  browse: ['Browse', () => <BrowsePanel />],
+  browse: ['Browse', () => <BrowsePanel user={previewUser} />],
   progress: ['Progress', () => <ProgressPanel user={previewUser} />],
   scheduler: ['Scheduler', () => <SchedulerPanel user={previewUser} />],
   input: ['Input method', () => <InputMethodPanel user={previewUser} />],
