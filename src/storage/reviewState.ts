@@ -356,11 +356,18 @@ export async function undoReview(uid: string, input: UndoReviewInput): Promise<v
 }
 
 /**
- * Writes many states at once, for the one-time import of the CLI's scores.
+ * Writes many states at once, for the import of the CLI's scores.
  *
- * Grouped by bucket so the whole import is 24 writes rather than one per item.
- * Each bucket is written whole — this only ever runs against an account with no
- * review history, which the caller checks before offering it.
+ * Grouped by bucket, so 6,328 items are sixteen operations rather than 6,328.
+ *
+ * **Merged, not written whole**, and both halves of that matter. The comment
+ * here used to say the opposite and justify it with "this only ever runs
+ * against an account with no review history" — which stopped being true the
+ * moment the import became gap-filling so it could be re-run against a fuller
+ * export. Replacing a bucket would discard every real review in it. The merge
+ * is what makes running this again safe; `LegacyImport` filters out anything
+ * already answered before it gets here, and this is the second line of that
+ * defence rather than an optimisation.
  */
 export async function seedReviewBuckets(
   uid: string,
