@@ -3,7 +3,7 @@ import type { User } from 'firebase/auth';
 import type { Timestamp } from 'firebase/firestore';
 import { signOutUser } from '../auth';
 import { persistenceStatus } from '../firebase';
-import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { SyncBadge } from './SyncBadge';
 import { LegacyImport } from './LegacyImport';
@@ -27,8 +27,8 @@ function formatTimestamp(value: Timestamp | null | undefined): string {
 }
 
 export function AccountPanel({ user }: { user: User }) {
-  const online = useOnlineStatus();
-  const { profile, fromCache, hasPendingWrites, loading, error } = useUserProfile(user);
+  const sync = useSyncStatus(user);
+  const { profile, loading, error } = useUserProfile(user);
   const [signingOut, setSigningOut] = useState(false);
 
   async function handleSignOut() {
@@ -44,7 +44,11 @@ export function AccountPanel({ user }: { user: User }) {
   return (
     <section className="card">
       <div className="card__header">
-        <SyncBadge online={online} fromCache={fromCache} hasPendingWrites={hasPendingWrites} />
+        <SyncBadge
+          online={sync.online}
+          fromCache={sync.fromCache}
+          hasPendingWrites={sync.hasPendingWrites}
+        />
       </div>
 
       <p className="card__body">

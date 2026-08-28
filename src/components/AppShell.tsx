@@ -11,7 +11,7 @@ import {
   type NavNode,
   type ScreenId,
 } from '../domain/navigation';
-import { useOnlineStatus } from '../hooks/useOnlineStatus';
+import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useModelFit } from '../hooks/useModelFit';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { EMPTY_MODEL } from '../storage/modelState';
@@ -46,7 +46,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ user }: AppShellProps) {
-  const online = useOnlineStatus();
+  const sync = useSyncStatus(user);
   const { profile } = useUserProfile(user);
 
   // Retunes the memory model to this learner once enough new answers have
@@ -141,8 +141,23 @@ export function AppShell({ user }: AppShellProps) {
             {node.title}
           </span>
         )}
-        {online ? null : (
-          <span className="topbar__offline" title="Offline — everything still works">
+        {/*
+          Silent when there is nothing to say.
+          
+          "Saving" outranks "offline" because it is the one that answers the
+          question someone actually has mid-session — whether the answer they
+          just gave is safe. Being offline is only alarming if something is
+          waiting, and the badge that reports that is the one to show.
+        */}
+        {sync.hasPendingWrites ? (
+          <span
+            className="topbar__status topbar__status--pending"
+            title="Answered offline, or waiting on the server. Nothing is lost — it sends when it can."
+          >
+            saving
+          </span>
+        ) : sync.online ? null : (
+          <span className="topbar__status" title="Offline — everything still works">
             offline
           </span>
         )}

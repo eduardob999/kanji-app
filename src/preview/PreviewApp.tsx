@@ -6,6 +6,7 @@ import { InputMethodPanel } from '../components/InputMethodPanel';
 import { ProgressPanel } from '../components/ProgressPanel';
 import { SchedulerPanel } from '../components/SchedulerPanel';
 import { SignInScreen } from '../components/SignInScreen';
+import { SyncBadge } from '../components/SyncBadge';
 import { AudioPanel } from '../quizzes/AudioPanel';
 import { FillInPanel } from '../quizzes/FillInPanel';
 import { KanjiWritingPanel } from '../quizzes/KanjiWritingPanel';
@@ -73,6 +74,31 @@ const SCREENS = {
   today: ['Today’s Session', () => <TodaySessionPanel user={previewUser} />],
   random: ['Random', () => <RandomPanel user={previewUser} />],
   'random-silent': ['Random (silent)', () => <RandomPanel user={previewUser} silent />],
+  sync: [
+    'Sync states',
+    () => (
+      /*
+       * All three at once, because in the app each appears only in a condition
+       * the harness cannot create: "syncing" needs a write in flight, "synced"
+       * needs a server round trip, and this build has no Firestore at all. Two
+       * of the three had therefore never been measured, and the amber one was
+       * under AA in the light theme.
+       */
+      <section className="card">
+        <h1 className="card__title">Sync</h1>
+        <div className="quiz__afterthoughts">
+          <span className="topbar__status">offline</span>
+          <span className="topbar__status topbar__status--pending">saving</span>
+        </div>
+        <div className="quiz__afterthoughts">
+          <SyncBadge online fromCache={false} hasPendingWrites />
+          <SyncBadge online fromCache hasPendingWrites={false} />
+          <SyncBadge online={false} fromCache hasPendingWrites={false} />
+          <SyncBadge online fromCache={false} hasPendingWrites={false} />
+        </div>
+      </section>
+    ),
+  ],
   summary: [
     'Session done',
     () => <SessionSummary offered={18} right={16} wrong={2} appetite={8} onAgain={() => {}} />,
@@ -144,6 +170,14 @@ export function PreviewApp() {
     <div className="screen">
       <header className="topbar">
         <span className="topbar__where">{SCREENS[screen][0]}</span>
+        {/*
+          One chip, because the real header shows at most one — and rendering
+          both wrapped the header onto a second line at 360px, which took
+          eleven pixels off the handwriting screen and failed the audit. A
+          harness that is harder on the layout than the app is not testing the
+          app. The other state is measured on the Sync screen instead.
+        */}
+        <span className="topbar__status topbar__status--pending">saving</span>
       </header>
       <main className="content" id="main">
         {render()}

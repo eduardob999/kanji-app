@@ -93,7 +93,15 @@
     --text: #121f2e;
     --text-muted: #5b6a78;
     --ok: #15803d;
-    --pending: #a86412;
+    /*
+     * Amber, darkened from #a86412 until small text on it clears AA.
+     *
+     * The original measured 4.27 against the page and 3.51 against its own
+     * wash — and it is the colour of the words "saving" and "syncing", which
+     * are exactly the words someone squints at when they are worried about
+     * losing work. 5.93 and 4.73 now, still visibly the same amber.
+     */
+    --pending: #8a500d;
     /*
      * The seal, taken down a tenth from the icon's own #d74030.
      *
@@ -764,15 +772,33 @@ code {
   letter-spacing: -0.01em;
 }
 
-.topbar__offline {
-  padding: 3px 10px;
+/*
+ * The one word the header says about sync, when it has one to say.
+ *
+ * 0.75rem rather than the 0.7 this had: 11.2px is under the legibility floor
+ * the rest of the app is held to, and it went unnoticed because the chip only
+ * renders when the browser is offline and the audit's browser never is. The
+ * preview harness renders both states now so that stops being true.
+ */
+.topbar__status {
+  padding: 4px 10px;
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--pending) 14%, transparent);
-  color: var(--pending);
-  font-size: 0.7rem;
+  /* An outline rather than a fill: a wash of the muted colour under muted text
+   * lands at 4.1:1 in the light theme, and the plain page is 5.1. */
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* Something is waiting to be sent, which is worth a colour. Offline is not: on
+ * its own it means everything still works, which is the whole design. */
+.topbar__status--pending {
+  background: color-mix(in srgb, var(--pending) 16%, transparent);
+  border-color: color-mix(in srgb, var(--pending) 35%, transparent);
+  color: var(--pending);
 }
 
 .crumbs--hidden {
@@ -1456,13 +1482,15 @@ code {
    * to fit around it. A square that only respects width pushes the rest off a
    * short phone.
    *
-   * 32vh rather than 34: the canvas now shares the dock with the primary
-   * button, and at 34 the whole dock was three pixels too tall to be placed
-   * clear of the tab bar. Sticky cannot honour an offset it has no room for,
-   * so it simply sat under the bar.
+   * 30vh rather than the 34 this started at: the canvas shares the dock with
+   * the primary button, and at 34 the whole dock was three pixels too tall to
+   * be placed clear of the tab bar — sticky cannot honour an offset it has no
+   * room for, so it simply sat underneath. 32 cleared it by eleven pixels,
+   * which is not clearance, it is luck; anything that grows the header by a
+   * line spends it. 30 leaves a margin worth having.
    */
-  width: min(320px, 78vw, 32vh);
-  height: min(320px, 78vw, 32vh);
+  width: min(320px, 78vw, 30vh);
+  height: min(320px, 78vw, 30vh);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-elevated);
