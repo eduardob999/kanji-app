@@ -130,7 +130,18 @@ function parseStrokeXml(text) {
   return strokes;
 }
 
-/** Integer coordinates. This is the whole size saving. */
+/**
+ * Integer coordinates. This is the whole size saving.
+ *
+ * Not clamped to the 0-255 box, deliberately, and worth saying because the
+ * numbers look wrong otherwise: `momentNormalize` scales by variance, so a
+ * character with a long tail puts points outside the grid it normalises onto.
+ * Kanji Canvas's own published patterns span -72 to 423 across 1,269 of its
+ * 2,006 characters; the ones generated here from KanjiVG span -31 to 304, so
+ * this is inherited rather than introduced. The classifier only ever takes
+ * distances between points, so the box is a coordinate system rather than a
+ * boundary, and clamping would move points that carry shape.
+ */
 function quantise(pattern) {
   return pattern.map((stroke) => stroke.map(([x, y]) => [Math.round(x), Math.round(y)]));
 }
