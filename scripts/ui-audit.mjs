@@ -75,7 +75,63 @@ const SCREENS = [
  * adds a banner, a reveal table and two more buttons to a card that was already
  * full, and nothing about loading the page shows that. Each entry drives the
  * page into the state and then the same checks run against it.
+ *
+ * A state may supply `before` to set something up *prior* to navigation, which
+ * is the only way to reach a failure that happens during load; `reach` to drive
+ * the page after it; and `check` for whatever that particular state exists to
+ * prove.
  */
+
+/**
+ * The decks do not arrive.
+ *
+ * Every quiz screen has an error branch and none of them had ever run. A
+ * failure here is not exotic — it is a first launch on a flaky connection
+ * before anything is cached — and the failure mode that matters is a screen
+ * that stays blank or sits for ever on "Working out what is due…", which is
+ * indistinguishable from the app being broken.
+ */
+const deadDecks = {
+  name: 'no-decks',
+  /*
+   * The point of this state is that requests fail, so the browser complaining
+   * that requests failed is the setup rather than a finding — and so is the
+   * app's own diagnostic, which is deliberate and is where the exception's
+   * real text is supposed to end up.
+   */
+  ignoreConsole: /Failed to load resource|^\[decks\]/,
+  async before(page) {
+    await page.route('**/decks/**', (route) => route.abort('failed'));
+  },
+  async check(page) {
+    const found = await page.evaluate(() => {
+      const notice = document.querySelector('.notice--error, [role="alert"]');
+      const text = (document.body.textContent ?? '').replace(/\s+/g, ' ').trim();
+      return {
+        hasNotice: Boolean(notice),
+        // Anything still claiming to be working is a screen that will claim it
+        // for ever: the load already failed.
+        stillLoading: /Working out what is due|Getting ready/.test(text),
+        // A dead end is only half a failure handled. There has to be a way to
+        // try again without knowing to reload the page.
+        hasWayOut: Boolean(
+          [...document.querySelectorAll('button')].find((b) => /try again/i.test(b.textContent ?? '')),
+        ),
+        // The browser's own wording, handed to a learner. It says nothing about
+        // whose fault it is, whether anything is lost, or what to press.
+        rawException: /Failed to fetch|NetworkError|TypeError|undefined is not/.test(text),
+        text: text.slice(0, 80),
+      };
+    });
+
+    const issues = [];
+    if (found.stillLoading) issues.push(`still says it is loading after the decks failed`);
+    if (!found.hasNotice) issues.push(`no error is shown when the decks fail: "${found.text}"`);
+    if (found.rawException) issues.push(`a raw exception message is on screen: "${found.text}"`);
+    if (found.hasNotice && !found.hasWayOut) issues.push(`the error has no "try again"`);
+    return issues;
+  },
+};
 /**
  * The keyboard, simulated — and it is worth being precise about how.
  *
@@ -185,6 +241,7 @@ const STATES = {
       },
     },
     openKeyboard,
+    deadDecks,
   ],
   writing: [
     {
@@ -198,6 +255,7 @@ const STATES = {
     openKeyboard,
   ],
   today: [
+    deadDecks,
     {
       name: 'started',
       async reach(page) {
@@ -414,6 +472,7 @@ for (const viewport of VIEWPORTS) {
   for (const { screen, state } of runs) {
     const label = state ? `${screen}:${state.name}` : screen;
     const page = await context.newPage();
+    if (state?.before) await state.before(page);
     const errors = [];
     /**
      * Firestore is deliberately unconfigured in the preview harness, so its
@@ -438,7 +497,7 @@ for (const viewport of VIEWPORTS) {
     }
     await page.waitForTimeout(700);
 
-    if (state) {
+    if (state?.reach) {
       try {
         await state.reach(page, viewport);
         await page.waitForTimeout(400);
@@ -490,7 +549,10 @@ for (const viewport of VIEWPORTS) {
       issues.push(`under WCAG AA: ` +
         result.faintText.map((t) => `${t.el} ${t.ratio}:1 needs ${t.needs}`).join(', '));
     }
-    if (errors.length) issues.push(`console: ${errors[0]}`);
+    const unexpected = state?.ignoreConsole
+      ? errors.filter((text) => !state.ignoreConsole.test(text))
+      : errors;
+    if (unexpected.length) issues.push(`console: ${unexpected[0]}`);
 
     // Whatever this particular state is here to prove.
     if (state?.check) {

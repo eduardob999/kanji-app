@@ -51,6 +51,8 @@ export function TodaySessionPanel({ user }: { user: User }) {
     { throughput: number; measured: boolean; accuracy: number } | null
   >(null);
   const [error, setError] = useState<string | null>(null);
+  /** Bumped by "Try again", which is the only thing that re-runs the load. */
+  const [attempt, setAttempt] = useState(0);
 
   const modes = voice ? WITH_VOICE : WITHOUT_VOICE;
 
@@ -166,7 +168,8 @@ export function TodaySessionPanel({ user }: { user: User }) {
         if (live) setCounts(countDue(candidates, lookup, new Date()));
       },
       (caught: unknown) => {
-        if (live) setError(caught instanceof Error ? caught.message : 'Could not load the decks.');
+        console.error('[decks] Could not load the word lists.', caught);
+        if (live) setError('unreachable');
       },
     );
 
@@ -190,7 +193,7 @@ export function TodaySessionPanel({ user }: { user: User }) {
     };
     // `lookup` changes on every snapshot; the count is a snapshot of when the
     // screen opened and should not flicker as writes land.
-  }, [checking, statesLoading, started, modes, voice, user.uid]);
+  }, [attempt, checking, statesLoading, started, modes, voice, user.uid]);
 
   const renderFinished = ({
     offered,
@@ -232,9 +235,23 @@ export function TodaySessionPanel({ user }: { user: User }) {
       <h1 className="card__title">Today’s Session</h1>
 
       {error ? (
-        <p className="notice notice--error" role="alert">
-          {error}
-        </p>
+        <>
+          <p className="notice notice--error" role="alert">
+            The word lists could not be fetched. They are stored on your device after the first
+            visit, so this usually means a first launch without a connection.
+          </p>
+          <p className="card__hint">Nothing you have answered is affected.</p>
+          <button
+            type="button"
+            className="button button--primary button--block"
+            onClick={() => {
+              setError(null);
+              setAttempt((n) => n + 1);
+            }}
+          >
+            Try again
+          </button>
+        </>
       ) : counts === null ? (
         <p className="card__body">Working out what is due…</p>
       ) : (

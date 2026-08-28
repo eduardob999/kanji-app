@@ -195,7 +195,11 @@ export function QuizFrame({
       },
       (error: unknown) => {
         if (!live) return;
-        setMessage(error instanceof Error ? error.message : 'Could not load the deck.');
+        // The exception's own message is for the console. "Failed to fetch" is
+        // what a browser says to a programmer; a learner needs to know whether
+        // this is their fault, whether anything is lost, and what to press.
+        console.error('[decks] Could not load the questions.', error);
+        setMessage(null);
         setStatus('error');
       },
     );
@@ -466,9 +470,20 @@ export function QuizFrame({
   if (status === 'error') {
     return (
       <section className="card">
+        <h1 className="card__title">The questions did not load</h1>
         <p className="notice notice--error" role="alert">
-          {message}
+          {message ??
+            'The word lists could not be fetched. They are stored on your device after the ' +
+              'first visit, so this usually means a first launch without a connection.'}
         </p>
+        <p className="card__hint">Nothing you have answered is affected.</p>
+        <button
+          type="button"
+          className="button button--primary button--block"
+          onClick={() => setRound((n) => n + 1)}
+        >
+          Try again
+        </button>
       </section>
     );
   }
