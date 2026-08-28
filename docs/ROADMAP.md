@@ -60,9 +60,12 @@ Canvas publishes 2,006; the rest are generated from KanjiVG at build time and
 checked by rebuilding characters that *are* covered and confirming the
 recogniser still ranks them first.
 
-**Offline.** ~3.4 MB precached: the bundle, the decks and the sentence packs.
-Handwriting's 1.5 MB of patterns is deliberately *not* precached and is cached
-on first use instead.
+**Offline, checked.** ~3.4 MB precached: the bundle, the decks and the sentence
+packs. Handwriting's 1.5 MB of patterns is deliberately *not* precached and is
+cached on first use instead. `npm run offline` proves it by starting a server,
+priming the cache, **stopping the server** and reloading — Playwright's own
+offline emulation does not apply to service-worker fetches, so a check built on
+it passes while proving nothing.
 
 ## Next
 

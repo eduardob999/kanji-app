@@ -19,7 +19,8 @@
     "migrate": "node scripts/migrate-scores.mjs",
     "strokes": "node scripts/build-strokes.mjs",
     "frequency": "node scripts/build-frequency.mjs",
-    "ui": "node scripts/ui-audit.mjs"
+    "ui": "node scripts/ui-audit.mjs",
+    "offline": "node scripts/offline-check.mjs"
   },
   "dependencies": {
     "firebase": "^12.17.1",

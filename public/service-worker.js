@@ -28,6 +28,34 @@ function scoped(path) {
 
 const INDEX_URL = scoped('index.html');
 
+/**
+ * A cached copy carrying only the headers that describe the content.
+ *
+ * Storing a response exactly as it arrived means storing the origin's transport
+ * headers with it, and one legal combination of those makes the stored copy
+ * unusable: a `Content-Encoding: gzip` alongside `Transfer-Encoding: chunked`
+ * is replayed to the subresource loader, which tries to decode a body the
+ * Response has already decoded, and the load fails with ERR_FAILED.
+ *
+ * It is not hypothetical. `vite preview` sends exactly that pair, and against
+ * it the app did not boot offline at all — the shell was served from cache and
+ * then its stylesheet and its bundle both failed, so nothing mounted. GitHub
+ * Pages sends `Content-Length` instead and is unaffected, which is why this
+ * survived to be found by a script rather than by someone on a train.
+ *
+ * The body is read out and stored as bytes, with `Content-Type` and nothing
+ * else. Transport is the origin's business and has no place in a cache.
+ */
+async function forCache(response) {
+  return new Response(await response.blob(), {
+    status: 200,
+    statusText: 'OK',
+    headers: response.headers.get('Content-Type')
+      ? { 'Content-Type': response.headers.get('Content-Type') }
+      : {},
+  });
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
@@ -36,8 +64,15 @@ self.addEventListener('install', (event) => {
       // Added one at a time rather than with addAll: a single missing file
       // would otherwise abort the whole install and leave the app with no
       // worker at all, which is worse than an incomplete cache.
+      // `cache.add` would store the response as it arrived, headers and all;
+      // see `forCache` for why that is not safe.
       const results = await Promise.allSettled(
-        BUILD_MANIFEST.precache.map((path) => cache.add(new Request(scoped(path), { cache: 'reload' }))),
+        BUILD_MANIFEST.precache.map(async (path) => {
+          const url = scoped(path);
+          const response = await fetch(new Request(url, { cache: 'reload' }));
+          if (!response.ok) throw new Error(`${response.status} for ${path}`);
+          await cache.put(url, await forCache(response));
+        }),
       );
 
       const failed = results.filter((result) => result.status === 'rejected');
@@ -105,7 +140,8 @@ async function handleNavigation(request) {
 
     if (response.ok) {
       const cache = await caches.open(CACHE_NAME);
-      cache.put(INDEX_URL, response.clone());
+      // Stored from a clone, so the response being returned keeps its own body.
+      void forCache(response.clone()).then((copy) => cache.put(INDEX_URL, copy));
     }
 
     return response;
@@ -142,7 +178,7 @@ async function handleAsset(request) {
   // responses would poison the cache with bodies we cannot read back.
   if (response.ok && response.type === 'basic') {
     const cache = await caches.open(CACHE_NAME);
-    cache.put(request, response.clone());
+    void forCache(response.clone()).then((copy) => cache.put(request, copy));
   }
 
   return response;
