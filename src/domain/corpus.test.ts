@@ -13,7 +13,8 @@ import { isKanjiItem, type StudyItem } from './items';
  * run by hand, from CSVs edited by hand.
  */
 
-const DECKS = resolve(dirname(fileURLToPath(import.meta.url)), '../../public/decks');
+const PUBLIC = resolve(dirname(fileURLToPath(import.meta.url)), '../../public');
+const DECKS = resolve(PUBLIC, 'decks');
 
 function load(prefix: string): StudyItem[] {
   return readdirSync(DECKS)
@@ -146,5 +147,62 @@ describe('marking, against every answer that ships', () => {
     }
 
     expect(accepted).toEqual([]);
+  });
+});
+
+describe('questions that could not be answered', () => {
+  /*
+   * Listening and fill-in ask for the *written* form. What tells you which
+   * written form is wanted is the meaning on screen and the sentence around it
+   * — the reading alone cannot, because 1,638 entries in this corpus share
+   * their reading with another.
+   *
+   * So an item with no meaning, no example sentence and a homophone is a
+   * question with no answer: the learner hears しょう, sees "no meaning
+   * recorded", and has eight candidates and no way to choose.
+   *
+   * There are none today — seven of the eight items missing a meaning have
+   * sentences, and the eighth has no homophone. This exists so that a deck
+   * rebuilt from an edited CSV cannot quietly introduce one.
+   */
+  const sentences: Record<string, unknown[]> = {};
+  for (const file of readdirSync(resolve(PUBLIC, 'sentences'))) {
+    Object.assign(
+      sentences,
+      JSON.parse(readFileSync(resolve(PUBLIC, 'sentences', file), 'utf8')).sentences,
+    );
+  }
+
+  it('never asks for a written form with nothing to identify it by', () => {
+    const byReading = new Map<string, number>();
+    for (const item of vocab) {
+      const reading = (item as unknown as { reading: string }).reading;
+      byReading.set(reading, (byReading.get(reading) ?? 0) + 1);
+    }
+
+    const unanswerable = vocab.filter((item) => {
+      const { word, reading, meaning } = item as unknown as {
+        word: string;
+        reading: string;
+        meaning: string;
+      };
+      const hasMeaning = Boolean(meaning && meaning.trim());
+      const hasSentence = (sentences[word]?.length ?? 0) > 0;
+      const shared = (byReading.get(reading) ?? 0) > 1;
+
+      return !hasMeaning && !hasSentence && shared;
+    });
+
+    expect(unanswerable.map((item) => (item as unknown as { word: string }).word)).toEqual([]);
+  });
+
+  it('gives every kanji a meaning, since that is the whole prompt', () => {
+    // A kanji-writing question is readings plus meaning. Without the meaning it
+    // is readings alone, and readings are shared far more widely than words.
+    const blank = kanji.filter((item) => {
+      const meaning = (item as unknown as { meaning: string }).meaning;
+      return !meaning || !meaning.trim();
+    });
+    expect(blank).toEqual([]);
   });
 });

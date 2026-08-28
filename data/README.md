@@ -30,3 +30,19 @@ should not shift under someone part-way through a level.
 Counts are per sentence and by substring, so a word is credited once however
 many times a sentence uses it, and short words are credited inside longer ones.
 That is a ranking signal, not a statistic to quote.
+
+## Known gaps
+
+Eight vocabulary rows have no meaning: 急に, 番, お目に掛かる, 税, 密, 釣, 大,
+小. None of them is unanswerable — seven have example sentences to give the
+context, and お目に掛かる has no homophone, so its reading identifies it on its
+own — but each shows "no meaning recorded" where a gloss should be, in the
+prompt and again in the reveal.
+
+Filling them in is an edit to `Vocab.csv` followed by `npm run decks`. It is
+left alone here rather than guessed at, because a meaning invented to fill a
+column is worse than a visible gap.
+
+`src/domain/corpus.test.ts` guards the line that actually matters: no item may
+have no meaning *and* no sentence *and* a homophone, which is the combination
+that would leave a listening question with nothing to identify the answer by.
