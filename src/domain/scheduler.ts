@@ -89,7 +89,7 @@ const MAX_EASE = 3.5;
  * thing more bluntly, by dropping the score to zero and putting the item
  * straight back into the lowest-score pool.
  */
-const FAIL_INTERVAL_DAYS = 0.1;
+export const FAIL_INTERVAL_DAYS = 0.1;
 
 // Matches fsrs.ts. This clamp is the outer guard rail; fsrs.ts has already
 // applied its own cap by the time a value reaches here.

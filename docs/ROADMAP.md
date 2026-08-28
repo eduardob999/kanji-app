@@ -17,7 +17,10 @@ multiple choice with distractors scored for confusability.
 **Adaptive scheduling.** FSRS with per-review-mode weights fitted from a review
 log, held-out-validated so a bad fit is never adopted, and response-time
 thresholds learnt per question type and input method. `Tools → Scheduler` shows
-the calibration curve.
+the calibration curve. A year of studying is simulated in the test suite
+against a learner who forgets on a curve FSRS does not assume — because the
+scheduler's real job is a feedback loop, and a loop can be wrong in ways no
+single call is.
 
 **The old CLI's scores**, imported once from `scores.txt` — 1,117 real streaks
 out of 16,769 stored numbers, with nothing invented for the rest.
