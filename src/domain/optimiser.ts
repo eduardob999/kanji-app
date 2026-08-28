@@ -370,3 +370,26 @@ export function calibration(
     }))
     .filter((bucket) => bucket.count > 0);
 }
+
+
+/**
+ * One number for the whole curve: how far actual recall sits from predicted.
+ *
+ * Negative means the model is over-confident — it expected to be remembered
+ * more often than it was, which in schedule terms means asking too late.
+ * Weighted by band population, so a band with ten reviews cannot outvote one
+ * with two hundred.
+ *
+ * A table of six bands is evidence; this is the answer. A learner should not
+ * have to do the weighted average in their head to find out whether their
+ * schedule is aimed correctly.
+ */
+export function calibrationBias(buckets: readonly CalibrationBucket[]): number {
+  const total = buckets.reduce((n, bucket) => n + bucket.count, 0);
+  if (total === 0) return 0;
+
+  return (
+    buckets.reduce((sum, bucket) => sum + (bucket.actual - bucket.predicted) * bucket.count, 0) /
+    total
+  );
+}

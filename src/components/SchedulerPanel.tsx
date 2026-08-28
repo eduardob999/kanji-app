@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { DEFAULT_INPUT_METHOD } from '../domain/inputMethod';
 import { QUIZ_MODES, quizModeLabel } from '../domain/modes';
 import { isAdapted, profileFor } from '../domain/fluency';
-import { calibration, type CalibrationBucket } from '../domain/optimiser';
+import { calibration, calibrationBias, type CalibrationBucket } from '../domain/optimiser';
 import { useModelFit } from '../hooks/useModelFit';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { EMPTY_MODEL, weightsFor } from '../storage/modelState';
@@ -36,6 +36,32 @@ export function SchedulerPanel({ user }: { user: User }) {
 
   const [buckets, setBuckets] = useState<CalibrationBucket[] | null>(null);
   const [reviews, setReviews] = useState<number | null>(null);
+
+  /**
+   * The curve, said in a sentence.
+   *
+   * Five points is the threshold for saying anything at all: below that the
+   * difference is inside what a few hundred reviews can tell apart, and
+   * announcing it would be reporting noise as a finding.
+   */
+  const verdict = useMemo(() => {
+    const bias = calibrationBias(buckets ?? []);
+    const points = Math.round(Math.abs(bias) * 100);
+
+    if (points < 5) {
+      return { tone: 'muted', text: 'Aimed about right — what the model expects and what happens agree.' };
+    }
+
+    return bias < 0
+      ? {
+          tone: 'warn',
+          text: `Asking about ${points} points too late: you are forgetting more than the model expects. A refit is what corrects that.`,
+        }
+      : {
+          tone: 'muted',
+          text: `Asking about ${points} points too early: you are remembering more than the model expects, so some of these reviews were not needed yet.`,
+        };
+  }, [buckets]);
 
   useEffect(() => {
     let live = true;
@@ -77,6 +103,13 @@ export function SchedulerPanel({ user }: { user: User }) {
         <p className="card__body">Reading your history…</p>
       ) : buckets && buckets.length > 0 ? (
         <>
+          {/*
+            The answer, above the evidence. Six bands of predicted-versus-actual
+            is a table someone has to do a weighted average of in their head to
+            find out the only thing they wanted to know.
+          */}
+          <p className={`notice notice--${verdict.tone}`}>{verdict.text}</p>
+
           <dl className="datalist">
             {buckets
               .filter((bucket) => bucket.count >= 10)

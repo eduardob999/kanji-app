@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_WEIGHTS, TARGET_RETENTION, retrievability } from './fsrs';
-import { fitWeights, type ReviewRecord } from './optimiser';
+import { calibration, fitWeights, type ReviewRecord } from './optimiser';
 import { FAIL_INTERVAL_DAYS, scheduleNext, type SchedulerStateInput } from './scheduler';
 
 /**
@@ -253,6 +253,62 @@ describe('fitting the model to the learner', () => {
       const r = retrievability(elapsed!, stability!);
       expect(r).toBeGreaterThan(0);
       expect(r).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+
+/**
+ * What the Scheduler screen is for.
+ *
+ * The calibration curve is the app's one admission of how well aimed it is: for
+ * each band of predicted recall, what fraction was actually recalled. A model
+ * that suits the learner sits on the diagonal; one that is too confident sits
+ * under it.
+ *
+ * It is only worth a screen if it would actually show a mismatch, and that is
+ * checkable — the simulation can produce a learner the defaults do not suit and
+ * ask whether the curve says so.
+ */
+describe('the calibration curve', () => {
+  /** Weighted by count, so a band with four reviews cannot swing it. */
+  const bias = (buckets: ReturnType<typeof calibration>): number => {
+    const total = buckets.reduce((n, b) => n + b.count, 0);
+    if (total === 0) return 0;
+    return buckets.reduce((sum, b) => sum + (b.actual - b.predicted) * b.count, 0) / total;
+  };
+
+  it('shows over-confidence for a learner who forgets faster than the model assumes', () => {
+    const { log } = study(240, 160, 0.33, 4_242);
+    const curve = calibration(log, DEFAULT_WEIGHTS);
+
+    expect(curve.length).toBeGreaterThan(3);
+    // Actual recall below predicted: the schedule is asking too late, which is
+    // exactly the complaint a learner would have and could not otherwise name.
+    expect(bias(curve)).toBeLessThan(-0.05);
+  });
+
+  it('straightens out once the weights are fitted to that learner', () => {
+    // The claim the Scheduler screen makes to the person reading it: this is a
+    // number that improves because the app did something about it.
+    const { log } = study(240, 160, 0.33, 4_242);
+    const fit = fitWeights(log, DEFAULT_WEIGHTS);
+    expect(fit.adopted).toBe(true);
+
+    const before = Math.abs(bias(calibration(log, DEFAULT_WEIGHTS)));
+    const after = Math.abs(bias(calibration(log, fit.weights)));
+
+    expect(after).toBeLessThan(before);
+  });
+
+  it('reports every band it has evidence for, and none it does not', () => {
+    const { log } = study(200, 120, 1, 31_337);
+    for (const bucket of calibration(log, DEFAULT_WEIGHTS)) {
+      expect(bucket.count).toBeGreaterThan(0);
+      expect(bucket.predicted).toBeGreaterThanOrEqual(0);
+      expect(bucket.predicted).toBeLessThanOrEqual(1);
+      expect(bucket.actual).toBeGreaterThanOrEqual(0);
+      expect(bucket.actual).toBeLessThanOrEqual(1);
     }
   });
 });

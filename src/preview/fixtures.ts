@@ -115,22 +115,65 @@ export function previewLookup(mode: string, itemId: string): ItemReviewState | n
   };
 }
 
-/** Timestamps for a month of uneven daily practice, for streaks and the strip. */
+/**
+ * Forty days of uneven practice, as a history that hangs together.
+ *
+ * The first version gave every entry a unique item id, which made it useless
+ * for the one screen that most needed it: calibration compares what the model
+ * predicted against what happened, and there is nothing to predict on an item's
+ * *first* review. With no id ever repeating, no item had a second review, and
+ * the Scheduler screen showed "not enough second reviews yet" against 644 of
+ * them.
+ *
+ * So items are drawn from a pool and come round again, and `elapsedDays` is the
+ * real gap since that item's previous entry here rather than a constant. The
+ * history is internally consistent, which is what makes replaying it mean
+ * anything.
+ *
+ * Failures follow the gap, too. With a fixed one-in-eight failure rate the
+ * calibration curve came out as noise — 54% predicted against 100% actual,
+ * 85% against 53% — which looks exactly like a broken screen and would hide a
+ * real regression behind an unbelievable one. Forgetting that grows with the
+ * interval produces a curve someone could recognise.
+ */
 export function previewHistory(): ReviewRecord[] {
   const out: ReviewRecord[] = [];
-  for (let day = 0; day < 40; day += 1) {
+  const lastSeen = new Map<string, number>();
+  const POOL = 220;
+
+  for (let day = 39; day >= 0; day -= 1) {
     // A couple of gaps, so the streak and the activity strip have something to
     // show other than an unbroken block.
     if (day === 3 || day === 4 || day === 11) continue;
+
+    const at = now - day * DAY;
     const count = 5 + ((day * 7) % 25);
+
     for (let i = 0; i < count; i += 1) {
+      // Deterministic and overlapping: consecutive days share most of their
+      // items, which is what a review schedule actually produces.
+      const itemId = `item-${(day * 13 + i * 7) % POOL}`;
+      const previous = lastSeen.get(itemId);
+      const elapsedDays = previous === undefined ? 0 : (at - previous) / DAY;
+
+      // Recall that decays with the gap, on a half-life that varies by item, so
+      // long gaps really are the ones that get missed. Thresholded rather than
+      // sampled: a fixture has to be the same every run or a screenshot diff
+      // means nothing.
+      const halfLife = 2 + ((i * 31 + day * 7) % 11);
+      const recall = 2 ** (-elapsedDays / halfLife);
+      const roll = ((day * 977 + i * 131) % 1000) / 1000;
+
       out.push({
-        itemId: `item-${day}-${i}`,
-        at: now - day * DAY,
-        result: i % 9 === 0 ? 'fail' : 'good',
-        elapsedDays: 3,
+        itemId,
+        at,
+        result: previous !== undefined && roll > recall ? 'fail' : 'good',
+        elapsedDays,
       });
+
+      lastSeen.set(itemId, at);
     }
   }
+
   return out;
 }
