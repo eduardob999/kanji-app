@@ -357,6 +357,8 @@ code {
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  /* A link wearing this class is a button, and buttons are not underlined. */
+  text-decoration: none;
   transition: transform 0.12s ease, opacity 0.12s ease, background-color 0.12s ease;
 }
 

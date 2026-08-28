@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { User } from 'firebase/auth';
 import { DEFAULT_INPUT_METHOD } from '../domain/inputMethod';
 import { gradeAnswer, gradeLabel, downgrade } from '../domain/grading';
@@ -77,6 +77,20 @@ export interface QuizFrameProps {
   onPlanned?: (offered: number) => void;
   /** The queue ran out. Fires once per round. */
   onFinished?: (outcome: { offered: number; answered: number; right: number }) => void;
+  /**
+   * What to show when the queue runs out, if the default is not enough.
+   *
+   * Today's Session has more to say than a tally: it is the screen where the
+   * schedule reports back, and the size of the next session was just decided by
+   * how this one went. Random has nothing to add — it never ends, it only
+   * refills — and passes nothing.
+   */
+  renderFinished?: (outcome: {
+    offered: number;
+    right: number;
+    wrong: number;
+    again: () => void;
+  }) => ReactNode;
 }
 
 interface Verdict {
@@ -107,6 +121,7 @@ export function QuizFrame({
   emptyBody = 'Everything in this mode is scheduled for later. Come back when something is due, or pick another mode.',
   onPlanned,
   onFinished,
+  renderFinished,
 }: QuizFrameProps) {
   const { lookup, error: reviewError } = useReviewStates(user);
   const { profile } = useUserProfile(user);
@@ -468,17 +483,28 @@ export function QuizFrame({
   }
 
   if (!question || !definition) {
+    const again = () => setRound((n) => n + 1);
+
+    if (renderFinished) {
+      return (
+        <>
+          {renderFinished({
+            offered: queue.length,
+            right: tally.right,
+            wrong: tally.wrong,
+            again,
+          })}
+        </>
+      );
+    }
+
     return (
       <section className="card">
         <h1 className="card__title">Round finished</h1>
         <p className="card__body">
           {tally.right} right, {tally.wrong} missed, out of {queue.length}.
         </p>
-        <button
-          type="button"
-          className="button button--primary button--block"
-          onClick={() => setRound((n) => n + 1)}
-        >
+        <button type="button" className="button button--primary button--block" onClick={again}>
           Another round
         </button>
       </section>

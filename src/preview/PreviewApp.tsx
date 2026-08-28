@@ -10,7 +10,7 @@ import { AudioPanel } from '../quizzes/AudioPanel';
 import { FillInPanel } from '../quizzes/FillInPanel';
 import { KanjiWritingPanel } from '../quizzes/KanjiWritingPanel';
 import { RandomPanel } from '../quizzes/RandomPanel';
-import { TodaySessionPanel } from '../quizzes/TodaySessionPanel';
+import { SessionSummary, TodaySessionPanel } from '../quizzes/TodaySessionPanel';
 import { VocabReadingPanel } from '../quizzes/VocabReadingPanel';
 import { AnswerInput } from '../input/AnswerInput';
 import { previewUser } from './fixtures';
@@ -73,6 +73,10 @@ const SCREENS = {
   today: ['Today’s Session', () => <TodaySessionPanel user={previewUser} />],
   random: ['Random', () => <RandomPanel user={previewUser} />],
   'random-silent': ['Random (silent)', () => <RandomPanel user={previewUser} silent />],
+  summary: [
+    'Session done',
+    () => <SessionSummary offered={18} right={16} wrong={2} appetite={8} onAgain={() => {}} />,
+  ],
   reading: ['Vocab reading', () => <VocabReadingPanel user={previewUser} />],
   writing: ['Kanji writing', () => <KanjiWritingPanel user={previewUser} />],
   fill: ['Fill in the blank', () => <FillInPanel user={previewUser} />],

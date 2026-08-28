@@ -3,12 +3,15 @@ import type { User } from 'firebase/auth';
 import type { QuizMode } from '../domain/modes';
 import { countDue, planSession, type Candidate } from '../domain/sessionPlanner';
 import {
+  BASE_NEW,
+  MAX_APPETITE,
   accuracyFrom,
   nextAppetite,
   pace,
   throughputFrom,
   type Pacing,
 } from '../domain/pacing';
+import { hashFor } from '../domain/navigation';
 import { loadReviewHistory } from '../storage/reviewLog';
 import { finishSession, settleAbandonedSession, startSession } from '../storage/userState';
 import { useJapaneseVoice } from '../hooks/useJapaneseVoice';
@@ -189,6 +192,26 @@ export function TodaySessionPanel({ user }: { user: User }) {
     // screen opened and should not flicker as writes land.
   }, [checking, statesLoading, started, modes, voice, user.uid]);
 
+  const renderFinished = ({
+    offered,
+    right,
+    wrong,
+    again,
+  }: {
+    offered: number;
+    right: number;
+    wrong: number;
+    again: () => void;
+  }) => (
+    <SessionSummary
+      offered={offered}
+      right={right}
+      wrong={wrong}
+      {...(appetite === undefined ? {} : { appetite })}
+      onAgain={again}
+    />
+  );
+
   if (started) {
     return (
       <QuizFrame
@@ -197,6 +220,7 @@ export function TodaySessionPanel({ user }: { user: User }) {
         buildQueue={buildQueue}
         onPlanned={onPlanned}
         onFinished={onFinished}
+        renderFinished={renderFinished}
         emptyTitle="Nothing due"
         emptyBody="Everything is scheduled for later. Random practice is there if you want to keep going."
       />
@@ -266,6 +290,81 @@ export function TodaySessionPanel({ user }: { user: User }) {
           ) : null}
         </>
       )}
+    </section>
+  );
+}
+
+
+/**
+ * The schedule reporting back at the end of a session.
+ *
+ * Its own component, and exported, for two reasons: the ration moved — or held,
+ * or eased — as a direct result of how this session went, and an adaptive
+ * number nobody is told about is indistinguishable from a fixed one; and
+ * reaching this screen through the quiz means answering every question in the
+ * session, which is not something the preview harness can do. Rendering it
+ * directly is the only way it gets looked at.
+ */
+export function SessionSummary({
+  offered,
+  right,
+  wrong,
+  appetite,
+  onAgain,
+}: {
+  offered: number;
+  right: number;
+  wrong: number;
+  appetite?: number;
+  onAgain: () => void;
+}) {
+  const answered = right + wrong;
+  const was = appetite ?? BASE_NEW;
+  const now = nextAppetite(appetite, { finished: true, offered, answered, right });
+
+  return (
+    <section className="card">
+      <h1 className="card__title">Session done</h1>
+
+      <div className="tally">
+        <div className="tally__figure">
+          <span className="tally__number">{right}</span>
+          <span className="tally__label">right</span>
+        </div>
+        <div className="tally__figure tally__figure--muted">
+          <span className="tally__number">{wrong}</span>
+          <span className="tally__label">missed</span>
+        </div>
+        <div className="tally__figure tally__figure--muted">
+          <span className="tally__number">{offered}</span>
+          <span className="tally__label">asked</span>
+        </div>
+      </div>
+
+      <p className="card__body">
+        {now > was
+          ? `That went well, so the next session introduces ${now} new items instead of ${was}.`
+          : now < was
+            ? `The next session eases back to ${now} new items, to let what you have settle.`
+            : now >= MAX_APPETITE
+              ? `Holding at ${now} new items a session, which is as much as this will offer.`
+              : `Holding at ${now} new items a session.`}
+      </p>
+
+      <button type="button" className="button button--primary button--block" onClick={onAgain}>
+        Another round
+      </button>
+
+      <div className="quiz__afterthoughts">
+        <a className="button button--ghost button--small" href={hashFor('study.random')}>
+          Random practice
+        </a>
+      </div>
+
+      <p className="card__hint">
+        Anything still due comes back in another round. Random ignores due dates entirely, for when
+        the queue is clear and you want to keep going.
+      </p>
     </section>
   );
 }
