@@ -3,6 +3,7 @@ import type { User } from 'firebase/auth';
 import { EMPTY_SNAPSHOT, lookupReview, subscribeReviewStates, type ReviewSnapshot } from '../storage/reviewState';
 import type { ReviewLookup } from '../domain/sessionPlanner';
 import { isPreview, previewLookup } from '../preview/fixtures';
+import { describeFailure } from '../domain/failure';
 
 export interface ReviewStates {
   snapshot: ReviewSnapshot;
@@ -52,7 +53,9 @@ export function useReviewStates(user: User): ReviewStates {
         setLoading(false);
       },
       (subscriptionError) => {
-        setError(subscriptionError.message);
+        setError(
+          describeFailure(subscriptionError, 'Your progress could not be read from the server.'),
+        );
         setLoading(false);
       },
     );

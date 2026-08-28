@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { loadDeck, loadDeckIndex } from '../domain/decks';
 import type { Deck, DeckIndex, DeckType, Level, StudyItem } from '../domain/items';
+import { describeFailure } from '../domain/failure';
 
 export interface AsyncValue<T> {
   value: T | null;
@@ -11,7 +12,7 @@ export interface AsyncValue<T> {
 const PENDING = { value: null, loading: true, error: null } as const;
 
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : 'Something went wrong loading the decks.';
+  return describeFailure(error, 'The word lists could not be loaded.');
 }
 
 export function useDeckIndex(): AsyncValue<DeckIndex> {

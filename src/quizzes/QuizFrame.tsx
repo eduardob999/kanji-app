@@ -542,7 +542,8 @@ export function QuizFrame({
 
       {reviewError ? (
         <p className="notice notice--warn" role="alert">
-          Your progress is not syncing: {reviewError}
+          {/* The message is a whole sentence now, so it is not a suffix. */}
+          {reviewError}
         </p>
       ) : null}
 

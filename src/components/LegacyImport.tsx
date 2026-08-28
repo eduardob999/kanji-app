@@ -4,6 +4,7 @@ import { countSeeds, intakeDaysFor, toBuckets, type LegacySeedFile } from '../do
 import { markLegacyScoresImported } from '../storage/userState';
 import { seedReviewBuckets } from '../storage/reviewState';
 import { useReviewStates } from '../hooks/useReviewStates';
+import { describeFailure } from '../domain/failure';
 
 /**
  * Importing the CLI's scores.
@@ -98,7 +99,7 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
       console.error('[migrate] Legacy score import failed.', error);
       setStatus('error');
       setMessage(
-        error instanceof Error ? error.message : 'The import failed. Nothing was changed.',
+        describeFailure(error, 'The import did not finish. Nothing was changed — you can try again.'),
       );
     }
   }

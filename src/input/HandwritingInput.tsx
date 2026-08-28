@@ -9,6 +9,7 @@ import {
 } from './handwriting/pipeline';
 import { loadPatterns } from './handwriting/patterns';
 import type { AnswerInputProps } from './types';
+import { describeFailure } from '../domain/failure';
 
 /**
  * Draw the character.
@@ -61,8 +62,14 @@ export function HandwritingInput({ value, onChange, onSubmit, disabled }: Answer
     let live = true;
     loadPatterns().then(
       (loaded) => live && setPatterns(loaded),
-      (error: unknown) =>
-        live && setLoadError(error instanceof Error ? error.message : 'Could not load patterns.'),
+      (error: unknown) => {
+        console.error('[handwriting] Could not load the reference patterns.', error);
+        if (live) {
+          setLoadError(
+            describeFailure(error, 'The handwriting reference could not be loaded. You can type the answer instead.'),
+          );
+        }
+      },
     );
     return () => {
       live = false;

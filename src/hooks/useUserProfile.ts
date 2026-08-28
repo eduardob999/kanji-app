@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
 import { ensureUserProfile, subscribeToUserProfile } from '../storage/userState';
 import type { ProfileSnapshot } from '../types';
+import { describeFailure } from '../domain/failure';
 
 export interface UserProfileState extends ProfileSnapshot {
   loading: boolean;
@@ -40,7 +41,11 @@ export function useUserProfile(user: User): UserProfileState {
       user.uid,
       (snapshot) => setState({ ...snapshot, loading: false, error: null }),
       (error) =>
-        setState((previous) => ({ ...previous, loading: false, error: error.message })),
+        setState((previous) => ({
+          ...previous,
+          loading: false,
+          error: describeFailure(error, 'Your account details could not be read.'),
+        })),
     );
 
     return unsubscribe;

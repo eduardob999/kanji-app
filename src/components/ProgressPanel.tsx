@@ -15,6 +15,7 @@ import {
 } from '../domain/progress';
 import { useReviewStates } from '../hooks/useReviewStates';
 import { loadReviewHistory } from '../storage/reviewLog';
+import { describeFailure } from '../domain/failure';
 
 /**
  * How far through the material you are, and how steadily you have been at it.
@@ -50,8 +51,10 @@ export function ProgressPanel({ user }: { user: User }) {
 
     loadAllDecks(type).then(
       (loaded) => live && setDecks((current) => ({ ...current, [type]: loaded })),
-      (caught: unknown) =>
-        live && setError(caught instanceof Error ? caught.message : 'Could not load the decks.'),
+      (caught: unknown) => {
+        console.error('[progress] Could not load the word lists.', caught);
+        if (live) setError(describeFailure(caught, 'The word lists could not be loaded.'));
+      },
     );
 
     return () => {

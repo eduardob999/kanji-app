@@ -4,6 +4,7 @@ import { REVIEW_MODES, reviewModeLabel, type ReviewMode } from '../domain/modes'
 import { fitWeights, MIN_REVIEWS_TO_FIT, type FitResult } from '../domain/optimiser';
 import { loadReviewHistory } from '../storage/reviewLog';
 import { saveFittedModel, weightsFor, type AdaptiveModel } from '../storage/modelState';
+import { describeFailure } from '../domain/failure';
 
 /**
  * Refitting the memory model to this learner.
@@ -125,7 +126,7 @@ export function useModelFit(user: User, adaptive: AdaptiveModel, auto = true): M
         setResults(fits);
       } catch (caught) {
         console.error('[model] Refit failed.', caught);
-        setError(caught instanceof Error ? caught.message : 'The refit failed.');
+        setError(describeFailure(caught, 'The schedule could not be retuned this time.'));
       } finally {
         inFlight.current = false;
         setRunning(false);
