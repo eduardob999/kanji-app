@@ -78,7 +78,7 @@ function VocabReveal({ item }: { item: VocabItem }) {
 
 export function quizDefinitions(context: QuizContext): Record<QuizMode, QuizDefinition> {
   const sentenceFor = (item: VocabItem, reps: number): Sentence | null =>
-    chooseSentence(context.sentences.get(item.word) ?? [], reps);
+    chooseSentence(context.sentences.get(item.word) ?? [], reps, item.word);
 
   return {
     'vocab-reading': {
