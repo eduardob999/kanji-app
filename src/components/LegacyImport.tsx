@@ -31,6 +31,14 @@ import { describeFailure } from '../domain/failure';
 
 type Status = 'idle' | 'loading' | 'working' | 'done' | 'error';
 
+/**
+ * How long to wait for the server before saying so.
+ *
+ * Not a failure when it expires — the writes are in the local cache and queued.
+ * It is the difference between "imported" and "imported, and syncing".
+ */
+const SERVER_WAIT_MS = 10_000;
+
 /** Roughly how many will come due per day, from the same rule `toBuckets` uses. */
 function perDay(count: number): number {
   return Math.max(1, Math.round(count / intakeDaysFor(count)));
@@ -84,22 +92,43 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
       const buckets = toBuckets(pending, new Date());
       const seeded = countSeeds(buckets);
 
-      // Awaited, unlike every other write in this app. This one is a deliberate
-      // administrative action with a result to report, not something happening
-      // behind a question — and the flag must not be set before the data lands.
-      await seedReviewBuckets(user.uid, buckets);
-      await markLegacyScoresImported(user.uid);
+      /*
+       * Awaited, unlike every other write in this app: a deliberate
+       * administrative action with a result to report, not something happening
+       * behind a question.
+       *
+       * But not awaited *forever*. Offline, Firestore applies a write to the
+       * local cache at once and leaves the promise pending until a server
+       * acknowledges — possibly for hours — so an import run on a train sat on
+       * "Bringing them across…" with the work already done. The data is in the
+       * cache either way and the header's badge reports the rest; what this
+       * must not do is hang or, worse, report a failure that did not happen.
+       */
+      const landed = await Promise.race([
+        seedReviewBuckets(user.uid, buckets).then(() => true),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), SERVER_WAIT_MS)),
+      ]);
+
+      // The flag records that this has been done, and it has: the batch is in
+      // the local queue in front of this write, and Firestore preserves that
+      // order on reconnect.
+      void markLegacyScoresImported(user.uid);
 
       setStatus('done');
       setMessage(
-        `${seeded.toLocaleString()} items imported, coming due at about ${perDay(seeded)} a day.`,
+        landed
+          ? `${seeded.toLocaleString()} items imported, coming due at about ${perDay(seeded)} a day.`
+          : `${seeded.toLocaleString()} items imported and saved on this device, coming due at about ${perDay(seeded)} a day. They will reach the server when you are back online.`,
       );
       onDone?.();
     } catch (error) {
       console.error('[migrate] Legacy score import failed.', error);
       setStatus('error');
       setMessage(
-        describeFailure(error, 'The import did not finish. Nothing was changed — you can try again.'),
+        describeFailure(
+          error,
+          'The import did not finish. It is written as one batch, so nothing was half-applied, and running it again is safe — it only ever fills in what is missing.',
+        ),
       );
     }
   }

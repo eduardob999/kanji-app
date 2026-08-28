@@ -9,6 +9,7 @@ import {
   doc,
   type DocumentData,
   type Unsubscribe,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { scheduleNext } from '../domain/scheduler';
@@ -365,7 +366,16 @@ export async function seedReviewBuckets(
   uid: string,
   seeds: Map<string, Map<string, ItemReviewState>>,
 ): Promise<void> {
-  const writes: Promise<void>[] = [];
+  /*
+   * One batch rather than a write per bucket.
+   *
+   * There are at most 24 of them — three review modes across eight levels —
+   * which is well inside the 500-operation limit, and the difference matters:
+   * `Promise.all` over independent writes can fail with half of them already
+   * landed, and the screen told people "nothing was changed" while some of it
+   * had been. A batch is all or none, so that sentence becomes true.
+   */
+  const batch = writeBatch(db);
 
   for (const [id, items] of seeds) {
     const parsed = parseBucketId(id);
@@ -386,14 +396,12 @@ export async function seedReviewBuckets(
       };
     }
 
-    writes.push(
-      setDoc(
-        doc(db, USERS_COLLECTION, uid, REVIEWS_SUBCOLLECTION, id),
-        { items: compact, updatedAt: serverTimestamp() },
-        { merge: true },
-      ),
+    batch.set(
+      doc(db, USERS_COLLECTION, uid, REVIEWS_SUBCOLLECTION, id),
+      { items: compact, updatedAt: serverTimestamp() },
+      { merge: true },
     );
   }
 
-  await Promise.all(writes);
+  await batch.commit();
 }
