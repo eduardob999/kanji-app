@@ -31,8 +31,9 @@ Plus streaks and an eight-week activity strip.
 people actually using the app, plus a plain statement of what is stored where.
 
 **Its own look.** The palette is measured from the icon — washi paper
-`#faf4ea`, sumi ink `#121f2e`, a vermilion seal `#d74030` — and checked for
-contrast in both themes.
+`#faf4ea`, sumi ink `#121f2e`, a vermilion seal `#d74030` — and every piece of
+text on every screen is checked against WCAG AA by `npm run ui`, in both
+themes, rather than by eye.
 
 **Reachable on a phone.** The answer field, the primary button and "I don't
 know" travel together in one dock that clears the on-screen keyboard, measured

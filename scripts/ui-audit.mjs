@@ -14,6 +14,10 @@
  *   - **Tap targets.** Anything interactive under 44 px in either direction,
  *     which is the smallest reliably hittable size with a thumb.
  *   - **Text too small to read**, under 12 px.
+ *   - **Text too faint to read**: contrast under WCAG AA, which is the one
+ *     thing here that cannot be spotted by looking at a screenshot, because
+ *     the eye adapts and a designer who chose the colour already knows what it
+ *     says.
  *   - **Console errors**, because a screen that logs on every render is usually
  *     also doing something expensive on every render.
  *   - **Reachability with the keyboard open** — see `openKeyboard` below, which
@@ -217,6 +221,54 @@ function inspect(minTap, minFont) {
   const smallTaps = [];
   const smallText = [];
   const occluded = [];
+  const faintText = [];
+
+  /*
+   * WCAG relative luminance and contrast ratio.
+   *
+   * Approximate in one way worth naming: the background is the first ancestor
+   * with a non-transparent colour, so an element sitting on a gradient or an
+   * image is measured against whatever is behind that. Every such case in this
+   * app is a solid card, and the alternative — sampling rendered pixels — would
+   * make the check slow and flaky for the sake of cases that do not arise.
+   */
+  const channel = (value) => {
+    const c = value / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+
+  const parse = (colour) => {
+    const parts = colour.match(/[\d.]+/g);
+    if (!parts || parts.length < 3) return null;
+    const alpha = parts.length > 3 ? Number(parts[3]) : 1;
+    return { r: +parts[0], g: +parts[1], b: +parts[2], a: alpha };
+  };
+
+  const luminance = ({ r, g, b }) =>
+    0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+
+  const over = (front, back) => ({
+    r: front.r * front.a + back.r * (1 - front.a),
+    g: front.g * front.a + back.g * (1 - front.a),
+    b: front.b * front.a + back.b * (1 - front.a),
+    a: 1,
+  });
+
+  const backgroundFor = (el) => {
+    let node = el;
+    while (node) {
+      const style = getComputedStyle(node);
+      const colour = parse(style.backgroundColor);
+      if (colour && colour.a > 0.95) return colour;
+      node = node.parentElement;
+    }
+    return { r: 255, g: 255, b: 255, a: 1 };
+  };
+
+  const contrast = (a, b) => {
+    const [light, dark] = luminance(a) > luminance(b) ? [a, b] : [b, a];
+    return (luminance(light) + 0.05) / (luminance(dark) + 0.05);
+  };
 
   /*
    * The tab bar is `position: fixed`, so it covers whatever shares its band of
@@ -292,9 +344,34 @@ function inspect(minTap, minFont) {
       (n) => n.nodeType === 3 && n.textContent.trim().length > 0,
     );
     if (hasOwnText) {
-      const size = parseFloat(getComputedStyle(el).fontSize);
+      const style = getComputedStyle(el);
+      const size = parseFloat(style.fontSize);
       if (size < minFont) {
         smallText.push({ el: describe(el), size: Math.round(size * 10) / 10 });
+      }
+
+      // Disabled controls are exempt: being hard to read is how a disabled
+      // control says it is disabled, and WCAG exempts them for that reason.
+      const disabled = el.closest('[disabled], :disabled') !== null;
+
+      const foreground = parse(style.color);
+      if (foreground && !disabled) {
+        const background = backgroundFor(el);
+        const ratio = contrast(over(foreground, background), background);
+
+        // WCAG's "large text" is 18.66px bold or 24px, and gets a lower bar.
+        const weight = Number.parseInt(style.fontWeight, 10) || 400;
+        const large = size >= 24 || (size >= 18.66 && weight >= 700);
+        const floor = large ? 3 : 4.5;
+
+        if (ratio < floor) {
+          faintText.push({
+            el: describe(el),
+            ratio: Math.round(ratio * 100) / 100,
+            needs: floor,
+            size: Math.round(size * 10) / 10,
+          });
+        }
       }
     }
   }
@@ -306,6 +383,7 @@ function inspect(minTap, minFont) {
     occluded: occluded.slice(0, 4),
     smallTaps: smallTaps.slice(0, 8),
     smallText: smallText.slice(0, 6),
+    faintText: faintText.slice(0, 6),
   };
 }
 
@@ -407,6 +485,10 @@ for (const viewport of VIEWPORTS) {
     }
     if (result.smallText.length) {
       issues.push(`tiny text: ` + result.smallText.map((t) => `${t.el} ${t.size}px`).join(', '));
+    }
+    if (result.faintText.length) {
+      issues.push(`under WCAG AA: ` +
+        result.faintText.map((t) => `${t.el} ${t.ratio}:1 needs ${t.needs}`).join(', '));
     }
     if (errors.length) issues.push(`console: ${errors[0]}`);
 

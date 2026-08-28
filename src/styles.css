@@ -27,6 +27,19 @@
   --accent-soft: #a9c6e4;
   /* Accent at low alpha, for active pills and washes. */
   --accent-wash: rgba(127, 169, 214, 0.16);
+  /*
+   * What is legible *on* the accent — which is not the same colour in both
+   * themes, and was white in both.
+   *
+   * Light's accent is full-strength ink and white sits on it at 12.6:1. Dark's
+   * is ink diluted until it reads against an ink ground, and white on that is
+   * 2.46:1 — half of what WCAG AA asks for, on the app's primary button, on
+   * every screen that has one. Ink back on the diluted ink is 7.15:1.
+   *
+   * It survived because a screenshot does not show it: the button looks
+   * emphatic either way, and the eye fills in a word it already knows.
+   */
+  --on-accent: #101a24;
   --bg: #101a24;
   --bg-elevated: #17242f;
   /* One level deeper than elevated: insets, diagram plates, empty meters. */
@@ -90,6 +103,7 @@
      * while staying visibly the same vermilion.
      */
     --error: #c23a2b;
+    --on-accent: #fffdf7;
   }
 }
 
@@ -334,7 +348,7 @@ code {
   display: grid;
   place-items: center;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 700;
 }
 
@@ -385,7 +399,7 @@ code {
 
 .button--primary {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .button--ghost {
@@ -728,7 +742,7 @@ code {
   padding: 10px 16px;
   border-radius: var(--radius-sm);
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
   font-weight: 600;
   text-decoration: none;
   transition: top 120ms ease;
