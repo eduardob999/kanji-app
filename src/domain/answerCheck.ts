@@ -71,6 +71,13 @@ function comparable(raw: string): string {
  *
  * Order is preserved because the first one is what gets shown as "the answer"
  * when someone gets it wrong.
+ *
+ * Worth knowing, having measured it: **no field in the current corpus offers
+ * more than one.** The vocabulary and the kanji readings are all single values,
+ * so the splitting here never fires on shipped data. It stays because the decks
+ * are built from hand-edited CSVs where a `A・B` field is one keystroke away,
+ * and because it costs nothing — but nobody should conclude from its existence
+ * that multi-reading fields are a thing this corpus has.
  */
 export function expandReadings(field: string): string[] {
   const seen = new Set<string>();

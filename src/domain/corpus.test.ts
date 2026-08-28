@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { isAnyReadingCorrect, isReadingCorrect, isWritingCorrect } from './answerCheck';
 import { isKanjiItem, type StudyItem } from './items';
 
 /**
@@ -94,5 +95,56 @@ describe('the corpus', () => {
     for (const item of vocab) {
       expect((item as unknown as { reading: string }).reading.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('marking, against every answer that ships', () => {
+  /*
+   * The most damaging thing this app could do is mark a right answer wrong.
+   * It is also exhaustively checkable — there are 9,445 answers and they are
+   * in the repository — so it is checked exhaustively rather than sampled.
+   *
+   * The decks are rebuilt by hand from CSVs edited by hand, so this guards the
+   * data as much as the code.
+   */
+  it('accepts every reading and every written form it ships', () => {
+    const rejected: string[] = [];
+
+    for (const item of vocab) {
+      const word = (item as unknown as { word: string }).word;
+      const reading = (item as unknown as { reading: string }).reading;
+      if (!isReadingCorrect(reading, reading)) rejected.push(`reading ${word} / ${reading}`);
+      if (!isWritingCorrect(word, word)) rejected.push(`writing ${word}`);
+    }
+
+    for (const item of kanji) {
+      if (!isKanjiItem(item)) continue;
+      if (!isWritingCorrect(item.kanji, item.kanji)) rejected.push(`kanji ${item.kanji}`);
+      for (const reading of item.readings) {
+        if (!isAnyReadingCorrect(reading, item.readings)) {
+          rejected.push(`${item.kanji} / ${reading}`);
+        }
+      }
+    }
+
+    expect(rejected).toEqual([]);
+  });
+
+  it('does not accept a fragment of the answer', () => {
+    // The plausible over-acceptance, since the reading field is split on
+    // separators before comparison: half of まいげつ must not pass as まいげつ.
+    const accepted: string[] = [];
+
+    for (const item of vocab) {
+      const reading = (item as unknown as { reading: string }).reading;
+      if (reading.length < 3) continue;
+
+      const half = reading.slice(0, Math.floor(reading.length / 2));
+      if (isReadingCorrect(half, reading)) accepted.push(`${reading} accepted ${half}`);
+      if (isReadingCorrect(reading.slice(0, 1), reading)) accepted.push(`${reading} accepted a letter`);
+      if (isReadingCorrect('', reading)) accepted.push(`${reading} accepted nothing`);
+    }
+
+    expect(accepted).toEqual([]);
   });
 });
