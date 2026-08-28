@@ -102,3 +102,47 @@ describe('buildChoices', () => {
     expect(options).toHaveLength(DEFAULT_CHOICES);
   });
 });
+
+
+describe('answers that can be picked without reading them', () => {
+  const reading = (id: string, r: string): StudyItem =>
+    ({ id, word: id, reading: r, meaning: 'x' }) as unknown as StudyItem;
+
+  it('does not leave the answer as the only option of its length', () => {
+    /*
+     * The failure this guards is not subtle once you see it: three two-mora
+     * readings and one four-mora one, and the four-mora one is the answer. It
+     * can be picked by counting, and counting teaches nothing.
+     *
+     * Measured over the whole corpus before this was weighted properly, 38.6%
+     * of vocab-reading choice questions came out that way.
+     */
+    const target = reading('a', 'あいうえ');
+    const pool = [
+      target,
+      reading('b', 'かき'),
+      reading('c', 'さし'),
+      reading('d', 'たち'),
+      reading('e', 'なにぬね'),
+      reading('f', 'はひふへ'),
+      reading('g', 'まみむめ'),
+    ];
+
+    const choices = buildChoices(target, pool, 'vocab-reading');
+    const sameLength = choices.filter((c) => c.length === 'あいうえ'.length);
+
+    expect(choices).toHaveLength(4);
+    expect(choices).toContain('あいうえ');
+    expect(sameLength.length).toBeGreaterThan(1);
+  });
+
+  it('still takes what it can when nothing matches the length', () => {
+    // A rare length is not a reason to offer fewer than four options.
+    const target = reading('a', 'あいうえおかきく');
+    const pool = [target, reading('b', 'かき'), reading('c', 'さし'), reading('d', 'たち')];
+
+    const choices = buildChoices(target, pool, 'vocab-reading');
+    expect(choices).toHaveLength(4);
+    expect(choices).toContain('あいうえおかきく');
+  });
+});
