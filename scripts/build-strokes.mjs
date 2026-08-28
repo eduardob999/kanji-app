@@ -242,6 +242,7 @@ for (const [character, strokes, pattern] of published) {
 
 let missing = [...wanted].filter((k) => !covered.has(k));
 let generated = 0;
+let corrected = 0;
 
 if (missing.length > 0) {
   ensureKanjiVG();
@@ -278,6 +279,30 @@ if (missing.length > 0 && existsSync(KANJIVG)) {
   }
 
   missing = missing.filter((k) => !covered.has(k));
+
+  /*
+   * And replace the published patterns that disagree with KanjiVG about how
+   * many strokes a character has.
+   *
+   * `coarseClassification` filters candidates by stroke count before it looks
+   * at shape, so a reference with the wrong count is not merely inaccurate —
+   * the character becomes **unreachable**. Someone drawing 臨 with its 18
+   * strokes was never offered it, because the published pattern claims 6.
+   * Measured across the corpus: 41 characters disagree, 臨 (6 vs 18) and 衛
+   * (12 vs 16) worst, and spot-checking the list against the actual characters
+   * puts KanjiVG right every time — which is unsurprising, since it is the
+   * source Kanji Canvas derived from and the disagreement is drift in the
+   * digitisation rather than a difference of opinion.
+   */
+  const authoritative = readKanjiVG(xml, wanted);
+  for (const entry of kanji) {
+    const strokes = authoritative.get(entry[0]);
+    if (!strokes || strokes.length === entry[1]) continue;
+
+    entry[1] = strokes.length;
+    entry[2] = quantise(extractFeatures(momentNormalize(strokes), FEATURE_INTERVAL));
+    corrected += 1;
+  }
 }
 
 console.log('Converting kana…');
@@ -321,6 +346,8 @@ const built = JSON.stringify(kanji).length + JSON.stringify(kana).length;
 console.log(`\n  published patterns   ${(raw / 1e6).toFixed(2)} MB`);
 console.log(`  written              ${(built / 1e6).toFixed(2)} MB`);
 console.log(`\n  kanji covered        ${kanji.length} of ${wanted.size}`);
+console.log(`    from Kanji Canvas  ${kanji.length - generated - corrected}`);
+console.log(`    from KanjiVG       ${generated} filled in, ${corrected} corrected`);
 console.log(`  kana                 ${kana.length}`);
 console.log(`  without a pattern    ${missing.length}`);
 if (missing.length > 0) {

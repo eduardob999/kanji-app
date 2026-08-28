@@ -133,7 +133,10 @@ export function HandwritingInput({ value, onChange, onSubmit, disabled }: Answer
 
     const features = extractFeatures(momentNormalize(strokes.current), 20.0);
     const coarse = coarseClassification(features, patterns);
-    setCandidates(fineClassification(features, coarse, patterns).slice(0, 8));
+    // All ten the classifier returns, not eight. Two characters in the corpus
+    // — 析 and 馬 — rank ninth and tenth against their own strokes, so cutting
+    // the list at eight made them undrawable for the sake of two fewer buttons.
+    setCandidates(fineClassification(features, coarse, patterns));
   }, [patterns]);
 
   /** Canvas coordinates from a pointer event, accounting for CSS scaling. */

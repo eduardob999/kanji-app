@@ -68,9 +68,12 @@ suspended: this corpus is the JLPT lists, and burying a word would be burying
 the syllabus.
 
 **Handwriting for every character in the corpus.** 2,211 of 2,211. Kanji
-Canvas publishes 2,006; the rest are generated from KanjiVG at build time and
-checked by rebuilding characters that *are* covered and confirming the
-recogniser still ranks them first.
+Canvas publishes 2,006; the rest are generated from KanjiVG at build time, and
+41 of the published ones are corrected from it where their stroke count was
+wrong. Measured over the whole corpus against ideal strokes: the right
+character comes first 96.7% of the time and is offered at all 99.9% — 乙 and 肉
+are the two it cannot find, and the "type it instead" button is there for
+them.
 
 **Offline, checked.** 3.65 MB precached: the bundle (0.93), the decks (1.14),
 the sentence packs (1.35) and the icons. Handwriting's 1.61 MB of patterns is
