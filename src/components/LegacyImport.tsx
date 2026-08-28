@@ -44,6 +44,22 @@ function perDay(count: number): number {
   return Math.max(1, Math.round(count / intakeDaysFor(count)));
 }
 
+/**
+ * How long the intake runs, in words.
+ *
+ * "About 25 a day" is only half the sentence, and the missing half is the one
+ * that would surprise someone: 6,326 items at 25 a day is **eight months**
+ * before the last of them comes round. That is the right pace — they are items
+ * you already knew, and a wall of six thousand on day one would be neither
+ * useful nor survivable — but it should be said rather than discovered.
+ */
+function overHowLong(days: number): string {
+  if (days <= 1) return 'today';
+  if (days < 14) return `over the next ${Math.round(days)} days`;
+  if (days < 60) return `over the next ${Math.round(days / 7)} weeks`;
+  return `over the next ${Math.round(days / 30)} months`;
+}
+
 function seedUrl(): string {
   return new URL(
     'legacy-seed.json',
@@ -115,10 +131,11 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
       void markLegacyScoresImported(user.uid);
 
       setStatus('done');
+      const pace = `coming due at about ${perDay(seeded)} a day, ${overHowLong(intakeDaysFor(seeded))}`;
       setMessage(
         landed
-          ? `${seeded.toLocaleString()} items imported, coming due at about ${perDay(seeded)} a day.`
-          : `${seeded.toLocaleString()} items imported and saved on this device, coming due at about ${perDay(seeded)} a day. They will reach the server when you are back online.`,
+          ? `${seeded.toLocaleString()} items imported, ${pace}.`
+          : `${seeded.toLocaleString()} items imported and saved on this device, ${pace}. They will reach the server when you are back online.`,
       );
       onDone?.();
     } catch (error) {
@@ -167,9 +184,10 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
       </p>
       <p className="card__hint">
         They start with a small amount of remembered strength and come back for checking at about{' '}
-        {count > 0 ? perDay(count) : '—'} a day, weakest evidence first. Everything else starts
-        unseen, in level order. Nothing is invented for words you were never tested on, and the
-        first real answer replaces the guess with something measured.
+        {count > 0 ? perDay(count) : '—'} a day{count > 0 ? `, ${overHowLong(intakeDaysFor(count))}` : ''},
+        weakest evidence first. Everything else starts unseen, in level order. Nothing is invented
+        for words you were never tested on, and the first real answer replaces the guess with
+        something measured.
       </p>
 
       {status === 'error' ? (

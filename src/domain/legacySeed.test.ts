@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   MAX_INTAKE_DAYS,
@@ -174,5 +177,65 @@ describe('toBuckets', () => {
 
   it('handles an empty file', () => {
     expect(countSeeds(toBuckets(file([]), NOW))).toBe(0);
+  });
+});
+
+describe('the states the real export produces', () => {
+  /*
+   * The import writes 6,326 FSRS states into an account in one batch, and a
+   * malformed one is not a visible error — it is an item that schedules itself
+   * strangely for ever. The seed file ships in `public/`, so every state it
+   * would produce can be checked here rather than discovered later.
+   */
+  const file = JSON.parse(
+    readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../../public/legacy-seed.json'),
+      'utf8',
+    ),
+  ) as LegacySeedFile;
+
+  const NOW = new Date('2026-08-28T09:00:00Z');
+  const buckets = toBuckets(file, NOW);
+
+  it('produces a state the scheduler can use for every entry', () => {
+    const wrong: string[] = [];
+
+    for (const items of buckets.values()) {
+      for (const [itemId, state] of items) {
+        if (!(state.stability !== undefined && state.stability > 0)) {
+          wrong.push(`${itemId} stability ${state.stability}`);
+        }
+        // FSRS difficulty is 1 (easy) to 10 (punishing); outside that the
+        // interval maths produces nonsense rather than an error.
+        if (!(state.difficulty !== undefined && state.difficulty >= 1 && state.difficulty <= 10)) {
+          wrong.push(`${itemId} difficulty ${state.difficulty}`);
+        }
+        if (!state.dueAt) wrong.push(`${itemId} has no due date`);
+        if (!(state.totalReps !== undefined && state.totalReps >= 1)) {
+          wrong.push(`${itemId} reps ${state.totalReps}`);
+        }
+      }
+    }
+
+    expect(wrong).toEqual([]);
+  });
+
+  it('does not make day one a wall', () => {
+    // Every seeded item due at once is 6,326 questions and the end of the
+    // habit. They are spread, and none of them lands in the past.
+    const due = [...buckets.values()]
+      .flatMap((items) => [...items.values()])
+      .map((state) => (state.dueAt!.toMillis() - NOW.getTime()) / 86_400_000);
+
+    expect(Math.min(...due)).toBeGreaterThanOrEqual(0);
+
+    const perDay = new Map<number, number>();
+    for (const days of due) {
+      const day = Math.floor(days);
+      perDay.set(day, (perDay.get(day) ?? 0) + 1);
+    }
+
+    // Evenly enough that no single day is a session nobody would finish.
+    expect(Math.max(...perDay.values())).toBeLessThanOrEqual(TARGET_PER_DAY + 5);
   });
 });
