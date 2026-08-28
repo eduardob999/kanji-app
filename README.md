@@ -18,12 +18,12 @@ Live at **<https://eduardob999.github.io/kanji-app/>**.
 
 > **Status: everything below works.** Four quiz modes, three input methods,
 > Today's Session and Random, an FSRS scheduler that fits itself to you, and the
-> import of the old CLI's scores. See [docs/ROADMAP.md](docs/ROADMAP.md) for
-> what is left.
+> import of the old CLI's scores. [docs/ROADMAP.md](docs/ROADMAP.md) lists it in
+> full, with the numbers re-measured rather than remembered.
 
 ## What it does
 
-Four question types, all drawn from the same 2,211 kanji and 7,235 vocabulary
+Four question types, all drawn from the same 2,211 kanji and 7,234 vocabulary
 entries:
 
 | Mode | Prompt | You answer |
@@ -33,9 +33,15 @@ entries:
 | Fill in the blank | a real sentence with the word removed | the character |
 | Listening | the word spoken in context | the character |
 
-Two ways to study them: **Today's Session**, which is everything the schedule
-says is due, interleaved across all four types; and **Random**, which is endless
-and ignores due dates, for when the session is cleared.
+Three ways to study them: **Today's Session**, which is everything the schedule
+says is due, interleaved across all four types, sized to what you actually get
+through, and ending on what it did to your schedule; **Random**, which is
+endless and ignores due dates, for when the session is cleared; and **Random
+(silent)**, the same without listening, for a bus or a shared room.
+
+Miss one and you write the answer out before moving on. It is the only
+rehearsal that miss was ever going to get, and it costs a moment that was dead
+anyway.
 
 Three ways to answer, because Japanese input is the one thing you cannot assume
 about a device:
@@ -49,8 +55,12 @@ about a device:
 The scheduler fits itself to you. Response-time thresholds track your own
 speed per question type and input method, and the FSRS weights are refitted per
 review mode from your review log, held-out-validated so a bad fit is never
-adopted. **Tools → Scheduler** shows the calibration curve and what has been
-learnt.
+adopted. **Tools → Scheduler** shows the calibration curve, and says in a
+sentence what it means — "asking about 8 points too late" — rather than leaving
+you to weight six bands in your head.
+
+**Browse** carries the schedule too: every kanji and word by level, each row
+saying when it next comes round.
 
 ## Quick start
 

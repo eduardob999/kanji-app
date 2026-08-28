@@ -6,9 +6,11 @@
 listening — over a shared `QuizFrame`. A definition per type lives in
 `src/quizzes/definitions.tsx`, so a screen can mix them.
 
-**Two ways to study.** Today's Session is what the schedule says is due,
-interleaved and finite, opening on a count rather than a question. Random is
-endless and ignores due dates, for once the session is cleared.
+**Three ways to study.** Today's Session is what the schedule says is due,
+interleaved and finite, opening on a count rather than a question, and ending
+on what it did to the schedule. Random is endless and ignores due dates, for
+once the session is cleared — with a silent variant that drops listening, for a
+bus or a shared room.
 
 **Three input methods**, behind one interface that hands the quiz a string and
 tells it nothing about how the string was made: keyboard, handwriting, and
@@ -22,13 +24,19 @@ against a learner who forgets on a curve FSRS does not assume — because the
 scheduler's real job is a feedback loop, and a loop can be wrong in ways no
 single call is.
 
-**The old CLI's scores**, imported once from `scores.txt` — 1,117 real streaks
-out of 16,769 stored numbers, with nothing invented for the rest.
+**The old CLI's scores**, imported once from `scores.txt` — 6,328 real streaks
+out of 16,769 stored numbers (37.7%), with nothing invented for the rest. The
+figure here used to say 1,117, which was measured from a stale export before
+the real one turned up; regenerating the seed and counting says 6,328.
 
 **Progress.** Per-level bars — the CLI's startup dashboard — measured by
 stability rather than by a count of correct answers, so a full bar means "you
 would still know this next month" rather than "you have answered this a lot".
 Plus streaks and an eight-week activity strip.
+
+**Browse, with the schedule on it.** Every kanji and word by level, each row
+carrying when it is next coming round — the soonest of the memories an item
+has, since a word is scheduled separately for reading and for producing it.
 
 **About & credits**, carrying the attribution the licences require to the
 people actually using the app, plus a plain statement of what is stored where.
@@ -64,15 +72,28 @@ Canvas publishes 2,006; the rest are generated from KanjiVG at build time and
 checked by rebuilding characters that *are* covered and confirming the
 recogniser still ranks them first.
 
-**Offline, checked.** ~3.4 MB precached: the bundle, the decks and the sentence
-packs. Handwriting's 1.5 MB of patterns is deliberately *not* precached and is
-cached on first use instead. `npm run offline` proves it by starting a server,
+**Offline, checked.** 3.65 MB precached: the bundle (0.93), the decks (1.14),
+the sentence packs (1.35) and the icons. Handwriting's 1.61 MB of patterns is
+deliberately *not* precached and is cached on first use instead. `npm run offline` proves it by starting a server,
 priming the cache, **stopping the server** and reloading — Playwright's own
 offline emulation does not apply to service-worker fetches, so a check built on
 it passes while proving nothing.
 
+**The CLI retired.** `kanji-practice-app`'s README now opens with a notice
+pointing here; `pip install pjapp` still works and the repository stays up.
+
 ## Next
 
-### Retire the CLI
+Nothing outstanding. The list above is what has been built and, where a claim
+here is checkable, checked — the numbers in it were re-measured rather than
+remembered, which is how the score count turned out to be wrong by a factor of
+five and the precache size out of date.
 
-Archive `kanji-practice-app` with a README pointing here.
+Worth doing when there is reason to:
+
+- **Virtualise Browse** if it ever becomes a screen people scroll rather than
+  search. It renders the first 300 matches today.
+- **Fewer bytes on first load.** 897 kB is @firebase/firestore, @firebase/auth
+  and react-dom, plus re2js which firestore hard-depends on; the app's own code
+  is under 150 kB of it. Splitting would defer parse rather than bytes, and the
+  service worker precaches everything anyway.
