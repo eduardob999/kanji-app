@@ -575,11 +575,6 @@ export function QuizFrame({
 
           <div className="quiz__reveal">{definition.renderReveal(question.item)}</div>
 
-          <p className="card__hint">
-            {gradeLabel(verdict.result)}
-            {verdict.intervalDays > 0 ? ` — back in ${describeInterval(verdict.intervalDays)}` : ''}
-          </p>
-
           {stuck ? (
             /*
              * Write it once before moving on.
@@ -596,6 +591,13 @@ export function QuizFrame({
              * which on a writing question is the whole exercise.
              */
             <div className="quiz__dock">
+              <p className="card__hint quiz__grade">
+                {gradeLabel(verdict.result)}
+                {verdict.intervalDays > 0
+                  ? ` — back in ${describeInterval(verdict.intervalDays)}`
+                  : ''}
+              </p>
+
               <p className="card__hint quiz__copyprompt">
                 Write it out once — that is what makes it stick.
               </p>
@@ -640,6 +642,13 @@ export function QuizFrame({
             </div>
           ) : (
             <div className="quiz__dock">
+              <p className="card__hint quiz__grade">
+                {gradeLabel(verdict.result)}
+                {verdict.intervalDays > 0
+                  ? ` — back in ${describeInterval(verdict.intervalDays)}`
+                  : ''}
+              </p>
+
               <button type="button" className="button button--primary button--block" onClick={next}>
                 Next
               </button>

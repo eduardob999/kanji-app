@@ -75,6 +75,7 @@ const SCREENS = [
    * went from being the only thing ever looked at to never being looked at.
    */
   'today-empty', 'progress-empty', 'scheduler-empty', 'browse-empty',
+  'reading-empty', 'fill-empty', 'audio-empty', 'account-empty',
 ];
 
 /**
@@ -263,6 +264,54 @@ const STATES = {
     },
     openKeyboard,
   ],
+  /*
+   * The first answer anyone ever gives.
+   *
+   * A brand-new account takes a different path through `QuizFrame`: there is no
+   * previous state to grade against, so the elapsed time is zero, the predicted
+   * recall is one, and an undo has to *delete* the state rather than restore
+   * one. Every user passes through this exactly once and it had never been run.
+   */
+  'reading-empty': [
+    {
+      name: 'first-answer',
+      async reach(page) {
+        await page.fill('.textinput--answer', 'まちがい');
+        await page.click('.button--primary');
+        await page.waitForSelector('.verdict', { timeout: 5_000 });
+
+        const answer = (await page.textContent('.verdict'))?.trim() ?? '';
+        if (!answer) throw new Error('the verdict did not name the answer');
+
+        // Through the correction, which is where a first answer ends up.
+        await page.fill('.textinput--answer', answer);
+        await page.click('.button--primary');
+        await page.waitForSelector('.quiz__dock .button--primary:not([disabled])', {
+          timeout: 5_000,
+        });
+      },
+      async check(page) {
+        const found = await page.evaluate(() => {
+          const text = (document.body.textContent ?? '').replace(/\s+/g, ' ');
+          const dock = document.querySelector('.quiz__dock');
+          return {
+            next: /Next/.test(dock?.textContent ?? ''),
+            undo: /Undo/.test(dock?.textContent ?? ''),
+            // A first answer has nothing to compare against, so the schedule
+            // line must not claim it does.
+            nonsense: /NaN|Infinity|undefined|Invalid Date/.test(text),
+          };
+        });
+
+        const issues = [];
+        if (!found.next) issues.push('a first answer does not lead anywhere');
+        if (!found.undo) issues.push('a first answer cannot be undone');
+        if (found.nonsense) issues.push('a first answer produced a number that is not one');
+        return issues;
+      },
+    },
+  ],
+
   today: [
     deadDecks,
     {

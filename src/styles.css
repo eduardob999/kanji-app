@@ -1192,6 +1192,19 @@ code {
 }
 
 /*
+ * What the answer did to the schedule, at the top of the dock.
+ *
+ * It used to sit above the Next button in normal flow, which the sticky dock
+ * then covered — reachable by scrolling, and nobody scrolls down to read the
+ * consequence of something they have already done. It is part of the verdict,
+ * not part of the reveal, so it travels with the buttons.
+ */
+.quiz__grade {
+  margin-top: 0;
+  text-align: center;
+}
+
+/*
  * The line asking for the answer to be written out again.
  *
  * `.card__hint` brings a top margin that the dock's own gap already covers.
