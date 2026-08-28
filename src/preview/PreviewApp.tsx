@@ -14,7 +14,7 @@ import { RandomPanel } from '../quizzes/RandomPanel';
 import { SessionSummary, TodaySessionPanel } from '../quizzes/TodaySessionPanel';
 import { VocabReadingPanel } from '../quizzes/VocabReadingPanel';
 import { AnswerInput } from '../input/AnswerInput';
-import { previewUser } from './fixtures';
+import { EMPTY_SUFFIX, previewUser } from './fixtures';
 
 /**
  * The answer inputs on their own.
@@ -121,7 +121,10 @@ const SCREENS = {
 type ScreenKey = keyof typeof SCREENS;
 
 function screenFromHash(): ScreenKey | null {
-  const key = window.location.hash.replace(/^#\/preview\/?/, '').trim();
+  const raw = window.location.hash.replace(/^#\/preview\/?/, '').trim();
+  // `today-empty` is `today` rendered against a brand-new account; the storage
+  // layer reads the suffix, so all this has to do is find the screen.
+  const key = raw.endsWith(EMPTY_SUFFIX) ? raw.slice(0, -EMPTY_SUFFIX.length) : raw;
   return key in SCREENS ? (key as ScreenKey) : null;
 }
 

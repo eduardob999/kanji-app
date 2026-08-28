@@ -28,6 +28,25 @@ export function isPreview(): boolean {
   return import.meta.env.DEV && window.location.hash.startsWith(PREVIEW_HASH);
 }
 
+/**
+ * Whether this preview wants a brand-new account rather than a lived-in one.
+ *
+ * Teaching the harness to serve review states fixed one blind spot and opened
+ * the opposite one: the screens as somebody sees them on their first launch —
+ * every bar at zero, no streak, nothing due, the calibration curve with nothing
+ * to plot — stopped being renderable at all. Those states have their own copy
+ * and their own layouts, and "it looks fine with data" says nothing about them.
+ *
+ * A suffix on the screen name rather than a separate set of fixtures, so both
+ * versions of a screen are the same component with the same props and the only
+ * difference is what the storage layer answers.
+ */
+export function isPreviewEmpty(): boolean {
+  return isPreview() && window.location.hash.endsWith(EMPTY_SUFFIX);
+}
+
+export const EMPTY_SUFFIX = '-empty';
+
 export const previewUser = {
   uid: 'preview',
   displayName: 'Preview',
@@ -80,6 +99,8 @@ function hash(key: string): number {
 }
 
 export function previewLookup(mode: string, itemId: string): ItemReviewState | null {
+  if (isPreviewEmpty()) return null;
+
   const h = hash(`${mode}:${itemId}`);
   const bucket = h % 100;
 
@@ -137,6 +158,8 @@ export function previewLookup(mode: string, itemId: string): ItemReviewState | n
  * interval produces a curve someone could recognise.
  */
 export function previewHistory(): ReviewRecord[] {
+  if (isPreviewEmpty()) return [];
+
   const out: ReviewRecord[] = [];
   const lastSeen = new Map<string, number>();
   const POOL = 220;

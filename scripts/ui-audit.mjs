@@ -66,6 +66,15 @@ const SCREENS = [
   'today', 'summary', 'sync', 'random', 'random-silent', 'reading', 'writing', 'fill', 'audio',
   'browse', 'progress', 'scheduler', 'input', 'account', 'about', 'signin',
   'handwriting', 'choice',
+  /*
+   * The same screens on a brand-new account.
+   *
+   * Every bar at zero, no streak, nothing due, a calibration curve with nothing
+   * to plot. They have their own copy and their own layouts, and the fixtures
+   * that made the lived-in versions checkable made these unrenderable — so they
+   * went from being the only thing ever looked at to never being looked at.
+   */
+  'today-empty', 'progress-empty', 'scheduler-empty', 'browse-empty',
 ];
 
 /**

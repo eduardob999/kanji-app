@@ -109,6 +109,10 @@ export function TodaySessionPanel({ user }: { user: User }) {
     [appetite, counts, historyStats],
   );
 
+  /** What the session will actually hold, as opposed to what it may. */
+  const planned =
+    counts && pacing ? Math.min(pacing.maxItems, counts.due + pacing.maxNew) : 0;
+
   const onPlanned = useCallback(
     (offered: number) => {
       void startSession(user.uid, offered).catch((caught: unknown) => {
@@ -267,24 +271,21 @@ export function TodaySessionPanel({ user }: { user: User }) {
             </div>
           </div>
 
-          {/*
-            The one-time import, offered here rather than only on the Account
-            screen. It is a thing you do once, on the first day, and burying it
-            two taps into Tools means starting from zero without ever knowing
-            there was an alternative. It disappears for good once run.
-          */}
-          {profile ? (
-            <LegacyImport user={user} />
-          ) : null}
-
           {pacing ? (
             <>
               <p className={`notice notice--${pacing.state === 'behind' || pacing.state === 'struggling' ? 'warn' : 'muted'}`}>
                 {pacing.note}
               </p>
               <p className="card__body">
-                {pacing.maxItems} question{pacing.maxItems === 1 ? '' : 's'} this time, all four
-                types interleaved, most overdue first.
+                {/*
+                  What the session will be, not what it is allowed to be.
+                  `maxItems` is a ceiling: with nothing due and a ration of
+                  eight, it reads fifteen while the session is eight — and the
+                  line above has just said eight, so the screen contradicted
+                  itself on the first launch of a new account.
+                */}
+                {planned} question{planned === 1 ? '' : 's'} this time, all four types
+                interleaved, most overdue first.
                 {pacing.state === 'behind'
                   ? ` About ${pacing.sustainableRate.toLocaleString()} a day keeps pace with what falls due; the backlog on top of that comes down slower.`
                   : ''}
@@ -299,6 +300,19 @@ export function TodaySessionPanel({ user }: { user: User }) {
           >
             Start
           </button>
+
+          {/*
+            The one-time import, below Start rather than above it.
+            
+            Offered here rather than only on the Account screen, because it is a
+            thing you do once on the first day and burying it two taps into
+            Tools means starting from zero without ever knowing there was an
+            alternative. But it is two paragraphs and a button, and above Start
+            it pushed the screen's whole purpose below the fold on a phone —
+            which is what a new account sees and nobody else ever would. An
+            offer goes under the action it is an alternative to.
+          */}
+          {profile ? <LegacyImport user={user} /> : null}
 
           {!voice ? (
             <p className="card__hint">
