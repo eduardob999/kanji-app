@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { KNOWN_FROM } from './progress';
+import { scheduleNext } from './scheduler';
+import type { ItemReviewState } from './review';
 import {
   MAX_INTAKE_DAYS,
   TARGET_PER_DAY,
@@ -237,5 +240,112 @@ describe('the states the real export produces', () => {
 
     // Evenly enough that no single day is a session nobody would finish.
     expect(Math.max(...perDay.values())).toBeLessThanOrEqual(TARGET_PER_DAY + 5);
+  });
+});
+
+describe('what the import is actually worth', () => {
+  /*
+   * A seeded state is a guess, and a guess that never turns into a measurement
+   * would make the whole import decorative. This traces the path from the seed
+   * to what Progress calls "held", because the answer is not obvious and it
+   * changed my mind twice.
+   *
+   * Straight after importing, almost nothing reads as held — 6,122 of the 6,326
+   * seeded items land in Learning, because a stability of two days cannot
+   * vouch for a month, and it should not pretend to.
+   *
+   * What redeems that is the intake spread. An item seeded at two days is not
+   * asked for weeks, so when it *is* asked the elapsed time is real calendar
+   * time in which the word went unseen — and recalling it then is strong
+   * evidence rather than a formality. Everything above the lowest streak
+   * reaches "known" on its first correct answer; the lowest takes three.
+   *
+   * The failure this guards is a plausible one: make the seeds more
+   * conservative, or the intake faster, and the import quietly stops paying
+   * for itself.
+   */
+  const file = JSON.parse(
+    readFileSync(
+      resolve(dirname(fileURLToPath(import.meta.url)), '../../public/legacy-seed.json'),
+      'utf8',
+    ),
+  ) as LegacySeedFile;
+
+  const NOW = new Date('2026-08-28T09:00:00Z');
+
+  it('turns a seeded guess into a measurement the first time it is answered', () => {
+    const buckets = toBuckets(file, NOW);
+
+    // One representative per distinct seeded stability.
+    const representative = new Map<number, ItemReviewState>();
+    for (const items of buckets.values()) {
+      for (const state of items.values()) {
+        if (state.stability !== undefined && !representative.has(state.stability)) {
+          representative.set(state.stability, state);
+        }
+      }
+    }
+
+    expect(representative.size).toBeGreaterThan(1);
+
+    for (const [stability, seeded] of representative) {
+      const update = scheduleNext(
+        {
+          stability,
+          difficulty: seeded.difficulty!,
+          reps: seeded.totalReps!,
+          lapses: 0,
+          lastPracticedAt: seeded.lastReviewedAt?.toDate() ?? NOW,
+          intervalDays: seeded.intervalDays!,
+        },
+        'good',
+        // Answered when it comes round, which is the only time it is asked.
+        seeded.dueAt!.toDate(),
+      );
+
+      // Answering a seeded item correctly must always be worth something.
+      expect(update.stability).toBeGreaterThan(stability);
+    }
+  });
+
+  it('does not leave the commonest case stuck in Learning for ever', () => {
+    // Streak 1 is 3,425 of the 6,328 entries — over half — and it seeds the
+    // lowest stability there is. Three correct answers should carry it to what
+    // Progress is willing to call known.
+    const buckets = toBuckets(file, NOW);
+    const lowest = Math.min(
+      ...[...buckets.values()].flatMap((items) =>
+        [...items.values()].map((state) => state.stability ?? Infinity),
+      ),
+    );
+
+    const seeded = [...buckets.values()]
+      .flatMap((items) => [...items.values()])
+      .find((state) => state.stability === lowest)!;
+
+    let state = {
+      stability: lowest,
+      difficulty: seeded.difficulty!,
+      reps: seeded.totalReps!,
+      lapses: 0,
+      lastPracticedAt: seeded.lastReviewedAt?.toDate() ?? NOW,
+      intervalDays: seeded.intervalDays!,
+    };
+    let when = seeded.dueAt!.toDate();
+
+    for (let answer = 0; answer < 3; answer += 1) {
+      const update = scheduleNext(state, 'good', when);
+      state = {
+        stability: update.stability,
+        difficulty: update.difficulty,
+        reps: update.reps,
+        lapses: update.lapses,
+        lastPracticedAt: when,
+        intervalDays: update.intervalDays,
+      };
+      when = update.dueAt;
+    }
+
+    expect(state.stability).toBeGreaterThanOrEqual(KNOWN_FROM);
   });
 });
