@@ -90,6 +90,27 @@ export function fluencyKey(quiz: QuizMode, input: InputMethod): string {
  * magnitude — 3 s for a typed reading, 30 s for a drawn kanji — and one step
  * size in milliseconds cannot serve both.
  */
+/**
+ * How far one observation may move an estimate.
+ *
+ * A constant fraction, not a decaying one, and that is a choice worth
+ * recording because the obvious improvement is not one. Robbins-Monro says to
+ * start large and decay, which converges faster from a cold start — measured
+ * here, it does that for the *fast* threshold and overshoots the slow one,
+ * because the slow quantile moves up on four observations in five and a bigger
+ * early step amplifies exactly that. Net: better on one, worse on the other.
+ *
+ * What this costs is honest to state: from the published defaults it takes
+ * roughly two hundred answers **per quiz-and-input bucket** before the slow
+ * threshold settles near the truth, and there are twelve buckets. Until then
+ * the estimate sits between the default and the learner, which is where an
+ * under-informed estimate ought to sit — the transition at `MIN_SAMPLES` is
+ * smooth precisely because it has barely moved by then.
+ *
+ * The floor is what keeps it a tracking estimator rather than a converging
+ * one: someone who gets faster over a year is a moving target, and an estimate
+ * that has stopped moving cannot follow.
+ */
 function stepFor(estimate: number): number {
   return Math.max(120, estimate * 0.05);
 }

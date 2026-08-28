@@ -143,3 +143,66 @@ describe('observeResponse', () => {
     expect(table['vocab-reading:keyboard']!.n).toBe(25);
   });
 });
+
+describe('what the estimator does over a long run', () => {
+  function mulberry32(seed: number): () => number {
+    let a = seed;
+    return () => {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
+    };
+  }
+
+  /** Response times are log-normal; a symmetric distribution would flatter it. */
+  function lognormal(random: () => number, medianMs: number, sigma: number): number {
+    const z = Math.sqrt(-2 * Math.log(random())) * Math.cos(2 * Math.PI * random());
+    return Math.exp(Math.log(medianMs) + sigma * z);
+  }
+
+  it('finds a learner much faster than the defaults assume', () => {
+    // Someone answering in two seconds where the published profile expects
+    // three and a half. Two hundred answers is roughly what it takes; see
+    // `stepFor` for why that is a deliberate trade rather than a slow bug.
+    const random = mulberry32(7);
+    let table: FluencyTable = {};
+    for (let i = 0; i < 600; i += 1) {
+      table = observeResponse(table, 'vocab-reading', 'keyboard', lognormal(random, 2_000, 0.4));
+    }
+
+    const profile = profileFor(table, 'vocab-reading', 'keyboard');
+    const fallback = timingProfile('vocab-reading', 'keyboard');
+
+    expect(profile.fastMs).toBeLessThan(fallback.fastMs);
+    expect(profile.slowMs).toBeLessThan(fallback.slowMs);
+    // True quantiles for this distribution are about 1.6s and 2.8s.
+    expect(profile.fastMs).toBeGreaterThan(1_000);
+    expect(profile.fastMs).toBeLessThan(2_400);
+    expect(profile.slowMs).toBeGreaterThan(2_000);
+    expect(profile.slowMs).toBeLessThan(4_000);
+  });
+
+  it('never lets fast catch slow, however strange the answers are', () => {
+    /*
+     * The two estimates are tracked independently, so nothing structural stops
+     * them crossing — and a profile where "fast" is slower than "slow" does not
+     * fail, it silently grades everything as one thing.
+     *
+     * This is the worst input available: alternating instant answers, answers
+     * at the edge of what is recorded at all, and a heavy-tailed middle.
+     */
+    let table: FluencyTable = {};
+    const random = mulberry32(3);
+
+    for (let i = 0; i < 3_000; i += 1) {
+      const ms =
+        i % 3 === 0 ? 200 : i % 3 === 1 ? 119_000 : lognormal(random, 5_000, 1.2);
+      table = observeResponse(table, 'kanji-writing', 'handwriting', ms);
+
+      const profile = profileFor(table, 'kanji-writing', 'handwriting');
+      expect(profile.fastMs).toBeLessThan(profile.slowMs);
+    }
+  });
+});
