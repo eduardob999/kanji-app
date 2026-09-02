@@ -8,9 +8,14 @@ rules_version = '2';
 // another device yields the same uid, which is what makes progress follow you.
 //
 // NOTE: this app shares a Firebase project with GHAPP, whose rules are already
-// published and whose RULE BODIES are byte-identical to these. The comments
-// differ, and only the comments: checked on 2026-09-03, when this file still
-// claimed the two were character-for-character the same and they were not.
+// published and whose ENFORCED RULES are identical to these: strip the comments
+// and the two files are the same statement for statement. The comments differ,
+// inside this block as well as above it, which is why the old wording here --
+// "character-for-character" -- was false when checked on 2026-09-03.
+//
+// The check that settles it, rather than a claim to be trusted:
+//   diff <(sed 's://.*::' a/firestore.rules | tr -d ' \t' | grep -v '^$') \
+//        <(sed 's://.*::' b/firestore.rules | tr -d ' \t' | grep -v '^$')
 // If you are pointing Kanjiba at that project there is nothing to publish --
 // the wildcard below already covers /users/{uid}/reviews. This file is kept so
 // the project can be stood up from scratch, and so the two repos cannot drift
