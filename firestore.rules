@@ -8,11 +8,20 @@ rules_version = '2';
 // another device yields the same uid, which is what makes progress follow you.
 //
 // NOTE: this app shares a Firebase project with GHAPP, whose rules are already
-// published and are character-for-character these. If you are pointing Kanjiba
-// at that project, there is nothing to publish -- the wildcard below already
-// covers /users/{uid}/reviews. This file is kept so the project can be stood up
-// from scratch, and so the two repos cannot drift into disagreeing about what
-// the rules are.
+// published and whose RULE BODIES are byte-identical to these. The comments
+// differ, and only the comments: checked on 2026-09-03, when this file still
+// claimed the two were character-for-character the same and they were not.
+// If you are pointing Kanjiba at that project there is nothing to publish --
+// the wildcard below already covers /users/{uid}/reviews. This file is kept so
+// the project can be stood up from scratch, and so the two repos cannot drift
+// into disagreeing about what the rules are.
+//
+// Reviewed 2026-09-03. The ownership check is sound and default deny holds.
+// One finding worth carrying: /users/{uid}/sessions is documented as
+// append-only and these rules do not enforce it, because `write` covers update
+// and delete. Adding a narrower rule cannot fix that -- Firestore takes the
+// union of matching rules, so the wildcard would still allow the write. See
+// PM/handoffs/SECURITY-firestore-rules.md.
 service cloud.firestore {
   match /databases/{database}/documents {
 
