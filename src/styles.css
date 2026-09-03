@@ -133,6 +133,41 @@
 }
 
 /*
+ * With the keyboard up, the window is not a floor to grow from. It is the whole
+ * budget, and whatever does not fit inside it is not somewhere else on the
+ * page: it is behind the keyboard.
+ *
+ * `min-height` lets the screen grow past the window, which is right when the
+ * keyboard is down and a long Browse list should scroll. It is wrong the moment
+ * someone is typing, because the sticky dock then pins itself to the bottom of
+ * the *window* while its place in the flow is below the fold, and the distance
+ * between those two is the dock riding up over the question. Measured at
+ * 390x844 with a 380px keyboard: the card wanted 427px of a 363px slot, and the
+ * 64px of difference came out of the word being asked about.
+ *
+ * A definite height is what lets the flex column below actually distribute the
+ * shortfall. It has to be handed down: a flex item will not shrink past its own
+ * content unless `min-height` says it may, and `.content` is a grid, whose
+ * tracks do not shrink to fit at all. Flex here, for the one state where the
+ * height is fixed and something has to give.
+ */
+[data-keyboard='open'] .screen {
+  height: calc(100dvh - var(--keyboard-inset));
+}
+
+[data-keyboard='open'] .content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* The 24px above the card is slack, and there is none to spend while typing. */
+  padding-top: 8px;
+}
+
+[data-keyboard='open'] .content > * {
+  min-height: 0;
+}
+
+/*
  * Padding and borders count inside a declared width.
  *
  * Restored after going missing for the whole life of this file. The stylesheet
@@ -1278,6 +1313,62 @@ code {
 }
 
 /*
+ * The dock, sized for the window it is actually in.
+ *
+ * At rest it holds 217px, which is a fifth of a phone and unremarkable. With a
+ * 380px keyboard up, the same 217px is three fifths of everything left, and the
+ * question it is meant to serve gets 49px. Every pixel taken back here goes
+ * straight to the word being asked about, which is the only thing on the screen
+ * nobody can answer without.
+ *
+ * Padding, not type. The floor is 44px on anything a thumb has to find, and
+ * every one of these clears it after the trim: the answer field 54px, Check
+ * 50px, and "I don't know" has a `min-height` of its own that is not touched.
+ * `npm run ui` measures all three in this exact state, so a trim that went too
+ * far would fail rather than ship.
+ */
+[data-keyboard='open'] .quiz__dock {
+  /*
+   * And not floating at all, while the keyboard is up.
+   *
+   * Sticky earns its place when the page scrolls: it keeps the answer and its
+   * buttons reachable, and what goes behind it is a prompt you can scroll back
+   * to. With the keyboard open the trade stops being worth it. The screen is
+   * exactly the window's height now, so in every state that fits the dock is
+   * already at the bottom and sticky changes nothing; in the one state that
+   * does not fit, the state after a miss, sticky is the difference between a
+   * page that scrolls honestly and a panel painted over the answer.
+   *
+   * The bottom offset goes with it. `--keyboard-inset` is already subtracted
+   * from the screen's height, and subtracting it twice would leave a strip of
+   * card below the dock for no reason.
+   */
+  position: static;
+  gap: 8px;
+  padding-top: 8px;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+}
+
+[data-keyboard='open'] .quiz__dock .button--block {
+  padding: 12px;
+}
+
+[data-keyboard='open'] .textinput--answer {
+  padding: 10px 16px;
+}
+
+/*
+ * Breathing room is the first thing to go, not the last.
+ *
+ * The 14px between the card's pieces is there so a screen at rest does not read
+ * as a form. While someone is typing there is no slack to spend on it, and
+ * spending it anyway costs the question its last line.
+ */
+[data-keyboard='open'] .quiz {
+  gap: 10px;
+}
+
+/*
  * Undo and the grade override. Deliberately quiet and below the primary action:
  * they matter, and they are not what you press fifteen times a session.
  */
@@ -2008,4 +2099,52 @@ code {
 .quiz__reveal,
 .quiz__dock {
   flex: none;
+}
+
+/*
+ * A prompt with nowhere left to shrink scrolls, rather than spilling.
+ *
+ * `min-height: 0` above lets the box get smaller than its contents, which is
+ * what keeps the buttons on screen. What it does not do is say where the
+ * contents go: they overflow the box in both directions and are painted over by
+ * whatever is next, so a 70px kanji in a 40px slot loses its top and bottom to
+ * a card that looks perfectly ordinary. Scrolling makes the same shortfall
+ * something a thumb can undo.
+ *
+ * `safe center` is the second half of it. Centred overflow spills equally at
+ * both ends and the top end cannot be scrolled back to, which would hide the
+ * first line of a long fill-in sentence for good. `safe` drops the centring
+ * exactly when it would start costing content. Browsers without it keep the
+ * plain `center` above, which is what they do today.
+ */
+[data-keyboard='open'] .quiz__prompt {
+  overflow-y: auto;
+  justify-content: safe center;
+  /* Nothing lands flush against the edge it just scrolled away from. */
+  scroll-padding: 4px;
+}
+
+/*
+ * The question counter stands down while the keyboard is up.
+ *
+ * "1 / 15" and the running tally are worth a glance between questions and are
+ * worth nothing at all mid-answer, and at 360px they are the 44px that decides
+ * whether the whole word fits above the keyboard or has to be scrolled to. They
+ * are back the moment the keyboard closes.
+ *
+ * Only inside a quiz. Every other card's header is its title.
+ */
+[data-keyboard='open'] .quiz > .card__header {
+  display: none;
+}
+
+/*
+ * A field that is scrolled to lands clear of the edge it was scrolled past.
+ *
+ * The browser brings a focused field into view on its own and stops the moment
+ * it technically is, which puts it flush against the fold with its own focus
+ * ring half off. This is the margin it honours while doing that.
+ */
+.textinput {
+  scroll-margin-block: 12px 16px;
 }

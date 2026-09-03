@@ -119,7 +119,20 @@ stripped-down Android. Declaring the common system faces costs nothing.
 ## Done
 
 Every item above is complete. `npm run ui` reports 0 problems across 15 screens
-× 4 viewport/theme combinations, plus 3 interactive states.
+× 4 viewport/theme combinations, plus 6 interactive states, three of which are
+keyboard states added on 2026-09-03.
+
+**That "0 problems" was true and still missed a bug he hit every day**, and the
+reason is worth keeping. The audit's old `openKeyboard` set `--keyboard-inset`
+and `data-keyboard` BY HAND before measuring. So it checked every CSS rule that
+depends on those, and never checked the code that decides whether to set them.
+On Chrome for Android that code measured zero and set nothing, so on his phone
+none of the keyboard CSS ever applied.
+
+A harness that stages the state it is testing can only confirm the styling of a
+state it has assumed. The keyboard states now shrink the real viewport and let
+`src/viewport.ts` do its own detection, and reverting the fix makes the audit
+report 15 failing combinations rather than passing.
 
 What is worth keeping from this is not the CSS. It is that the app now has a
 way to be looked at: `src/preview/` renders any screen without a sign-in, and

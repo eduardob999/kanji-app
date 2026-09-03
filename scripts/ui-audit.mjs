@@ -20,8 +20,10 @@
  *     says.
  *   - **Console errors**, because a screen that logs on every render is usually
  *     also doing something expensive on every render.
- *   - **Reachability with the keyboard open** — see `openKeyboard` below, which
- *     is a stated simulation rather than a real IME.
+ *   - **Reachability with the keyboard open**, in both of the ways a browser
+ *     can react to one. See `keyboardResizesContent` and
+ *     `keyboardResizesVisual` below: stated simulations rather than a real IME,
+ *     but the app's own measurement runs against them.
  *
  * Screenshots go to `.ui/` for looking at; the report goes to stdout for
  * deciding what to fix.
@@ -143,71 +145,192 @@ const deadDecks = {
   },
 };
 /**
- * The keyboard, simulated — and it is worth being precise about how.
+ * The keyboard, simulated. There are two of them, because there are two things
+ * a browser can do about one, and only one of them used to be checked here.
  *
- * A headless browser cannot raise a soft keyboard, and there is no API to make
- * it pretend. What *can* be reproduced exactly is the thing the CSS reacts to:
- * `--keyboard-inset` and `data-keyboard`, which `src/viewport.ts` publishes
- * from `window.visualViewport`. Setting them by hand tests every rule that
- * depends on them, at the cost of not testing the measurement itself.
+ * A headless browser cannot raise a soft keyboard. What it can do is reproduce
+ * what the browser does to the page afterwards, and that is not one behaviour:
  *
- * So this catches a regression in the layout and cannot catch a regression in
- * the measurement. The second one needs a phone.
+ *   resizes-content  The layout viewport itself shrinks. This is what
+ *                    `interactive-widget=resizes-content` in the viewport meta
+ *                    asks for and what Chrome on Android does, so it is the
+ *                    case the owner's phone is actually in. Reproduced by
+ *                    shrinking the page's viewport, which is what the browser
+ *                    itself does.
+ *   resizes-visual   Only the visual viewport shrinks; `window.innerHeight`
+ *                    does not move. This is iOS, and anything ignoring the
+ *                    meta. Reproduced by patching `visualViewport.height`
+ *                    before the page loads and firing its resize event.
+ *
+ * Both run the app's own measurement in `src/viewport.ts` rather than handing
+ * it the answer. The previous version set `--keyboard-inset` and
+ * `data-keyboard` by hand, which checked every CSS rule and left the code that
+ * decides whether those rules apply at all unchecked. That is the gap the bug
+ * came through: on Chrome for Android the measurement correctly saw no
+ * visual-viewport shrink, never set `data-keyboard`, and the tab bar stayed up
+ * over a 464px window with the dock riding over the question. This file passed
+ * the whole time.
  *
  * 45% of the viewport is a middling Android keyboard; iOS is a little less.
  */
 const KEYBOARD_FRACTION = 0.45;
 
-const openKeyboard = {
+/**
+ * Everything that has to hold with a keyboard up, whichever kind it is.
+ *
+ * The fold is worked out inside the page rather than passed in, because the two
+ * simulations put the same number in different places: one shortens the window,
+ * the other shortens only the visual viewport inside it.
+ */
+async function keyboardChecks(page, { mustFit = true } = {}) {
+  return page.evaluate((fits) => {
+    const found = [];
+    const vv = window.visualViewport;
+    const fold = vv
+      ? Math.min(window.innerHeight, Math.round(vv.offsetTop + vv.height))
+      : window.innerHeight;
+
+    // The measurement itself. Everything below is downstream of it, so a
+    // failure here would otherwise be reported four times over.
+    if (document.documentElement.dataset.keyboard !== 'open') {
+      found.push('the keyboard is up and nothing noticed: data-keyboard is not set');
+    }
+
+    const dock = document.querySelector('.quiz__dock');
+    if (!dock) return found.concat('no .quiz__dock to keep above the keyboard');
+
+    const box = dock.getBoundingClientRect();
+    if (fits && box.bottom > fold + 1) {
+      found.push(`the dock sits ${Math.round(box.bottom - fold)}px into the keyboard`);
+    }
+    if (box.top < 0) {
+      found.push('the dock is cut off at the top of the viewport');
+    }
+
+    // The dock is only useful if every part of it is: the field being typed
+    // into, the primary action, and the way out of a question you cannot
+    // answer. Checking the container alone would pass a dock whose last row
+    // had wrapped below the fold.
+    for (const [what, selector] of [
+      ['the answer field', '.textinput--answer, .choices, .handwriting'],
+      ['the primary button', '.button--primary'],
+      ['"I don’t know"', '.quiz__afterthoughts .button'],
+    ]) {
+      const el = dock.querySelector(selector);
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (fits && rect.bottom > fold + 1) {
+        found.push(`${what} is ${Math.round(rect.bottom - fold)}px into the keyboard`);
+      }
+    }
+
+    const tabbar = document.querySelector('.tabbar');
+    if (tabbar && getComputedStyle(tabbar).display !== 'none') {
+      found.push('the tab bar is still taking space with the keyboard open');
+    }
+
+    /*
+     * The question, still readable.
+     *
+     * The dock is sticky, so when the card does not fit it pins itself to the
+     * bottom of the window while its place in the flow is below the fold, and
+     * the distance between the two gets painted over whatever is above it.
+     * What is above it is the word being asked about. Every other rule in this
+     * file passed while half a kanji sat behind the answer field.
+     */
+    for (const [what, selector] of [
+      ['the prompt', '.quiz__prompt'],
+      ['the reveal', '.quiz__reveal'],
+    ]) {
+      const el = document.querySelector(selector);
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.height > 0 && box.top < rect.bottom - 1 && box.bottom > rect.top + 1) {
+        found.push(`the dock covers ${Math.round(rect.bottom - box.top)}px of ${what}`);
+      }
+      if (fits && rect.bottom > fold + 1) {
+        found.push(`${what} runs ${Math.round(rect.bottom - fold)}px into the keyboard`);
+      }
+      // Shrunk past its contents is fine. Shrunk past them with no way to
+      // scroll to the rest is the same thing as hidden.
+      const cut = el.scrollHeight - el.clientHeight;
+      const scrollable = /auto|scroll/.test(getComputedStyle(el).overflowY);
+      if (cut > 1 && !scrollable) {
+        found.push(`${cut}px of ${what} is cut off with no way to scroll to it`);
+      }
+    }
+
+    return found;
+  }, mustFit);
+}
+
+/** The owner's phone: Chrome for Android, where the layout viewport shrinks. */
+const keyboardResizesContent = {
   name: 'keyboard',
   async reach(page, viewport) {
-    const inset = Math.round(viewport.height * KEYBOARD_FRACTION);
     await page.focus('.textinput--answer');
-    await page.evaluate((px) => {
-      document.documentElement.style.setProperty('--keyboard-inset', `${px}px`);
-      document.documentElement.dataset.keyboard = 'open';
-    }, inset);
+    await page.setViewportSize({
+      width: viewport.width,
+      height: viewport.height - Math.round(viewport.height * KEYBOARD_FRACTION),
+    });
+    await page.waitForTimeout(300);
+    // The browser keeps the focused field in view; so does this.
+    await page.evaluate(() =>
+      document.querySelector('.textinput--answer')?.scrollIntoView({ block: 'nearest' }),
+    );
   },
-  async check(page, viewport) {
-    const line = viewport.height - Math.round(viewport.height * KEYBOARD_FRACTION);
-    return page.evaluate((keyboardTop) => {
-      const found = [];
-      const dock = document.querySelector('.quiz__dock');
-      if (!dock) return ['no .quiz__dock to keep above the keyboard'];
+  check: keyboardChecks,
+};
 
-      const box = dock.getBoundingClientRect();
-      if (box.bottom > keyboardTop + 1) {
-        found.push(`the dock sits ${Math.round(box.bottom - keyboardTop)}px into the keyboard`);
-      }
-      if (box.top < 0) {
-        found.push('the dock is cut off at the top of the viewport');
-      }
-
-      // The dock is only useful if every part of it is: the field being typed
-      // into, the primary action, and the way out of a question you cannot
-      // answer. Checking the container alone would pass a dock whose last row
-      // had wrapped below the fold.
-      for (const [what, selector] of [
-        ['the answer field', '.textinput--answer, .choices, .handwriting'],
-        ['the primary button', '.button--primary'],
-        ['"I don\u2019t know"', '.quiz__afterthoughts .button'],
-      ]) {
-        const el = dock.querySelector(selector);
-        if (!el) continue;
-        const rect = el.getBoundingClientRect();
-        if (rect.bottom > keyboardTop + 1) {
-          found.push(`${what} is ${Math.round(rect.bottom - keyboardTop)}px into the keyboard`);
-        }
-      }
-
-      const tabbar = document.querySelector('.tabbar');
-      if (tabbar && getComputedStyle(tabbar).display !== 'none') {
-        found.push('the tab bar is still taking space with the keyboard open');
-      }
-
-      return found;
-    }, line);
+/**
+ * The keyboard, on the one screen in the app that cannot fit above it.
+ *
+ * After a miss the card carries a verdict, what you wrote, the whole reveal and
+ * the tallest dock in the app, which is 597px of content at 390px wide. The
+ * window with a keyboard up is 464px. Nothing shrinks that away, so this state
+ * scrolls, and the only question worth asking of it is whether anything is
+ * *hidden* rather than merely below the fold. `mustFit: false` drops the
+ * above-the-fold rules and keeps the ones that matter: nothing painted over by
+ * the dock, and nothing clipped out of a box with no way to scroll to it.
+ */
+const keyboardAfterMiss = {
+  name: 'keyboard-after-miss',
+  async reach(page, viewport) {
+    await page.fill('.textinput--answer', 'まちがい');
+    await page.click('.quiz__dock .button--primary');
+    await page.waitForSelector('.quiz__copyprompt', { timeout: 5_000 });
+    await keyboardResizesContent.reach(page, viewport);
   },
+  check: (page) => keyboardChecks(page, { mustFit: false }),
+};
+
+/** iOS, and anything ignoring the viewport meta: only the visual viewport moves. */
+const keyboardResizesVisual = {
+  name: 'keyboard-ios',
+  async before(page) {
+    await page.addInitScript((fraction) => {
+      const vv = window.visualViewport;
+      if (!vv) return;
+      let open = false;
+      Object.defineProperty(vv, 'height', {
+        configurable: true,
+        get: () =>
+          open
+            ? window.innerHeight - Math.round(window.innerHeight * fraction)
+            : window.innerHeight,
+      });
+      window.__openKeyboard = () => {
+        open = true;
+        vv.dispatchEvent(new Event('resize'));
+      };
+    }, KEYBOARD_FRACTION);
+  },
+  async reach(page) {
+    await page.focus('.textinput--answer');
+    await page.evaluate(() => window.__openKeyboard?.());
+    await page.waitForTimeout(300);
+  },
+  check: keyboardChecks,
 };
 
 const STATES = {
@@ -250,7 +373,9 @@ const STATES = {
         if (label !== 'Next') throw new Error(`copying the answer left the dock on "${label}"`);
       },
     },
-    openKeyboard,
+    keyboardResizesContent,
+    keyboardResizesVisual,
+    keyboardAfterMiss,
     deadDecks,
   ],
   writing: [
@@ -262,7 +387,8 @@ const STATES = {
         await page.waitForSelector('.verdict', { timeout: 5_000 });
       },
     },
-    openKeyboard,
+    keyboardResizesContent,
+    keyboardResizesVisual,
   ],
   /*
    * The first answer anyone ever gives.
