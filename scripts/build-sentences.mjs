@@ -29,9 +29,32 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DECK_DIR = resolve(ROOT, 'public/decks');
 const OUT_DIR = resolve(ROOT, 'public/sentences');
 const RAW_DIR = resolve(ROOT, 'data/tatoeba');
-const ARCHIVE = resolve(RAW_DIR, 'jpn_sentences.tsv.bz2');
-const TSV = resolve(RAW_DIR, 'jpn_sentences.tsv');
-const SOURCE = 'https://downloads.tatoeba.org/exports/per_language/jpn/jpn_sentences.tsv.bz2';
+const ARCHIVE = resolve(RAW_DIR, 'jpn_sentences_detailed.tsv.bz2');
+const TSV = resolve(RAW_DIR, 'jpn_sentences_detailed.tsv');
+const SOURCE =
+  'https://downloads.tatoeba.org/exports/per_language/jpn/jpn_sentences_detailed.tsv.bz2';
+
+/* The detailed export rather than the plain one, for one extra column: the
+   owner. It costs 0.9 MB more and it is what lets a sentence be ranked by who
+   wrote it. */
+const LANGS = resolve(RAW_DIR, 'user_languages.csv');
+const LANGS_SOURCE = 'https://downloads.tatoeba.org/exports/user_languages.csv';
+
+/**
+ * Sentences containing these are translation exercises, not Japanese.
+ *
+ * Tatoeba's Japanese half is largely translated from English drill sentences,
+ * and those carry the English original's cast. Measured on the 2026-09-03
+ * export: 17,042 of the 239,494 sentences inside the length window contain one
+ * of these, which is 7.1%, or one sentence in fourteen.
+ *
+ * They are grammatical. They are not what anyone says. This is the single
+ * biggest reason the examples read oddly, and demoting them is worth more than
+ * everything else in this file put together.
+ *
+ * See docs/SENTENCE-QUALITY.md for the measurements.
+ */
+const PLACEHOLDER_NAMES = ['トム', 'メアリー', 'メアリ', 'ジョン', 'ボブ'];
 
 /** Sentences kept per word. */
 const PER_WORD = 3;
@@ -49,6 +72,32 @@ const MAX_LENGTH = 44;
 
 /** The longest vocabulary surface, so the substring scan knows where to stop. */
 let maxWordLength = 8;
+
+/** Usernames that declare Japanese at level 5, Tatoeba's "native". */
+function readNativeSpeakers() {
+  const native = new Set();
+  if (!existsSync(LANGS)) return native;
+  for (const line of readFileSync(LANGS, 'utf8').split('\n')) {
+    const parts = line.split('\t');
+    // lang, skill, username, details
+    if (parts.length >= 3 && parts[0] === 'jpn' && parts[1] === '5') native.add(parts[2]);
+  }
+  return native;
+}
+
+async function ensureLanguages() {
+  if (existsSync(LANGS)) return;
+  mkdirSync(RAW_DIR, { recursive: true });
+  console.log(`Downloading ${LANGS_SOURCE}`);
+  const response = await fetch(LANGS_SOURCE);
+  if (!response.ok) {
+    // Not fatal: without it every sentence simply scores as non-native, and the
+    // placeholder-name rule, which does the real work, is unaffected.
+    console.warn(`  could not fetch user languages (${response.status}); skipping the native-speaker signal`);
+    return;
+  }
+  await pipeline(response.body, createWriteStream(LANGS));
+}
 
 async function ensureCorpus() {
   if (existsSync(TSV)) return;
@@ -92,7 +141,7 @@ function readDecks() {
  * sentences; this is one pass over the corpus with a bounded number of hash
  * lookups per character, which is the difference between minutes and seconds.
  */
-function indexSentences(wanted) {
+function indexSentences(wanted, native) {
   const found = new Map();
   const lines = readFileSync(TSV, 'utf8').split('\n');
 
@@ -108,6 +157,10 @@ function indexSentences(wanted) {
 
     scanned += 1;
 
+    const owner = parts[3] && parts[3] !== '\\N' ? parts[3] : null;
+    const drill = PLACEHOLDER_NAMES.some((name) => text.includes(name)) ? 1 : 0;
+    const foreign = owner && native.has(owner) ? 0 : 1;
+
     // Which wanted words this sentence contains, without duplicates.
     const hits = new Set();
     for (let i = 0; i < text.length; i += 1) {
@@ -120,7 +173,7 @@ function indexSentences(wanted) {
 
     for (const word of hits) {
       const bucket = found.get(word);
-      const entry = { id, text, hits: hits.size };
+      const entry = { id, text, hits: hits.size, drill, foreign };
       if (bucket) bucket.push(entry);
       else found.set(word, [entry]);
     }
@@ -132,19 +185,44 @@ function indexSentences(wanted) {
 /**
  * Picks the sentences worth keeping for one word.
  *
- * Shorter is better — the sentence exists to give just enough context to
- * recover the word — and a sentence carrying fewer *other* target words is
- * better, because a sentence full of words you are also being tested on is a
- * sentence where the blank can be filled by elimination.
+ * This RANKS rather than filters, and the distinction is the whole design.
+ * Filtering to native-written sentences was measured and rejected: it drops
+ * words with at least one example from 90% to 80%, leaving 725 more words with
+ * nothing, and it does not even buy quality — native-owned sentences carry the
+ * placeholder names at 13.0% against 2.0% for the rest, because a native
+ * translating an English drill sentence writes fluent artificial Japanese.
+ * Ownership says who typed it, not what it is.
+ *
+ * Ranking keeps every sentence eligible and changes only what reaches the top
+ * of each word's list, which is all a learner ever sees. In order:
+ *
+ * 1. NOT A DRILL SENTENCE. トム and company go last. This is the one that
+ *    addresses what the examples actually read like.
+ * 2. FEWER OTHER TARGET WORDS, so the blank cannot be filled by elimination.
+ * 3. WRITTEN BY A NATIVE SPEAKER, as a weak tiebreak now that it is not being
+ *    asked to carry weight it cannot bear.
+ * 4. SHORTER, because the sentence exists to give just enough context.
+ * 5. LOWEST ID, so the build is deterministic.
  */
 function pick(entries) {
   return [...entries]
-    .sort((a, b) => a.hits - b.hits || a.text.length - b.text.length || a.id - b.id)
+    .sort(
+      (a, b) =>
+        a.drill - b.drill ||
+        a.hits - b.hits ||
+        a.foreign - b.foreign ||
+        a.text.length - b.text.length ||
+        a.id - b.id,
+    )
     .slice(0, PER_WORD)
     .map((entry) => ({ id: entry.id, text: entry.text }));
 }
 
 await ensureCorpus();
+await ensureLanguages();
+
+const native = readNativeSpeakers();
+console.log(`${native.size} users declare Japanese as a native language`);
 
 const decks = readDecks();
 const wanted = new Set();
@@ -154,7 +232,7 @@ for (const deck of decks) {
 maxWordLength = Math.max(...[...wanted].map((w) => w.length));
 
 console.log(`Indexing ${wanted.size} words across the Tatoeba corpus…`);
-const { found, scanned } = indexSentences(wanted);
+const { found, scanned } = indexSentences(wanted, native);
 console.log(`  scanned ${scanned} sentences within the length bounds`);
 
 mkdirSync(OUT_DIR, { recursive: true });

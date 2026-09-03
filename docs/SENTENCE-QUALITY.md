@@ -71,17 +71,52 @@ for each word by:
    everything else here combined.
 2. **Prefer native ownership**, as a weak tiebreak rather than a gate, now that
    it is not carrying weight it cannot bear.
-3. **Prefer sentences with recorded audio.** Someone read it aloud, which is a
-   human vetting the sentence, and the listening quiz wants exactly these.
-4. **Keep the existing length and few-other-target-words criteria**, unchanged.
+3. **Keep the existing length and few-other-target-words criteria**, unchanged.
 
 Ranking rather than filtering keeps the 90% coverage while changing what appears
 at the top of every word's list, which is all the learner ever sees.
 
-## What has not been checked yet
+## What it actually did
 
-- **Audio coverage for Japanese.** `sentences_with_audio.csv` is 68 MB and has
-  not been fetched; the count of Japanese sentences in it is unknown.
+Built on 2026-09-03, comparing the shipped packs before and after:
+
+| | words | sentences shipped | containing a placeholder name |
+|---|---|---|---|
+| Before | 6,486 | 18,266 | **1,286 (7.0%)** |
+| After | 6,486 | 18,266 | **61 (0.3%)** |
+
+**Identical coverage, and 95% of the drill sentences gone.** The word count and
+the sentence count are the same to the digit, which is the ranking working as
+designed: nothing was dropped, the order changed.
+
+The 61 that remain are words where a drill sentence is the only thing in the
+corpus, and keeping them is the correct behaviour. A word with トム is better
+than a word with nothing.
+
+What it looks like in practice:
+
+| word | before | after |
+|---|---|---|
+| 目標 | トムはそれをすることを目標にしている。 | しっかりとした目標を持っていれば、うまくいくでしょう。 |
+| 量 | トムは30kg減量した。 | たばこの量を減らしなさい。 |
+| 向ける | トムはカメラを向けるといつも変顔をする。 | 銃を私に向けるな。 |
+| 事務 | トムはドアを開けて、事務室に入りました。 | 事務所にいます。 |
+
+## Measured and rejected: audio
+
+The plan above originally had a third signal, preferring sentences with recorded
+audio on the grounds that someone reading a sentence aloud is a human vetting it.
+
+**It is not worth having.** `sentences_with_audio.csv` was fetched, all 68 MB of
+it, and intersected with the Japanese ids: **6,332 of 248,888 sentences have
+audio, which is 2.5%.** A signal that touches one sentence in forty cannot
+reorder a three-item list, and it would put a 68 MB download in a build that is
+otherwise 4 MB.
+
+Recorded here so the idea is not had again as though it were free.
+
+## What has not been checked
+
 - **Whether `users_sentences.csv` ratings are worth their 94 MB.** Tatoeba lets
   users mark a sentence OK or not OK; whether enough Japanese sentences carry
   one to matter has not been measured.
