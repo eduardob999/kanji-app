@@ -8,7 +8,7 @@ import { isSlipping } from '../domain/leech';
 import type { ItemReviewState, PracticeResult } from '../domain/review';
 import { describeInterval } from '../domain/scheduler';
 import { planSession, type Candidate, type PlannedQuestion, type ReviewLookup } from '../domain/sessionPlanner';
-import type { StudyItem } from '../domain/items';
+import { levelLabel, type StudyItem } from '../domain/items';
 import type { QuizSource } from './source';
 import { buildChoices } from '../domain/distractors';
 import { useReviewStates } from '../hooks/useReviewStates';
@@ -532,6 +532,21 @@ export function QuizFrame({
         <span className="pill">
           {index + 1} / {queue.length}
         </span>
+        {/*
+          Which JLPT level this one comes from.
+
+          It belongs here rather than beside the word for two reasons. The word
+          is what is being asked and anything sharing its line competes with it,
+          which is the whole reason the prompt holds nothing but the prompt. And
+          the header is already the row that stands down when the keyboard opens
+          (see the [data-keyboard='open'] rule in styles.css), so a label put
+          here costs nothing from the space the answer needs.
+
+          On every mode, not just Random. Random is where it was noticed missing
+          because that is the screen where the level is not implied by the menu
+          you came through, but there is no mode where knowing it hurts.
+        */}
+        <span className="pill pill--muted">{levelLabel(question.level)}</span>
         {isSlipping(question.state) ? (
           <span className="pill pill--slipping">keeps slipping</span>
         ) : null}

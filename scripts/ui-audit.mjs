@@ -632,6 +632,45 @@ function inspect(minTap, minFont) {
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
+/*
+ * Refuse to audit something that is not the app.
+ *
+ * Without a dev server on BASE, every screen loads the browser's connection
+ * error page, every check then fails on ITS markup, and the run reports a large
+ * number of confident, entirely fictional problems. That happened on
+ * 2026-09-03: 152 of them, read as real for several minutes.
+ *
+ * The quieter version of the same trap is a STALE server. Ports 5173 to 5175
+ * accumulate instances from earlier sessions, so a run started without UI_BASE
+ * can silently audit a build from yesterday and pass.
+ *
+ * So: fail loudly here rather than produce fiction, and print what is serving.
+ */
+{
+  let res;
+  try {
+    res = await fetch(BASE, { signal: AbortSignal.timeout(5000) });
+  } catch (err) {
+    console.error(
+      `\nNothing is serving ${BASE}.\n\n` +
+      `  npm run dev        then re-run npm run ui\n` +
+      `  UI_BASE=http://localhost:5175 npm run ui   to point at another port\n\n` +
+      `Refusing to run: with no server every screen loads an error page and this\n` +
+      `script would report dozens of problems that are not in your code.\n`,
+    );
+    process.exit(1);
+  }
+  const html = await res.text();
+  if (!res.ok || !html.includes('<div id="root"')) {
+    console.error(
+      `\n${BASE} answered ${res.status} but does not look like this app.\n` +
+      `Something else is on that port. Point UI_BASE at the right one.\n`,
+    );
+    process.exit(1);
+  }
+  console.log(`Auditing ${BASE}`);
+}
+
 const browser = await chromium.launch({
   executablePath: EXECUTABLE,
   args: ['--no-sandbox', '--disable-gpu'],
