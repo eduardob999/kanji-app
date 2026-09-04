@@ -699,23 +699,33 @@ export function QuizFrame({
               : {})}
           />
 
-          <button
-            type="button"
-            className="button button--primary button--block"
-            // Wrapped, not passed directly: submit's optional argument would
-            // otherwise receive the click event as the answer.
-            onClick={() => submit()}
-            disabled={answer.trim() === ''}
-          >
-            Check
-          </button>
-          <div className="quiz__afterthoughts">
+          {/*
+           * The way out sits beside Check rather than under it.
+           *
+           * It is pressed once or twice a session and Check is pressed every
+           * question, so a full-width row of its own was a quarter of the dock
+           * spent on the rarer of the two. The mis-tap that arrangement invites
+           * is answered by size, side and weight rather than by distance alone;
+           * the argument is written out over `.quiz__actions` in the
+           * stylesheet, next to the rule that does it.
+           */}
+          <div className="quiz__actions">
             <button
               type="button"
               className="button button--ghost button--small"
               onClick={giveUp}
             >
               I don’t know
+            </button>
+            <button
+              type="button"
+              className="button button--primary button--block"
+              // Wrapped, not passed directly: submit's optional argument would
+              // otherwise receive the click event as the answer.
+              onClick={() => submit()}
+              disabled={answer.trim() === ''}
+            >
+              Check
             </button>
           </div>
         </div>

@@ -44,9 +44,16 @@ function InputPreview({ method }: { method: 'handwriting' | 'choice' }) {
           placeholder="The character"
           {...(method === 'choice' ? { choices: ['土', '士', '工', '干'] } : {})}
         />
-        <button type="button" className="button button--primary button--block">
-          Check
-        </button>
+        {/* The real dock's action row, so the two layout-sensitive inputs are
+            checked against it rather than against a lone Check button. */}
+        <div className="quiz__actions">
+          <button type="button" className="button button--ghost button--small">
+            I don’t know
+          </button>
+          <button type="button" className="button button--primary button--block">
+            Check
+          </button>
+        </div>
       </div>
     </section>
   );

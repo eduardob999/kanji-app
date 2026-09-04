@@ -214,7 +214,8 @@ async function keyboardChecks(page, { mustFit = true } = {}) {
     for (const [what, selector] of [
       ['the answer field', '.textinput--answer, .choices, .handwriting'],
       ['the primary button', '.button--primary'],
-      ['"I don’t know"', '.quiz__afterthoughts .button'],
+      // Beside the primary in the asking state, under it in the verdict ones.
+      ['"I don’t know"', '.quiz__afterthoughts .button, .quiz__actions .button--ghost'],
     ]) {
       const el = dock.querySelector(selector);
       if (!el) continue;
@@ -640,7 +641,17 @@ mkdirSync(OUT, { recursive: true });
  * number of confident, entirely fictional problems. That happened on
  * 2026-09-03: 152 of them, read as real for several minutes.
  *
- * The quieter version of the same trap is a STALE server. Ports 5173 to 5175
+ * The quieter version of the same trap is a STALE server, and this guard does
+ * NOT catch it: on 2026-09-04 four instances from the previous day were still
+ * answering 5173 to 5176, an audit fell back to 5173, and reported a confident
+ * 0 problems for a build it had never seen.
+ *
+ * So use `npm run ui:fresh`, which starts a server on 5210 with --strictPort
+ * and audits that. strictPort means it FAILS rather than sliding to the next
+ * free port, which is the whole point: a port that is taken is an error, not
+ * something to route around silently.
+ *
+ * The original wording of this comment follows, and it is still true. Ports 5173 to 5175
  * accumulate instances from earlier sessions, so a run started without UI_BASE
  * can silently audit a build from yesterday and pass.
  *

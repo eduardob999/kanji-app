@@ -20,7 +20,8 @@
     "strokes": "node scripts/build-strokes.mjs",
     "frequency": "node scripts/build-frequency.mjs",
     "ui": "node scripts/ui-audit.mjs",
-    "offline": "node scripts/offline-check.mjs"
+    "offline": "node scripts/offline-check.mjs",
+    "ui:fresh": "vite --port 5210 --strictPort & VP=$!; until curl -sf http://localhost:5210 -o /dev/null; do sleep 1; done; UI_BASE=http://localhost:5210 node scripts/ui-audit.mjs; RC=$?; kill $VP; exit $RC"
   },
   "dependencies": {
     "firebase": "^12.17.1",

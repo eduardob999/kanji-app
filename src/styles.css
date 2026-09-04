@@ -1215,10 +1215,16 @@ code {
  * The answer field is bigger than the browse search field: it is the one thing
  * on the screen being typed into, and on a phone it sits directly above the
  * keyboard.
+ *
+ * Bigger than the body text, not bigger than it needs to be. At 1.35rem in
+ * 14px of padding it was 62px tall, which the owner called massive and which
+ * it was: a single line of kana does not need two thirds of a Check button
+ * above the Check button. 1.2rem still reads as the thing being typed into and
+ * still clears the 44px floor by nine pixels.
  */
 .textinput--answer {
-  padding: 14px 16px;
-  font-size: 1.35rem;
+  padding: 11px 16px;
+  font-size: 1.2rem;
   text-align: center;
 }
 
@@ -1303,29 +1309,104 @@ code {
   z-index: 4;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   /* Bleeds to the card's edges, so what scrolls under it is actually covered. */
   margin: 0 -20px -20px;
-  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  padding: 10px 20px calc(10px + env(safe-area-inset-bottom));
   background: var(--bg-elevated);
   border-top: 1px solid var(--border);
   border-radius: 0 0 var(--radius) var(--radius);
 }
 
 /*
+ * The dock's own buttons, shorter than the ones everywhere else.
+ *
+ * `.button--block` is the full-width action on eight other screens, where 18px
+ * of padding is right because it is the only thing on the card. In the dock it
+ * is one of three or four stacked pieces and every pixel of it is taken from
+ * the word being asked about, so it gets 13px and 52px of height: eight clear
+ * of the floor, and still the tallest thing on the row.
+ */
+.quiz__dock .button--block {
+  padding: 13px;
+}
+
+/*
+ * Check and the way out of a question, on one row.
+ *
+ * The owner asked for this and it is the single largest saving available: a
+ * second full-width row under the primary costs the gap plus 44px, which is a
+ * quarter of the dock at rest, to hold a button pressed once or twice a
+ * session.
+ *
+ * The obvious objection is mis-taps. Giving up writes a review graded Again
+ * and there is no Undo in the correction dock that follows, so a thumb landing
+ * one target to the left costs a real answer and a real grade. Three things
+ * answer it, and they are the reason the two are not simply equal halves:
+ *
+ *   - They are not the same target. The way out is sized by its own label and
+ *     the primary takes every pixel left over, so at 360px Check is 155x52 and
+ *     the way out 117x44, and at 390px 185x52 against the same 117x44. Half as
+ *     much again in area at the narrow width, nearly twice at the wide one,
+ *     and the larger one is the one pressed every question.
+ *   - They are not on the same side. The primary is on the right, where a
+ *     thumb on a phone held in either hand comes to rest; the quiet one is on
+ *     the far side of the gap from it.
+ *   - They do not look alike. Filled accent at 1rem against a bordered
+ *     transparent box with muted text at 0.8125rem, which is the same contrast
+ *     the two carried when they were two rows.
+ *
+ * 14px of gap rather than the dock's 10, and the shorter button centred in the
+ * row so the dead zone wraps three of its sides rather than one. This is the
+ * only place in the app where two adjacent targets do different things, and
+ * the space between them is the mitigation that does not depend on looking.
+ */
+.quiz__actions {
+  display: flex;
+  /*
+   * Centred, not stretched. Stretching would make the two the same height and
+   * the row would read as one bar cut in two, which is the reading that
+   * invites the mis-tap. 44px against 52px says which one is the button.
+   */
+  align-items: center;
+  gap: 14px;
+}
+
+.quiz__actions .button--primary {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/*
+ * Sized by its own label, so the primary keeps the remainder. `nowrap` because
+ * a wrap here would make the quiet button the tall one, which is exactly
+ * backwards. 0.8125rem is a step down from `.button--small` and still a full
+ * pixel over the 12px floor.
+ */
+.quiz__actions .button--ghost {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding-inline: 12px;
+  font-size: 0.8125rem;
+}
+
+/*
  * The dock, sized for the window it is actually in.
  *
- * At rest it holds 217px, which is a fifth of a phone and unremarkable. With a
- * 380px keyboard up, the same 217px is three fifths of everything left, and the
- * question it is meant to serve gets 49px. Every pixel taken back here goes
- * straight to the word being asked about, which is the only thing on the screen
- * nobody can answer without.
+ * The dock used to hold 217px at rest and 181px with a keyboard up, and the
+ * owner's report of it was one word: massive. With a 380px keyboard the same
+ * 181px is two fifths of everything left, and every pixel taken back here goes
+ * straight to the word being asked about, which is the only thing on the
+ * screen nobody can answer without.
  *
- * Padding, not type. The floor is 44px on anything a thumb has to find, and
- * every one of these clears it after the trim: the answer field 54px, Check
- * 50px, and "I don't know" has a `min-height` of its own that is not touched.
- * `npm run ui` measures all three in this exact state, so a trim that went too
- * far would fail rather than ship.
+ * It is 136px and 122px now. Roughly two thirds of that came from the row
+ * above, which put the way out beside Check instead of under it; the rest is
+ * padding and one step of type on the answer field.
+ *
+ * The floor is 44px on anything a thumb has to find, and every piece clears it
+ * with room in this state: the answer field 49px, Check 48px, the way out the
+ * same by stretching. `npm run ui` measures all of them in this exact state,
+ * so a trim that went too far would fail rather than ship.
  */
 [data-keyboard='open'] .quiz__dock {
   /*
@@ -1350,11 +1431,30 @@ code {
 }
 
 [data-keyboard='open'] .quiz__dock .button--block {
-  padding: 12px;
+  padding: 11px;
 }
 
 [data-keyboard='open'] .textinput--answer {
-  padding: 10px 16px;
+  padding: 9px 16px;
+}
+
+/*
+ * The two lines of prose in the correction dock, tightened while the keyboard
+ * is up.
+ *
+ * After a miss the card carries a verdict, what was written, the whole reveal
+ * and the tallest dock in the app, and it is the one state that cannot fit
+ * above a keyboard however far the dock is trimmed. What it can do is scroll
+ * less. "Write it out once…" wraps to two lines at 0.85rem; at 0.8125rem with
+ * the line box tightened it fits on one at 390px and still wraps at 360px, so
+ * the correction dock loses 26px on the wider phone and 9px on the narrower
+ * one. A step in type that stays a pixel over the floor, for a state that has
+ * nothing else left to give.
+ */
+[data-keyboard='open'] .quiz__grade,
+[data-keyboard='open'] .quiz__copyprompt {
+  font-size: 0.8125rem;
+  line-height: 1.35;
 }
 
 /*
