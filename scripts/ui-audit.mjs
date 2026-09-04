@@ -65,7 +65,7 @@ const VIEWPORTS = [
 ];
 
 const SCREENS = [
-  'today', 'summary', 'sync', 'random', 'random-silent', 'reading', 'writing', 'fill', 'audio',
+  'practice', 'summary', 'sync', 'practice-silent', 'reading', 'writing', 'fill', 'audio',
   'browse', 'progress', 'scheduler', 'input', 'account', 'about', 'signin',
   'handwriting', 'choice',
   /*
@@ -76,8 +76,17 @@ const SCREENS = [
    * that made the lived-in versions checkable made these unrenderable — so they
    * went from being the only thing ever looked at to never being looked at.
    */
-  'today-empty', 'progress-empty', 'scheduler-empty', 'browse-empty',
+  'practice-empty', 'progress-empty', 'scheduler-empty', 'browse-empty',
   'reading-empty', 'fill-empty', 'audio-empty', 'account-empty',
+  /*
+   * And the practice screen with the queue cleared.
+   *
+   * Nothing due, nothing left to introduce, so the whole round is the practice
+   * the merge added. It is the only state in which a question carries the
+   * "extra practice" mark, and before the merge it was the state the app had no
+   * answer to at all.
+   */
+  'practice-ahead',
 ];
 
 /**
@@ -439,13 +448,45 @@ const STATES = {
     },
   ],
 
-  today: [
+  practice: [
     deadDecks,
     {
       name: 'started',
       async reach(page) {
         await page.click('.button--block');
         await page.waitForSelector('.quiz', { timeout: 10_000 });
+      },
+    },
+  ],
+  /*
+   * Starting a round that has no schedule left in it.
+   *
+   * The check is the point: with nothing due and nothing to introduce, the
+   * screen has to ask a question anyway and has to say that is what it is
+   * doing. A screen that says "nothing due" here is the bug the merge exists
+   * to remove, and it would otherwise be invisible to an audit that only
+   * measures boxes.
+   */
+  'practice-ahead': [
+    {
+      name: 'started',
+      async reach(page) {
+        await page.click('.button--block');
+        await page.waitForSelector('.quiz', { timeout: 10_000 });
+      },
+      async check(page) {
+        const found = await page.evaluate(() => {
+          const header = document.querySelector('.card__header');
+          return {
+            marked: /extra practice/.test(header?.textContent ?? ''),
+            asking: Boolean(document.querySelector('.quiz__prompt')),
+          };
+        });
+
+        const issues = [];
+        if (!found.asking) issues.push('the round stopped rather than falling through to practice');
+        if (!found.marked) issues.push('a question past the schedule is not marked as practice');
+        return issues;
       },
     },
   ],
@@ -724,12 +765,47 @@ for (const viewport of VIEWPORTS) {
       if (!environmental(text)) errors.push(text);
     });
 
+    let idleFailed = false;
     try {
       await page.goto(`${BASE}/#/preview/${screen}`, { waitUntil: 'networkidle', timeout: 30_000 });
     } catch {
-      // A screen that never goes idle is worth knowing about but not fatal.
+      // A screen that never goes idle used to be swallowed here, with a comment
+      // saying it was worth knowing about. It was not reported, and that is the
+      // hole this whole script fell through on 2026-09-04: when the deck fetch
+      // failed, the page rendered empty, nothing overlapped anything, and the
+      // run announced 0 problems for a screen with no content on it. Twice in
+      // two days a confident pass meant "the page never loaded".
+      idleFailed = true;
     }
     await page.waitForTimeout(700);
+
+    /*
+     * A screen with no content cannot have a layout problem, so measuring one
+     * is worse than not running: it returns a pass. Refuse to grade a page that
+     * did not render, and say which it was.
+     */
+    const rendered = await page
+      .evaluate(() => {
+        const root = document.querySelector('#root');
+        if (!root) return { ok: false, why: 'no #root' };
+        const text = (root.textContent ?? '').replace(/\s+/g, ' ').trim();
+        if (text.length < 20) return { ok: false, why: `only ${text.length} chars of text` };
+        return { ok: true, why: '' };
+      })
+      .catch((error) => ({ ok: false, why: `evaluate failed: ${String(error).slice(0, 60)}` }));
+
+    if (!rendered.ok || idleFailed) {
+      problems += 1;
+      summary.push({
+        screen: label,
+        viewport: viewport.name,
+        issues: [
+          `did not render, so nothing was measured: ${rendered.why || 'never went idle'}`,
+        ],
+      });
+      await page.close();
+      continue;
+    }
 
     if (state?.reach) {
       try {

@@ -21,7 +21,7 @@
     "frequency": "node scripts/build-frequency.mjs",
     "ui": "node scripts/ui-audit.mjs",
     "offline": "node scripts/offline-check.mjs",
-    "ui:fresh": "vite --port 5210 --strictPort & VP=$!; until curl -sf http://localhost:5210 -o /dev/null; do sleep 1; done; UI_BASE=http://localhost:5210 node scripts/ui-audit.mjs; RC=$?; kill $VP; exit $RC"
+    "ui:fresh": "if curl -sf http://localhost:5210 -o /dev/null 2>/dev/null; then echo 'ERROR: something already serves 5210; refusing to audit a server I did not start' >&2; exit 1; fi; vite --port 5210 --strictPort & VP=$!; for i in $(seq 1 40); do curl -sf http://localhost:5210 -o /dev/null && break; kill -0 $VP 2>/dev/null || { echo 'ERROR: vite exited before serving' >&2; exit 1; }; sleep 1; done; UI_BASE=http://localhost:5210 node scripts/ui-audit.mjs; RC=$?; kill $VP 2>/dev/null; exit $RC"
   },
   "dependencies": {
     "firebase": "^12.17.1",
