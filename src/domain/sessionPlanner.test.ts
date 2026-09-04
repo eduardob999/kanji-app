@@ -238,14 +238,17 @@ describe('countDue', () => {
       { quiz: 'audio', item, level: '5' },
     ];
 
-    expect(countDue(candidates, NONE, NOW)).toEqual({ due: 0, unseen: 1, arrivals: 0 });
+    expect(countDue(candidates, NONE, NOW)).toEqual({ due: 0, unseen: 1, seen: 0, arrivals: 0 });
   });
 
   it('separates what is due from what has never been seen', () => {
     const candidates = [candidate('a', '5'), candidate('b', '5'), candidate('c', '5')];
     const lookup = lookupFrom({ a: state('a', 2), b: state('b', -2) });
 
-    expect(countDue(candidates, lookup, NOW)).toMatchObject({ due: 1, unseen: 1 });
+    // `seen` is both of the ones with a state, due or not: it is the pool the
+    // practice screen falls through to, and being ahead of schedule does not
+    // take a word out of it.
+    expect(countDue(candidates, lookup, NOW)).toMatchObject({ due: 1, unseen: 1, seen: 2 });
   });
 });
 

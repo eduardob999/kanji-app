@@ -45,7 +45,25 @@ export function isPreviewEmpty(): boolean {
   return isPreview() && window.location.hash.endsWith(EMPTY_SUFFIX);
 }
 
+/**
+ * Whether this preview wants the queue cleared rather than a backlog.
+ *
+ * The third account state, and the one the merged practice screen was built
+ * for: everything has been met, nothing is due, and there is nothing left to
+ * introduce. Before the merge that was the dead end the app had no answer to,
+ * so it was a state worth never rendering; now it is the state where a round is
+ * made entirely of practice, and it is the only way to look at a question that
+ * carries the "extra practice" mark.
+ *
+ * It cannot be reached from the lived-in fixture by answering, because a
+ * headless browser is not going to clear a four thousand item backlog.
+ */
+export function isPreviewAhead(): boolean {
+  return isPreview() && window.location.hash.endsWith(AHEAD_SUFFIX);
+}
+
 export const EMPTY_SUFFIX = '-empty';
+export const AHEAD_SUFFIX = '-ahead';
 
 export const previewUser = {
   uid: 'preview',
@@ -101,11 +119,14 @@ function hash(key: string): number {
 export function previewLookup(mode: string, itemId: string): ItemReviewState | null {
   if (isPreviewEmpty()) return null;
 
+  const ahead = isPreviewAhead();
   const h = hash(`${mode}:${itemId}`);
   const bucket = h % 100;
 
-  // Never studied. The largest single group, as it is for a real learner.
-  if (bucket < 34) return null;
+  // Never studied. The largest single group, as it is for a real learner, and
+  // empty for the cleared-queue state: nothing met is the one thing that would
+  // stop a round being made of practice.
+  if (bucket < 34 && !ahead) return null;
 
   const reps = 2 + ((h >>> 7) % 24);
 
@@ -119,8 +140,10 @@ export function previewLookup(mode: string, itemId: string): ItemReviewState | n
   const stability = slipping ? 0.4 + ((h >>> 17) % 20) / 10 : 0.5 + ((h >>> 17) % 900) / 10;
 
   // Half of what has been seen is waiting, which is what a real backlog looks
-  // like and what makes the due counts on other screens non-zero.
-  const overdueDays = ((h >>> 23) % 40) - 20;
+  // like and what makes the due counts on other screens non-zero. Cleared, it
+  // is all scheduled for later, which is what makes the practice screen fall
+  // through.
+  const overdueDays = ahead ? -(5 + ((h >>> 23) % 35)) : ((h >>> 23) % 40) - 20;
 
   return {
     itemId,

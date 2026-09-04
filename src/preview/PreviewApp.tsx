@@ -10,11 +10,10 @@ import { SyncBadge } from '../components/SyncBadge';
 import { AudioPanel } from '../quizzes/AudioPanel';
 import { FillInPanel } from '../quizzes/FillInPanel';
 import { KanjiWritingPanel } from '../quizzes/KanjiWritingPanel';
-import { RandomPanel } from '../quizzes/RandomPanel';
-import { SessionSummary, TodaySessionPanel } from '../quizzes/TodaySessionPanel';
+import { PracticePanel, SessionSummary } from '../quizzes/PracticePanel';
 import { VocabReadingPanel } from '../quizzes/VocabReadingPanel';
 import { AnswerInput } from '../input/AnswerInput';
-import { EMPTY_SUFFIX, previewUser } from './fixtures';
+import { AHEAD_SUFFIX, EMPTY_SUFFIX, previewUser } from './fixtures';
 
 /**
  * The answer inputs on their own.
@@ -78,9 +77,8 @@ function InputPreview({ method }: { method: 'handwriting' | 'choice' }) {
  */
 
 const SCREENS = {
-  today: ['Today’s Session', () => <TodaySessionPanel user={previewUser} />],
-  random: ['Random', () => <RandomPanel user={previewUser} />],
-  'random-silent': ['Random (silent)', () => <RandomPanel user={previewUser} silent />],
+  practice: ['Practice', () => <PracticePanel user={previewUser} />],
+  'practice-silent': ['Practice (silent)', () => <PracticePanel user={previewUser} silent />],
   sync: [
     'Sync states',
     () => (
@@ -129,9 +127,11 @@ type ScreenKey = keyof typeof SCREENS;
 
 function screenFromHash(): ScreenKey | null {
   const raw = window.location.hash.replace(/^#\/preview\/?/, '').trim();
-  // `today-empty` is `today` rendered against a brand-new account; the storage
+  // `practice-empty` is `practice` rendered against a brand-new account and
+  // `practice-ahead` is the same screen with the queue cleared; the storage
   // layer reads the suffix, so all this has to do is find the screen.
-  const key = raw.endsWith(EMPTY_SUFFIX) ? raw.slice(0, -EMPTY_SUFFIX.length) : raw;
+  const suffix = [EMPTY_SUFFIX, AHEAD_SUFFIX].find((end) => raw.endsWith(end));
+  const key = suffix ? raw.slice(0, -suffix.length) : raw;
   return key in SCREENS ? (key as ScreenKey) : null;
 }
 

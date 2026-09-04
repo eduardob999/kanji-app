@@ -34,9 +34,8 @@ const leaves = nodes.filter(isLeaf);
  * compiler complain if the union gains a member and this does not.
  */
 const EVERY_SCREEN = [
-  'today',
-  'random',
-  'random-silent',
+  'practice',
+  'practice-silent',
   'vocab-reading',
   'kanji-writing',
   'fill-in',

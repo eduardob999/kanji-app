@@ -139,7 +139,7 @@ export interface HistoryOptions {
  * catch. Every caller here wants the log for something optional: pacing,
  * streaks, the calibration curve, fitting weights. All of them are better off
  * with an empty history than with a promise that never settles, which is what
- * left Today's Session on "Working out what is due…" for ever.
+ * left the home screen on "Working out what is due…" for ever.
  *
  * Offline with a warm cache this never fires — Firestore answers from IndexedDB
  * immediately. It is the flaky-connection case this exists for.

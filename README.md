@@ -16,9 +16,9 @@ job for guitar practice.
 
 Live at **<https://eduardob999.github.io/kanji-app/>**.
 
-> **Status: everything below works.** Four quiz modes, three input methods,
-> Today's Session and Random, an FSRS scheduler that fits itself to you, and the
-> import of the old CLI's scores. [docs/ROADMAP.md](docs/ROADMAP.md) lists it in
+> **Status: everything below works.** Four quiz modes, three input methods, one
+> practice screen that mixes them and never runs out, an FSRS scheduler that fits
+> itself to you, and the import of the old CLI's scores. [docs/ROADMAP.md](docs/ROADMAP.md) lists it in
 > full, with the numbers re-measured rather than remembered.
 
 ## What it does
@@ -33,11 +33,13 @@ entries:
 | Fill in the blank | a real sentence with the word removed | the character |
 | Listening | the word spoken in context | the character |
 
-Three ways to study them: **Today's Session**, which is everything the schedule
-says is due, interleaved across all four types, sized to what you actually get
-through, and ending on what it did to your schedule; **Random**, which is
-endless and ignores due dates, for when the session is cleared; and **Random
-(silent)**, the same without listening, for a bus or a shared room.
+One screen to study them on. **Practice** gives you what is due first, most
+overdue first, then new words at the pace the scheduler thinks you can carry,
+then, when both run out, words you have already met, so it never tells you there
+is nothing to do while seven thousand of them are unlearned. The question type
+alternates as you go, and each question is scheduled exactly as it would have
+been in its own mode. **Practice (silent)** is the same without listening, for a
+bus or a shared room.
 
 Miss one and you write the answer out before moving on. It is the only
 rehearsal that miss was ever going to get, and it costs a moment that was dead

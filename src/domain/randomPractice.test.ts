@@ -25,8 +25,8 @@ describe('buildRandomQueue', () => {
   });
 
   it('ignores due dates entirely', () => {
-    // Everything scheduled a year out. Today's Session would return nothing;
-    // this is the screen for when you want to practise anyway.
+    // Everything scheduled a year out, so the planner would return nothing.
+    // This is the draw that keeps a round going anyway.
     const future: ItemReviewState = {
       itemId: 'x',
       stability: 50,

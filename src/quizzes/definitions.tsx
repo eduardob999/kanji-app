@@ -10,9 +10,9 @@ import { announcedSequence, speakSequence } from '../audio/speech';
  * What each of the four question types looks like, in one place.
  *
  * Previously each of these lived inside its own panel, which was fine while
- * every screen asked one kind of question. Today's Session and Random ask all
- * four in a single sitting, and a second copy of "what a fill-in prompt looks
- * like" is a second copy that drifts.
+ * every screen asked one kind of question. The practice screen asks all four in
+ * a single sitting, and a second copy of "what a fill-in prompt looks like" is a
+ * second copy that drifts.
  *
  * So a definition is just data plus two renderers, and the panels become thin.
  * `QuizFrame` picks the definition from `question.quiz`, which the planner has

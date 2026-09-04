@@ -119,8 +119,9 @@ stripped-down Android. Declaring the common system faces costs nothing.
 ## Done
 
 Every item above is complete. `npm run ui` reports 0 problems across 15 screens
-× 4 viewport/theme combinations, plus 6 interactive states, three of which are
-keyboard states added on 2026-09-03.
+× 4 viewport/theme combinations, plus 7 interactive states, three of which are
+keyboard states added on 2026-09-03 and one of which is the practice fall-through
+added on 2026-09-04.
 
 **That "0 problems" was true and still missed a bug he hit every day**, and the
 reason is worth keeping. The audit's old `openKeyboard` set `--keyboard-inset`
@@ -140,6 +141,25 @@ way to be looked at: `src/preview/` renders any screen without a sign-in, and
 bugs that had been shipped and unnoticed, and two of those — a missing
 `box-sizing` reset and a session screen that could hang for ever — were
 invisible from reading the code.
+
+## The screens the audit walks
+
+Study is one practice screen plus a silent variant, and four single-mode drills
+under it. **Today's Session is gone.** It and Random were the same sitting
+described from two ends: the session stopped as soon as the schedule was clear,
+which on a real backlog meant it offered eight items and finished, and Random
+kept going while paying the schedule no attention. They are one leaf now,
+`study.practice`, and it is where the app opens.
+
+The merge added one thing the audit has to be able to see. A round is what the
+schedule asked for, and then, once that runs out, practice on words already met,
+marked with an `extra practice` pill in the quiz header. That state cannot be
+reached from the lived-in fixture, because a headless browser is not going to
+clear a five thousand item backlog by answering questions, so the harness has a
+third account state: `practice-ahead`, everything met and nothing due. Its check
+is not a layout rule. It presses Start and fails if the screen stops instead of
+asking something, which is the bug the merge exists to remove and which no
+measurement of boxes would ever have caught.
 
 ## Verification
 

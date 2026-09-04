@@ -7,7 +7,7 @@ import { loadQuizSource } from './source';
  * The word and its meaning; you supply the reading.
  *
  * Ported from `vocab_quiz.py`. What the question looks like lives in
- * `definitions.tsx`, shared with Today's Session and Random; this screen only
+ * `definitions.tsx`, shared with the practice screen; this screen only
  * says which mode it wants.
  */
 

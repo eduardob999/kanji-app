@@ -59,20 +59,21 @@ export interface QuizFrameProps {
   /**
    * Turns the candidate pool into a queue.
    *
-   * Defaults to `planSession` — due first, new material rationed, interleaved.
-   * Random supplies its own, which ignores due dates entirely and refills from
-   * the whole corpus on every round, which is what makes it endless.
+   * Defaults to `planSession`: due first, new material rationed, interleaved.
+   * The practice screen supplies `buildPracticeQueue`, which is that plus a
+   * tail of already-met material, so a round is never empty.
    */
   buildQueue?: (candidates: readonly Candidate[], lookup: ReviewLookup, now: Date) => PlannedQuestion[];
   /** Shown when the queue comes back empty. */
   emptyTitle?: string;
   emptyBody?: string;
   /**
-   * How many questions the planner produced, once it has.
+   * The queue has been built. Fires once per round.
    *
-   * Only Today's Session cares: it is the denominator that makes "finished" and
-   * "walked away from" different things. Random has no such notion — it refills
-   * for ever — and passes neither of these.
+   * Only the practice screen cares, and it counts the round for itself: the
+   * scheduled part of it is the denominator that makes "finished" and "walked
+   * away from" different things, and the frame cannot tell the two apart. The
+   * single-mode drills have no such notion and pass neither of these.
    */
   onPlanned?: (offered: number) => void;
   /** The queue ran out. Fires once per round. */
@@ -80,10 +81,10 @@ export interface QuizFrameProps {
   /**
    * What to show when the queue runs out, if the default is not enough.
    *
-   * Today's Session has more to say than a tally: it is the screen where the
-   * schedule reports back, and the size of the next session was just decided by
-   * how this one went. Random has nothing to add — it never ends, it only
-   * refills — and passes nothing.
+   * The practice screen has more to say than a tally: it is where the schedule
+   * reports back, and the size of the next round's ration was just decided by
+   * how this one went. The single-mode drills have nothing to add and pass
+   * nothing.
    */
   renderFinished?: (outcome: {
     offered: number;
@@ -550,6 +551,20 @@ export function QuizFrame({
         {isSlipping(question.state) ? (
           <span className="pill pill--slipping">keeps slipping</span>
         ) : null}
+        {/*
+          Which side of the schedule this question came from.
+
+          Shown for the same reason the interval after an answer is shown: the
+          schedule is doing something on his behalf and a number nobody is told
+          about is indistinguishable from no number at all. Without this, the
+          count on the front screen says five are due and the round asks
+          fifteen questions, and the two look like they disagree.
+
+          Quiet on purpose. It changes nothing about the question, the marking
+          or the interval that follows, so it gets the muted pill rather than a
+          banner.
+        */}
+        {question.unscheduled ? <span className="pill pill--muted">extra practice</span> : null}
         <span className="pill pill--muted">
           {tally.right}✓ {tally.wrong}✗
         </span>

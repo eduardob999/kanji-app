@@ -6,11 +6,22 @@
 listening — over a shared `QuizFrame`. A definition per type lives in
 `src/quizzes/definitions.tsx`, so a screen can mix them.
 
-**Three ways to study.** Today's Session is what the schedule says is due,
-interleaved and finite, opening on a count rather than a question, and ending
-on what it did to the schedule. Random is endless and ignores due dates, for
-once the session is cleared — with a silent variant that drops listening, for a
-bus or a shared room.
+**One way to study.** Practice is the front door and the app opens on it. A
+round is what the schedule says is due, most overdue first, then new material at
+the ration the pacer has set, then, once both run out, words already met rather
+than a screen saying there is nothing to do. The question type alternates
+throughout, and each question arrives exactly as it would have in its own mode,
+with the same scheduling behind it and the same interval after it. It opens on a
+count rather than a question, and ends on what the round did to the ration. A
+silent variant drops listening, for a bus or a shared room.
+
+Unseen material only ever enters through the ration. The tail of a round is
+drilling, not introduction, and letting it introduce words would make the ration
+decorative. `src/domain/practiceQueue.ts` is where that is enforced and argued.
+
+This replaced Today's Session, which stopped dead when the schedule was clear
+and so offered eight items a day against a real backlog, and Random, which kept
+going but ignored the schedule. They were one screen described from two ends.
 
 **Three input methods**, behind one interface that hands the quiz a string and
 tells it nothing about how the string was made: keyboard, handwriting, and

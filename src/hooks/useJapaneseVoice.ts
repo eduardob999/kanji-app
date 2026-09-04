@@ -4,7 +4,7 @@ import { pickVoice, stopSpeaking, whenVoicesReady } from '../audio/speech';
 /**
  * The device's Japanese speech voice, if it has one.
  *
- * Shared by the listening quiz and by Today's Session, which needs the answer
+ * Shared by the listening quiz and by the practice screen, which needs the answer
  * for a different reason: it drops listening questions from the mix entirely
  * when there is no voice, rather than letting them come up and fail.
  *

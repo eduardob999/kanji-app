@@ -17,9 +17,8 @@
 
 /** Every leaf screen. The shell maps these to components. */
 export type ScreenId =
-  | 'today'
-  | 'random'
-  | 'random-silent'
+  | 'practice'
+  | 'practice-silent'
   | 'vocab-reading'
   | 'kanji-writing'
   | 'fill-in'
@@ -50,10 +49,16 @@ export interface NavNode {
 /**
  * The tree.
  *
- * Deliberately shallow — two levels below the root. The four quiz modes sit
- * beside Today's Session rather than under a "Quizzes" branch of their own,
- * because picking one deliberately is a thing people do often enough that it
- * should not cost two taps.
+ * Deliberately shallow, two levels below the root. The four quiz modes sit
+ * beside Practice rather than under a "Quizzes" branch of their own, because
+ * picking one deliberately is a thing people do often enough that it should
+ * not cost two taps.
+ *
+ * Practice is the front door and used to be three doors: Today's Session, which
+ * stopped as soon as the schedule was clear, and Random, which kept going but
+ * paid the schedule no attention. They are one leaf now. Their old ids are
+ * gone rather than aliased, which costs nothing, because `nodeFromHash` sends
+ * anything it does not recognise home and home is the screen they became.
  */
 export const NAV_ROOT: NavNode = {
   id: 'root',
@@ -65,23 +70,17 @@ export const NAV_ROOT: NavNode = {
       blurb: 'Let the schedule choose, or drill one kind of question.',
       children: [
         {
-          id: 'study.today',
-          title: "Today's Session",
-          blurb: 'Everything that is due, interleaved across the four modes.',
-          screen: 'today',
-        },
-        {
-          id: 'study.random',
-          title: 'Random',
-          blurb: 'Any word, any of the four question types, for as long as you want.',
-          screen: 'random',
+          id: 'study.practice',
+          title: 'Practice',
+          blurb: 'What is due, then new words at your pace, then as long as you want.',
+          screen: 'practice',
           needsSpeech: true,
         },
         {
-          id: 'study.random-silent',
-          title: 'Random (silent)',
+          id: 'study.practice-silent',
+          title: 'Practice (silent)',
           blurb: 'The same, minus listening. For a bus, a library, or a shared room.',
-          screen: 'random-silent',
+          screen: 'practice-silent',
         },
         {
           id: 'study.vocab-reading',
@@ -164,7 +163,7 @@ export const NAV_ROOT: NavNode = {
  * Opening the app *is* starting to study. A home screen here would be a
  * decision asked of someone who has three minutes on a train platform.
  */
-export const HOME_NODE_ID = 'study.today';
+export const HOME_NODE_ID = 'study.practice';
 
 /**
  * The path from the root to a node, root first, or null when there is no such

@@ -41,6 +41,19 @@ export interface PlannedQuestion {
   state: ItemReviewState | null;
   /** How overdue it was when planned, in days. Zero for new material. */
   overdueDays: number;
+  /**
+   * True for a question the schedule did not ask for.
+   *
+   * Set only by `domain/practiceQueue.ts`, on the practice that fills a round
+   * once what is due and the day's ration of new material have run out. The
+   * planner never sets it, because everything the planner produces is by
+   * definition what the schedule asked for.
+   *
+   * It exists so the quiz can say which side of that line a question fell on.
+   * The answer counts either way, and a learner who is not told cannot tell the
+   * difference between being ahead and being finished.
+   */
+  unscheduled?: boolean;
 }
 
 export interface PlanSessionOptions {
@@ -241,28 +254,35 @@ export function planSession(
  * Used by the Study menu to say "42 due" before you commit to opening anything.
  * Counts memories rather than candidates, for the same reason the planner
  * claims them.
+ *
+ * `seen` is the size of the pool the practice screen can fall through to once
+ * the schedule is exhausted, which is what lets it say how long a round will
+ * be without building one.
  */
 export function countDue(
   candidates: readonly Candidate[],
   lookup: ReviewLookup,
   now: Date,
-): { due: number; unseen: number; arrivals: number } {
-  const seen = new Set<string>();
+): { due: number; unseen: number; seen: number; arrivals: number } {
+  const counted = new Set<string>();
   let due = 0;
   let unseen = 0;
+  let seen = 0;
   let arrivals = 0;
 
   for (const candidate of candidates) {
     const mode = reviewModeFor(candidate.quiz);
     const key = memoryKey(mode, candidate.item.id);
-    if (seen.has(key)) continue;
-    seen.add(key);
+    if (counted.has(key)) continue;
+    counted.add(key);
 
     const state = lookup(mode, candidate.item.id);
     if (!state) {
       unseen += 1;
       continue;
     }
+
+    seen += 1;
 
     /*
      * How often this memory comes round, summed into a rate.
@@ -284,5 +304,5 @@ export function countDue(
     if (dueAt === null || dueAt.getTime() <= now.getTime()) due += 1;
   }
 
-  return { due, unseen, arrivals };
+  return { due, unseen, seen, arrivals };
 }

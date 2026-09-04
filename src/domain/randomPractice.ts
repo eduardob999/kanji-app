@@ -2,23 +2,23 @@ import { reviewModeFor } from './modes';
 import type { Candidate, PlannedQuestion, ReviewLookup } from './sessionPlanner';
 
 /**
- * Endless mixed practice, ignoring the schedule.
+ * A draw from a pool, ignoring the schedule.
  *
  * The CLI's Random Quiz "pulled from a different category each question, to
- * simulate the unpredictability of JLPT exams". This is that: any word, any
- * question type, no regard for what is due.
+ * simulate the unpredictability of JLPT exams". This is that: any word in the
+ * pool, any question type, no regard for what is due.
  *
- * It is deliberately *not* a second scheduler. Today's Session is what the
- * spacing model says you should do, and doing more than that has diminishing
- * returns — which is why this is a separate screen you choose rather than an
- * extension of the session. What it is for is the case the schedule cannot
- * serve: you have cleared today's reviews and want to keep going, or you want
- * the unpredictability of not knowing which of four ways a word will be asked.
+ * It is deliberately *not* a second scheduler, and it is no longer a screen
+ * either. `domain/practiceQueue.ts` uses it for one job: filling out the tail
+ * of a round once what is due and the day's ration of new material have run
+ * out. Which pool it draws from is that caller's decision and carries the rule
+ * this file cannot enforce, that the tail is drilling rather than introduction,
+ * so the pool it is handed holds only material already met.
  *
  * Answers still count. A review that arrives before its due date is real
- * evidence and FSRS handles it correctly — an early success grows stability
- * less than a late one, because the model reads recall at the time of the
- * review. Practising ahead therefore cannot inflate a schedule.
+ * evidence and FSRS handles it correctly: an early success grows stability less
+ * than a late one, because the model reads recall at the time of the review.
+ * Practising ahead therefore cannot inflate a schedule.
  *
  * Pure, and deterministic given `now`: the frame passes a fresh `now` per
  * round, so each round is a different draw and a re-render inside a round is
