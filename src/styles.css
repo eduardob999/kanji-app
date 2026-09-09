@@ -1198,7 +1198,13 @@ code {
  */
 .quiz__surface {
   margin: 0 0 8px;
-  font-size: clamp(2.75rem, 18vw, 4.5rem);
+  /*
+   * `--fit` is the prompt's own multiplier, set by `useFitToBox` when the
+   * question is too tall for the room the keyboard leaves. It is 1 unless
+   * something had to give, and the `max()` is the floor below which a glyph
+   * stops being worth showing at all.
+   */
+  font-size: max(1.5rem, calc(clamp(2.75rem, 18vw, 4.5rem) * var(--fit, 1)));
   line-height: 1.15;
   font-weight: 500;
   overflow-wrap: anywhere;
@@ -1207,7 +1213,9 @@ code {
 .quiz__gloss {
   margin: 0;
   color: var(--text-muted);
-  font-size: 1rem;
+  /* Floored at 13px: `npm run ui` calls anything under 12px unreadable. */
+  font-size: max(0.8125rem, calc(1rem * var(--fit, 1)));
+  line-height: max(1.25, calc(1.5 * var(--fit, 1)));
   overflow-wrap: anywhere;
 }
 
@@ -1612,11 +1620,22 @@ code {
   opacity: 0.75;
 }
 
-/* The kanji quiz shows readings as the prompt, so they carry the emphasis. */
+/*
+ * The kanji quiz shows readings as the prompt, so they carry the emphasis.
+ *
+ * They are also the longest thing on the card when a character has eleven of
+ * them, so this is the first size `--fit` takes off: at 360px it is 29px, and
+ * four lines of it leaves the meaning nowhere to go.
+ */
 .quiz__readings {
   margin: 0 0 10px;
-  font-size: clamp(1.5rem, 8vw, 2.25rem);
-  line-height: 1.25;
+  font-size: max(1rem, calc(clamp(1.5rem, 8vw, 2.25rem) * var(--fit, 1)));
+  /*
+   * Leading closes up as the type shrinks, rather than staying generous around
+   * text that is already fighting for room. Floored at 1.1, which is as tight
+   * as kana can be set before the lines start to touch.
+   */
+  line-height: max(1.1, calc(1.25 * var(--fit, 1)));
   color: var(--accent-soft);
   overflow-wrap: anywhere;
 }
@@ -1635,7 +1654,7 @@ code {
  */
 .quiz__sentence {
   margin: 0 0 12px;
-  font-size: clamp(1.15rem, 5vw, 1.5rem);
+  font-size: max(1rem, calc(clamp(1.15rem, 5vw, 1.5rem) * var(--fit, 1)));
   line-height: 1.75;
   text-align: left;
   overflow-wrap: anywhere;

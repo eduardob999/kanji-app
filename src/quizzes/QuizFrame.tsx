@@ -11,6 +11,7 @@ import { planSession, type Candidate, type PlannedQuestion, type ReviewLookup } 
 import { levelLabel, type StudyItem } from '../domain/items';
 import type { QuizSource } from './source';
 import { buildChoices } from '../domain/distractors';
+import { useFitToBox } from '../hooks/useFitToBox';
 import { useReviewStates } from '../hooks/useReviewStates';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { AnswerInput } from '../input/AnswerInput';
@@ -233,6 +234,15 @@ export function QuizFrame({
   }, [buildQueue, loadQuiz, onPlanned, round, statesReady]);
 
   const question = queue[index];
+  /*
+   * The question is fitted to whatever room the keyboard leaves it.
+   *
+   * Keyed on the item and on whether the verdict is up, because those are the
+   * two things that change what is in the box; the resize half is the hook's
+   * own. See `useFitToBox` for why this only ever shrinks.
+   */
+  const promptRef = useRef<HTMLDivElement>(null);
+  useFitToBox(promptRef, `${question?.item.id ?? ''}:${verdict ? 'answered' : 'asking'}`);
   // Every per-question behaviour — how it is prompted, marked and timed —
   // follows from the question's own mode, not from the screen it is on.
   const definition = question && definitions ? definitions[question.quiz] : null;
@@ -596,7 +606,7 @@ export function QuizFrame({
         </p>
       ) : null}
 
-      <div className="quiz__prompt">
+      <div className="quiz__prompt" ref={promptRef}>
         {definition.renderPrompt(question, {
           markHelped: () => {
             helped.current = true;

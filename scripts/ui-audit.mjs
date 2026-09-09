@@ -28,7 +28,7 @@
  * Screenshots go to `.ui/` for looking at; the report goes to stdout for
  * deciding what to fix.
  */
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
@@ -343,6 +343,87 @@ const keyboardResizesVisual = {
   check: keyboardChecks,
 };
 
+/**
+ * The longest question in the corpus, whatever it happens to be today.
+ *
+ * Read out of the built decks rather than written down here, so it keeps
+ * pointing at the worst case after a deck rebuild instead of at whatever the
+ * worst case was the day this was written. Today it is 代: eleven readings, 86
+ * characters of them, and a 121-character meaning, against a median item's 8
+ * and 28.
+ *
+ * Readings count double because they are set two thirds larger than the
+ * meaning, so a character of them costs about twice the room.
+ */
+function longestKanjiPrompt() {
+  const decks = resolve(ROOT, 'public/decks');
+  let worst = null;
+
+  for (const file of readdirSync(decks)) {
+    if (!file.startsWith('kanji-')) continue;
+    const deck = JSON.parse(readFileSync(resolve(decks, file), 'utf8'));
+    for (const item of deck.items ?? []) {
+      const readings = item.readings ?? [];
+      const meaning = item.meaning ?? '';
+      const size = readings.join('・').length * 2 + meaning.length;
+      if (!worst || size > worst.size) worst = { size, kanji: item.kanji, readings, meaning };
+    }
+  }
+
+  return worst;
+}
+
+/**
+ * The tail of the corpus, above a keyboard.
+ *
+ * The fixture kanji is 山 — one reading, "mountain" — and every layout check in
+ * this file passed against it while the meaning of a character with eleven
+ * readings sat below the bottom of the prompt on a 360px phone. That is the
+ * whole reason this state exists: a screen is only as good as its worst
+ * content, and the worst content is exactly what a hand-written fixture never
+ * has.
+ *
+ * The text is swapped into the DOM rather than reached by answering, since
+ * there is no way to steer the planner to one item. The resize that follows is
+ * what the app listens to, so the fit routine runs here as it would on a real
+ * question.
+ */
+const keyboardLongestPrompt = {
+  name: 'keyboard-longest',
+  async reach(page, viewport) {
+    const worst = longestKanjiPrompt();
+    if (worst) {
+      await page.evaluate(({ readings, meaning }) => {
+        const prompt = document.querySelector('.quiz__prompt');
+        if (!prompt) return;
+        const readingsEl = prompt.querySelector('.quiz__readings');
+        const gloss = prompt.querySelector('.quiz__gloss');
+        if (readingsEl) readingsEl.textContent = readings.join('・');
+        if (gloss) gloss.textContent = meaning;
+      }, worst);
+    }
+    await keyboardResizesContent.reach(page, viewport);
+  },
+  async check(page) {
+    const issues = await keyboardChecks(page);
+
+    const hidden = await page.evaluate(() => {
+      const prompt = document.querySelector('.quiz__prompt');
+      if (!prompt) return 0;
+      return Math.max(0, prompt.scrollHeight - prompt.clientHeight);
+    });
+
+    if (hidden > 0) {
+      issues.push(
+        `the longest question in the corpus is ${hidden}px taller than the room it has, ` +
+          `so its meaning is off the bottom of the prompt`,
+      );
+    }
+
+    return issues;
+  },
+};
+
 const STATES = {
   reading: [
     {
@@ -399,6 +480,7 @@ const STATES = {
     },
     keyboardResizesContent,
     keyboardResizesVisual,
+    keyboardLongestPrompt,
   ],
   /*
    * The first answer anyone ever gives.
