@@ -169,3 +169,37 @@ whether a screen looks balanced.
 
 The audit is the check, not the goal — a layout that satisfies every rule and
 looks wrong is still wrong, which is why the screenshots stay in the loop.
+
+## Standing item: everything fits, nothing scrolls
+
+*Opened 2026-09-09, at the owner's request, after a run of phone-layout fixes
+that each solved the screen in front of them and left the general case open.*
+
+- [ ] **The UI is nothing but small elements that fit easily on any screen —
+      the smallest phones included — and it is easy to use, interactive, and
+      asks for little or no scrolling.**
+
+An item worded that way is a feeling, and a feeling cannot be finished. These
+are the measurements standing in for it, all of them in `npm run ui` so the
+answer is a number rather than an opinion:
+
+1. **Every screen fits its viewport with nothing below the fold**, at 320, 360,
+   390 and 412px wide. 320 is a phone the audit has never looked at; it is in
+   the list because "even the smallest phones" is the ask.
+2. **Every screen still fits with the keyboard up**, in both of the ways a
+   browser reacts to one, at keyboard heights up to 55% of the window.
+3. **Nothing overflows sideways**, which has held since the first audit and
+   stays a rule so it keeps holding.
+4. **Everything you press is at least 44px**, and nothing to read is under
+   12px — the floor the fitting must not cross in the name of fitting.
+5. **The worst content in the corpus is what gets measured**, not a comfortable
+   fixture: the longest question, the longest meaning, the most readings.
+
+Exceptions are allowed only where they are stated, argued and measured — the
+after-miss card at a 62% keyboard on a 320px phone is not a layout that exists,
+and saying so beats pretending otherwise. Anything exempt gets written down
+here with the number that makes it impossible.
+
+Done means `npm run ui` reports zero failing combinations with all of the above
+switched on, and the screenshots in `.ui/` show screens that look composed
+rather than merely compliant.
