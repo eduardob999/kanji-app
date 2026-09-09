@@ -123,3 +123,39 @@ Recorded here so the idea is not had again as though it were free.
 - **Any judgement of naturalness beyond the name heuristic.** Nothing here
   detects stilted-but-nameless translationese. That would need either a model
   pass over the corpus or a different source.
+
+## Standing item: no invalid questions
+
+*Opened 2026-09-09. He photographed one: 「バス［しろ］はいくら？」 — the blank is
+the 代 of バス代, which is read だい, and the question was asking for 代 read しろ.
+A question whose own prompt contradicts its answer is worse than no question.*
+
+- [ ] **A fill-in or listening question always blanks the word being asked, used
+      with the reading being asked, in a sentence that genuinely contains it.**
+
+The cause is one line in `scripts/build-sentences.mjs`, and it is honest about
+itself: *"Keyed by surface rather than item id: two entries that differ only by
+reading share the same written word and so the same sentences."* Two failures
+come out of it:
+
+1. **A surface matched inside a longer word.** バス代 contains 代, so the scan
+   files that sentence under 代 — a word that is not in it. 237 of the 6,982
+   vocabulary surfaces also carry more than one reading in the decks, and each
+   of those shares one pool between meanings that are not the same word.
+2. **A reading asserted rather than checked.** Nothing in the pipeline ever
+   establishes how the surface is read in the sentence it was filed under. The
+   prompt then prints the entry's reading beside a blank the sentence reads
+   differently.
+
+Done means all of:
+
+1. **Every sentence in every pack is confirmed against Tatoeba's own word index
+   for that sentence** (`jpn_indices.csv`, the Tanaka B-lines): the headword is
+   the item's surface, and where the index records a reading, it is the item's
+   reading.
+2. **A checker that fails loudly** — `npm run sentences:check` — reporting zero
+   unverified pairs, run alongside the tests rather than by hand.
+3. **The loss is measured and stated**: how many words keep an example, before
+   and after. A word with no verified sentence falls back to the reading-only
+   prompt the quiz already has, which is a smaller question, not a wrong one.
+4. **The photographed case is a test**: 代/しろ never receives バス代's sentence.
