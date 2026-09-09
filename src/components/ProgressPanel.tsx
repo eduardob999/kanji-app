@@ -262,27 +262,39 @@ export function ProgressPanel({ user }: { user: User }) {
               </ul>
 
               <p className="card__hint">
-                Missed out of asked. Nothing here is hidden or suspended — these are the JLPT
-                lists, and burying a word would be burying the syllabus. They are rationed, not
-                removed.
+                Missed out of asked. Nothing is hidden or suspended — these are the JLPT lists, so
+                they are rationed rather than removed.
               </p>
             </>
           ) : null}
 
-          <p className="card__hint">
-            <strong>Held</strong> counts only what the schedule can vouch for: known is a month or
-            more of expected retention, familiar a week or more, counted as half. <strong>Seen</strong>{' '}
-            is everything you have started. They are not a count of how often you have answered —
-            that was the old app’s measure, and it rewarded attendance rather than knowing.
-          </p>
-          {progress.counts.learning > 0 ? (
-            <p className="card__hint">
-              Imported items begin in <strong>Learning</strong> and stay there until you answer
-              them here. The old app recorded <em>that</em> you were right, never <em>when</em>, so
-              there is nothing to vouch for yet — the first real answer replaces the guess with a
-              measurement, and the bars move then.
+          {/*
+            What the words on the bars mean, folded.
+
+            This is a screen somebody opens to see whether the numbers moved,
+            and the definitions behind them are read once — properly, because
+            "held" not meaning "answered right" is the whole difference from the
+            old app's score, and worth the paragraph. Once. Below a chart, on a
+            320px phone, they were most of a screenful of every visit.
+          */}
+          <details className="disclosure">
+            <summary className="disclosure__summary">What these numbers count</summary>
+            <p className="card__hint disclosure__body">
+              <strong>Held</strong> counts only what the schedule can vouch for: known is a month or
+              more of expected retention, familiar a week or more, counted as half.{' '}
+              <strong>Seen</strong> is everything you have started. They are not a count of how
+              often you have answered — that was the old app’s measure, and it rewarded attendance
+              rather than knowing.
             </p>
-          ) : null}
+            {progress.counts.learning > 0 ? (
+              <p className="card__hint">
+                Imported items begin in <strong>Learning</strong> and stay there until you answer
+                them here. The old app recorded <em>that</em> you were right, never <em>when</em>,
+                so there is nothing to vouch for yet — the first real answer replaces the guess with
+                a measurement, and the bars move then.
+              </p>
+            ) : null}
+          </details>
         </>
       )}
     </section>

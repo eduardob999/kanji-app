@@ -327,6 +327,17 @@ code {
   padding: 24px 0 var(--tabbar-clearance);
 }
 
+/*
+ * A grid item's automatic minimum size is its content, so a card holding
+ * anything that scrolls sideways refuses to be narrower than that content and
+ * takes the page with it: the Browse card came out 616px wide in a 412px
+ * window, and the page slid. The height version of this rule is already here
+ * for the keyboard state, three hundred lines up; this is the width one.
+ */
+.content > * {
+  min-width: 0;
+}
+
 .card {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -633,6 +644,13 @@ code {
   margin: 0 0 16px;
   padding: 0;
   border: 0;
+  /*
+   * A `fieldset` takes its minimum width from its contents and will not go
+   * below it — a rule from the days of form layout, and the reason a scrolling
+   * row of level chips inside one made the whole Browse card 216px wider than
+   * the phone. `min-width: 0` is what lets a child scroll instead of pushing.
+   */
+  min-width: 0;
 }
 
 .field__label {
@@ -1162,6 +1180,48 @@ code {
  */
 .segmented--levels {
   grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+}
+
+/*
+ * Eight levels, one row, swiped rather than stacked.
+ *
+ * On a 320px phone the level grid wrapped to three rows and the Browse screen
+ * spent 700px — more than a screenful — on its own filters before showing a
+ * single word. A row that scrolls sideways costs 44px and holds all eight.
+ *
+ * Scrolling *inside a control* is not the thing "no horizontal scrolling"
+ * warns about. That rule is about a page that slides under your thumb because
+ * something is too wide for it, which is a mistake; this is an offered
+ * affordance with a visible edge, the same gesture every app uses for a row of
+ * chips. `scripts/ui-audit.mjs` knows the difference — it exempts descendants
+ * of a horizontal scroller and still fails anything else past the edge.
+ */
+@media (max-width: 430px) {
+  .segmented--levels {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    /* Same reason as `.field`: a scroller has to be allowed to be narrow. */
+    min-width: 0;
+    max-width: 100%;
+    /* Momentum without the bar, which on a phone is a smear over the labels. */
+    scrollbar-width: none;
+    scroll-snap-type: x proximity;
+    /* Room for the focus ring of the first and last, which would otherwise be
+       clipped by the scroll container's own edge. */
+    padding: 2px;
+    margin: -2px;
+  }
+
+  .segmented--levels::-webkit-scrollbar {
+    display: none;
+  }
+
+  .segmented--levels .segmented__option {
+    flex: 0 0 auto;
+    min-width: 68px;
+    scroll-snap-align: start;
+  }
 }
 
 .textinput {

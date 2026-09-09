@@ -707,6 +707,17 @@ function inspect(minTap, minFont) {
     ? bar.getBoundingClientRect()
     : null;
 
+  /** Whether anything above this element scrolls horizontally by design. */
+  const insideHorizontalScroller = (el) => {
+    let node = el.parentElement;
+    while (node && node !== document.body) {
+      const overflowX = getComputedStyle(node).overflowX;
+      if (overflowX === 'auto' || overflowX === 'scroll') return true;
+      node = node.parentElement;
+    }
+    return false;
+  };
+
   const describe = (el) => {
     const cls = typeof el.className === 'string' ? el.className.split(' ')[0] : '';
     return `${el.tagName.toLowerCase()}${cls ? '.' + cls : ''}`;
@@ -720,7 +731,20 @@ function inspect(minTap, minFont) {
     if (box.right > viewport + 1 || box.left < -1) {
       const parent = el.parentElement?.getBoundingClientRect();
       const parentAlsoOut = parent && (parent.right > viewport + 1 || parent.left < -1);
-      if (!parentAlsoOut) {
+      /*
+       * Inside something that scrolls sideways on purpose, being past the edge
+       * is the design rather than the bug.
+       *
+       * The rule this check exists for is a *page* that slides under a thumb
+       * because something on it is too wide — you cannot reach what is out
+       * there, and the whole layout moves when you try. A row of level chips
+       * with `overflow-x: auto` is the opposite: the overflow is contained, it
+       * has a visible edge, and swiping it is the offered gesture.
+       *
+       * Ancestors are walked rather than checked one deep, since the scroller
+       * is usually a grandparent of whatever is actually out of view.
+       */
+      if (!parentAlsoOut && !insideHorizontalScroller(el)) {
         overflowing.push({
           el: describe(el),
           left: Math.round(box.left),
