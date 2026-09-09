@@ -25,6 +25,13 @@ import { pipeline } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
 import { spawnSync } from 'node:child_process';
 import { createTokenizer, usesWord } from './lib/reading-check.mjs';
+import {
+  ambiguousHeadwords,
+  confirms,
+  contradicts,
+  ensureIndices,
+  readIndices,
+} from './lib/tatoeba-index.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DECK_DIR = resolve(ROOT, 'public/decks');
@@ -244,10 +251,37 @@ const MAX_EXAMINED = 40;
  * See `scripts/lib/reading-check.mjs` for what "genuinely uses" means and why
  * every occurrence in the sentence has to check out rather than one.
  */
-function keepVerified(tokenizer, entries, word, reading) {
+function keepVerified(tokenizer, indices, ambiguous, entries, word, reading) {
   const kept = [];
+  /*
+   * On a word the corpus reads two ways, the analyser's guess is not enough.
+   *
+   * For 何時, 角, 摘む and 298 others, a sentence is kept only if the annotators
+   * say in so many words that this is the reading used here — silence is not
+   * agreement on a word where being wrong produces the exact question that
+   * started this. Everywhere else silence is fine and only a contradiction
+   * disqualifies, which is what keeps the modern half of the corpus usable.
+   */
+  const mustBeConfirmed = ambiguous.has(word);
 
-  for (const entry of rank(entries).slice(0, MAX_EXAMINED)) {
+  /*
+   * The index is consulted first because it is a map lookup, and the analyser
+   * second because it is a parse.
+   *
+   * Which matters most for exactly the words that need it most. 大 appears in
+   * thousands of sentences and is read だい, おお and たい, so it needs
+   * confirmation — and if the budget is spent parsing the forty best-ranked
+   * sentences before asking whether any of them is confirmed, a word that
+   * common can come away with nothing while a confirmed sentence sat at rank
+   * 41. Filtering on the cheap test lets the whole ranking be searched.
+   */
+  const eligible = rank(entries).filter((entry) =>
+    mustBeConfirmed
+      ? confirms(indices, entry.id, word, reading)
+      : !contradicts(indices, entry.id, word, reading),
+  );
+
+  for (const entry of eligible.slice(0, MAX_EXAMINED)) {
     if (!usesWord(tokenizer, entry.text, word, reading)) continue;
     kept.push({ id: entry.id, text: entry.text });
     if (kept.length === PER_WORD) break;
@@ -262,8 +296,16 @@ await ensureLanguages();
 const native = readNativeSpeakers();
 console.log(`${native.size} users declare Japanese as a native language`);
 
+await ensureIndices();
+
 console.log('Loading the morphological dictionary…');
 const tokenizer = await createTokenizer();
+const indices = readIndices();
+const ambiguous = ambiguousHeadwords(indices);
+console.log(
+  `${indices.size} sentences carry Tatoeba's own word index, ` +
+    `which reads ${ambiguous.size} headwords more than one way`,
+);
 
 const decks = readDecks();
 const wanted = new Set();
@@ -302,7 +344,7 @@ for (const deck of decks) {
      * guitar is a wrong question for the first and a right one for the second.
      * 237 of the 6,982 surfaces in the decks carry more than one reading.
      */
-    const kept = keepVerified(tokenizer, entries, item.word, item.reading);
+    const kept = keepVerified(tokenizer, indices, ambiguous, entries, item.word, item.reading);
     if (kept.length === 0) continue;
 
     pack[item.id] = kept;

@@ -132,9 +132,10 @@ A question whose own prompt contradicts its answer is worse than no question.*
 
 - [x] **A fill-in or listening question always blanks the word being asked, used
       with the reading being asked, in a sentence that genuinely contains it.**
-      *Done 2026-09-09. `npm run sentences:check` verifies all 16,656 shipped
-      word/sentence pairs and reports zero, and it runs in `prebuild`, so an
-      invalid question cannot reach a deploy. What it cost is below.*
+      *Done 2026-09-09. `npm run sentences:check` verifies all 16,578 shipped
+      word/sentence pairs against two independent authorities and reports zero,
+      and it runs in `prebuild`, so an invalid question cannot reach a deploy.
+      What it cost is below.*
 
 The cause is one line in `scripts/build-sentences.mjs`, and it is honest about
 itself: *"Keyed by surface rather than item id: two entries that differ only by
@@ -170,18 +171,18 @@ sentence the way the app would have asked it:
 
 | | before | after |
 |---|---|---|
-| word/sentence pairs shipped | 18,408 | 16,656 |
+| word/sentence pairs shipped | 18,408 | 16,578 |
 | pairs where the sentence does **not** use that word with that reading | **3,030 (16.5%)** | **0** |
-| entries with at least one example | 6,534 | 6,000 |
+| entries with at least one example | 6,534 | 5,975 |
 | entries whose examples were *all* wrong | **730** | 0 |
-| entries with at least one **correct** example | 5,804 | **6,000** |
+| entries with at least one **correct** example | 5,804 | **5,975** |
 
 So one fill-in question in six was invalid, and 730 words could only ever ask an
-invalid one. The headline coverage figure falls — 90% to 83% — and the number
-that matters rises: verified against a sentence that is actually about the word,
-coverage went **up** by 196 entries, because the builder now keeps looking down
-a word's ranking instead of stopping at three sentences that happened to contain
-the characters.
+invalid one. The headline coverage figure falls — 90% to 82% — and the number
+that matters rises: counting only entries with a sentence that is actually about
+the word, coverage went **up** by 171, because the builder now keeps looking
+down a word's ranking instead of stopping at three sentences that happened to
+contain the characters.
 
 Two words, 密 and 釣, came out of this with no example and no meaning, which
 `corpus.test.ts` already refuses to allow — a question with a shared reading, no
@@ -208,3 +209,57 @@ for invariants over inspection.
 
 kuromoji is a build-time dependency. Nothing ships to the browser but a list of
 sentences that have already been checked.
+
+### Two authorities, and which one is asked when
+
+kuromoji decides, Tatoeba's annotators overrule, and on the words that actually
+trip an analyser the annotators have to speak first.
+
+`jpn_indices.csv` is the Tanaka corpus's B-lines: 148,609 sentences with a
+human-maintained list of the words used and their readings where the writing is
+ambiguous. It cannot be the primary check — it covers 60% of the corpus, all of
+it the older translated half this document opens by measuring as the reason the
+examples read oddly, and it does not contain the sentence in the screenshot at
+all. So it is used as a second opinion, and the second opinion is worth having.
+Cross-checked against the 9,219 shipped pairs it had an opinion on:
+
+| | pairs | |
+|---|---|---|
+| same word, reading agrees or unstated | 7,754 | 84.11% |
+| our word inside a longer headword (株主総会 for 総会) | 1,116 | 12.11% |
+| index names no word containing ours (dictionary-form differences) | 287 | 3.11% |
+| **genuine reading conflict** | **62** | **0.67%** |
+
+The middle two are disagreements about where a word ends, not about how it is
+read, and 株主［そうかい］が開かれた is a fair question. The last row is not:
+kuromoji read 何時 as いつ in a sentence asking what time it is, 摘む as つまむ
+where tea is being picked, 角 as かく where it means the corner. Sixty-two
+invalid questions, so the annotators get a veto and those sentences are gone.
+
+That leaves the sentences the index says nothing about — where an analyser is
+alone with a word. Measured over the whole index, **301 headwords are read more
+than one way in this corpus**, and those are exactly where a guess goes wrong.
+On those, and only those, a sentence must be *positively confirmed* rather than
+merely uncontradicted. It costs 25 entries and 78 pairs, and it is the
+difference between "no evidence against" and "evidence for" on the words where
+the difference bites.
+
+The residual risk is now: a sentence outside the index, on a word the index has
+never shown two readings for, that kuromoji reads wrongly anyway. Nothing in the
+data can rule that out, and the honest thing is to say so rather than to claim a
+guarantee the sources cannot support.
+
+### One more thing the order of the checks decided
+
+The index is a map lookup and the analyser is a parse, and for a while the parse
+came first: the builder examined a word's forty best-ranked sentences, parsed
+each, and only then asked whether the annotators confirmed it. For 大 — read
+だい, おお and たい, and present in thousands of sentences — all forty went to
+sentences the index says nothing about, and the word came away with no example
+at all while confirmed ones sat at rank 41. `corpus.test.ts` caught it, because
+大 has no meaning in the CSV either and a word with no meaning, no sentence and
+a shared reading is a question with nothing to identify its answer by.
+
+Filtering on the cheap test first lets the whole ranking be searched for the
+words that need confirming, which is 32 entries and 112 pairs back, 大 among
+them: 大ヒット, 大ニュース, 大ボス. It also now has a meaning.

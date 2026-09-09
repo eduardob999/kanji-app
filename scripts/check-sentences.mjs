@@ -16,16 +16,29 @@
  * Exits non-zero on any failure, so it can stand beside the tests rather than
  * being something to remember.
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createTokenizer, usesWord } from './lib/reading-check.mjs';
+import { ambiguousHeadwords, confirms, contradicts, readIndices } from './lib/tatoeba-index.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DECKS = resolve(ROOT, 'public/decks');
 const PACKS = resolve(ROOT, 'public/sentences');
+const INDEX_CSV = resolve(ROOT, 'data/tatoeba/jpn_indices.csv');
 
 const tokenizer = await createTokenizer();
+
+/*
+ * The annotators' veto, when their file is present.
+ *
+ * It is 17 MB of raw corpus and lives in `data/tatoeba/`, which is not
+ * committed — so a fresh checkout can check the packs without it and a machine
+ * that has run `npm run sentences` gets the stricter check. Saying which of the
+ * two ran matters more than quietly doing less.
+ */
+const indices = existsSync(INDEX_CSV) ? readIndices() : null;
+const ambiguous = indices ? ambiguousHeadwords(indices) : new Set();
 
 let pairs = 0;
 let withSentences = 0;
@@ -63,6 +76,24 @@ for (const file of readdirSync(DECKS)) {
         problems.push(
           `${item.id}: "${sentence.text}" does not use ${item.word} read ${item.reading}`,
         );
+        continue;
+      }
+
+      if (!indices) continue;
+
+      if (ambiguous.has(item.word)) {
+        // A word the corpus reads two ways has to be confirmed, not merely
+        // left uncontradicted.
+        if (!confirms(indices, sentence.id, item.word, item.reading)) {
+          problems.push(
+            `${item.id}: "${sentence.text}" — ${item.word} is read more than one way and the ` +
+              `index does not confirm ${item.reading} here`,
+          );
+        }
+      } else if (contradicts(indices, sentence.id, item.word, item.reading)) {
+        problems.push(
+          `${item.id}: "${sentence.text}" — Tatoeba's index reads ${item.word} differently here`,
+        );
       }
     }
 
@@ -75,6 +106,11 @@ for (const file of readdirSync(DECKS)) {
   }
 }
 
+console.log(
+  indices
+    ? `checked with kuromoji and Tatoeba's index of ${indices.size} sentences`
+    : "checked with kuromoji only — data/tatoeba/jpn_indices.csv is absent, so the annotators' veto did not run",
+);
 console.log(`${items} vocabulary entries, ${withSentences} with at least one sentence`);
 console.log(`${pairs} word/sentence pairs checked`);
 
