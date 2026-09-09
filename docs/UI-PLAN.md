@@ -244,3 +244,32 @@ The keyboard simulation moved from 45% to 55% of the window as part of this.
 45% is the comfortable case, and it was passing while the owner — whose
 keyboard is taller — was scrolling to reach the field he was being asked to
 type into.
+
+### Where it stops, measured
+
+The 40 longest questions in the corpus — 代 and its neighbours, eleven readings
+and a 121-character meaning — rendered at three phone widths against keyboards
+of increasing height, counting how many fit above the keyboard with nothing
+hidden:
+
+| keyboard | 320px | 360px | 390px |
+|---|---|---|---|
+| 45% | 40/40 | 40/40 | 40/40 |
+| 55% | 40/40 | 40/40 | 40/40 |
+| 62% | 10/40 | 40/40 | 40/40 |
+| 70% | 0/40  | 0/40  | 0/40  |
+
+55% is the bar the audit holds, and it is met everywhere. Past that the numbers
+say where the layout gives out rather than pretending it does not:
+
+- **At 62% on a 320px phone**, the longest questions scroll inside the prompt.
+  The window is 243px, the dock is ~136px of it — a field and two buttons, all
+  at the 44px floor — and what is left will not hold eleven readings and ten
+  senses at a size worth reading.
+- **At 70% anywhere**, nothing fits, because the window is barely larger than
+  the dock. A keyboard that tall is a keyboard covering the app.
+
+Both are arithmetic rather than styling: the fixed parts of the screen have a
+floor, and below some window height the remainder is smaller than the content
+however it is set. The prompt scrolls there, which is the honest failure — it
+was the *only* behaviour before any of this work, at every size.
