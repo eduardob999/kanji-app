@@ -166,21 +166,49 @@ export function planSession(
 
   const due: PlannedQuestion[] = [];
   const fresh: PlannedQuestion[] = [];
-  // One memory is asked at most once per session, however many question types
-  // could test it. Fill-in and listening share a review state, so without this
-  // the same word arrives twice wearing different clothes.
-  const claimed = new Set<string>();
 
-  candidates.forEach((candidate) => {
-    const mode = reviewModeFor(candidate.quiz);
-    const key = memoryKey(mode, candidate.item.id);
-    if (claimed.has(key)) return;
+  /*
+   * One memory is asked at most once per session, however many question types
+   * could test it. Fill-in and listening share a review state, so without this
+   * the same word arrives twice wearing different clothes.
+   *
+   * **Which of them asks it is the interesting half**, and for the whole life
+   * of this file the answer was "whichever the caller listed first". The
+   * practice screen lists fill-in before listening and both draw on the same
+   * vocabulary, so every listening candidate was a duplicate of a fill-in
+   * candidate already claimed — and listening never appeared in a session at
+   * all. Not rarely: never, on any device, however good its Japanese voice.
+   */
+  const byMemory = new Map<string, Candidate[]>();
 
-    const state = lookup(mode, candidate.item.id);
+  for (const candidate of candidates) {
+    const key = memoryKey(reviewModeFor(candidate.quiz), candidate.item.id);
+    const group = byMemory.get(key);
+    if (group) group.push(candidate);
+    else byMemory.set(key, [candidate]);
+  }
+
+  byMemory.forEach((group) => {
+    const first = group[0]!;
+    const mode = reviewModeFor(first.quiz);
+    const state = lookup(mode, first.item.id);
+
+    /*
+     * Alternating on the review count, so a word met through the eyes last time
+     * arrives through the ears this time.
+     *
+     * Deterministic, which the whole planner is: the same inputs give the same
+     * session, and a re-render mid-round cannot change the question. It also
+     * introduces new words in the written form — reps zero is the first entry
+     * in the list — and only starts asking them by ear once they have been seen
+     * at least once, which is the order they are worth learning in.
+     *
+     * `sentenceFor` varies its example the same way, off the same count.
+     */
+    const candidate = group[(state?.totalReps ?? 0) % group.length]!;
     const base = { quiz: candidate.quiz, mode, level: candidate.level, item: candidate.item };
 
     if (!state) {
-      claimed.add(key);
       fresh.push({ ...base, state: null, overdueDays: 0 });
       return;
     }
@@ -192,7 +220,6 @@ export function planSession(
     const overdueMs = dueAt === null ? Infinity : now.getTime() - dueAt.getTime();
     if (overdueMs < 0) return;
 
-    claimed.add(key);
     due.push({
       ...base,
       state,

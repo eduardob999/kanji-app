@@ -1,10 +1,10 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { isAnyReadingCorrect, isReadingCorrect, isWritingCorrect } from '../domain/answerCheck';
 import type { KanjiItem, StudyItem, VocabItem } from '../domain/items';
 import type { QuizMode } from '../domain/modes';
 import { blankOut, chooseSentence, type Sentence } from '../domain/sentences';
 import type { PlannedQuestion } from '../domain/sessionPlanner';
-import { announcedSequence, speakSequence } from '../audio/speech';
+import { announcedSequence, speakSequence, stopSpeaking } from '../audio/speech';
 
 /**
  * What each of the four question types looks like, in one place.
@@ -217,21 +217,77 @@ interface AudioPromptProps {
  * plays and there is no way to tell which of its words is being asked, which
  * makes it a question about the sentence rather than about the word.
  *
- * Nothing autoplays: iOS Safari refuses to speak outside a user gesture and
- * gives no way to detect that it declined, so every sound follows a tap.
+ * **It plays by itself when the question arrives**, because the sound *is* the
+ * question. Making someone press Play to find out what they are being asked is
+ * a tap between them and every single listening question, and the button is
+ * still there for a second listen.
+ *
+ * Autoplay used to be ruled out here on the grounds that iOS Safari refuses to
+ * speak outside a user gesture and gives no way to detect the refusal. The
+ * first half is true and the second is not: a refused utterance never fires
+ * `start`. So it is attempted, and what happens next follows what actually
+ * came out of the speaker rather than what was asked for — see the count
+ * below.
  */
 function AudioPrompt({ item, sentence, voice, helpers }: AudioPromptProps) {
+  /*
+   * Times this question has been heard, which is not the same as times Play was
+   * pressed.
+   *
+   * It is the count the grade reads: hearing the question is the question, and
+   * hearing it a second time is a hint. So an autoplay that reached the speaker
+   * counts, which makes the next tap a replay — and an autoplay a browser
+   * declined counts for nothing, which leaves the first tap free, exactly as it
+   * was before this played anything by itself.
+   */
   const [plays, setPlays] = useState(0);
   const [speaking, setSpeaking] = useState(false);
+
+  const phrases = announcedSequence(item.reading, sentence?.text ?? null);
 
   const play = () => {
     if (plays > 0) helpers.markHelped();
     setPlays((n) => n + 1);
     setSpeaking(true);
-    void speakSequence(announcedSequence(item.reading, sentence?.text ?? null), {
+    void speakSequence(phrases, {
       ...(voice ? { voice } : {}),
     }).finally(() => setSpeaking(false));
   };
+
+  /*
+   * One automatic playing per question.
+   *
+   * Keyed on the item, because this component stays mounted from one listening
+   * question to the next — React reuses it and only the props change, so an
+   * effect that ran on mount would play the first question and then sit
+   * silently through the rest of the round.
+   *
+   * The cleanup is what stops a sentence when the question changes underneath
+   * it: `speakSequence` queues its three phrases, and without this the previous
+   * word carries on being read over the new one.
+   */
+  useEffect(() => {
+    let live = true;
+
+    setPlays(0);
+    setSpeaking(true);
+    void speakSequence(phrases, {
+      ...(voice ? { voice } : {}),
+      onStart: () => {
+        if (live) setPlays(1);
+      },
+    }).finally(() => {
+      if (live) setSpeaking(false);
+    });
+
+    return () => {
+      live = false;
+      stopSpeaking();
+    };
+    // `phrases` is rebuilt every render and would restart the sound on each
+    // one; the item and the voice are what actually change what is spoken.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id, voice]);
 
   return (
     <>

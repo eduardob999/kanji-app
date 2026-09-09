@@ -193,6 +193,57 @@ describe('planSession', () => {
     expect(plan[0]!.mode).toBe('vocab-writing');
   });
 
+  it('alternates which of the tied question types asks it, on the review count', () => {
+    /*
+     * The bug this exists for: fill-in and listening share a memory, the
+     * practice screen lists fill-in first, so listening was a duplicate of an
+     * already-claimed candidate every single time and never appeared at all.
+     */
+    const item = vocab('word');
+    const candidates: Candidate[] = [
+      { quiz: 'fill-in', item, level: '5' },
+      { quiz: 'audio', item, level: '5' },
+    ];
+
+    const askedAfter = (reps: number) => {
+      const seen: ItemReviewState = {
+        itemId: 'word',
+        stability: 3,
+        difficulty: 5,
+        totalReps: reps,
+        lapses: 0,
+        dueAt: Timestamp.fromMillis(NOW.getTime() - DAY),
+        lastReviewedAt: Timestamp.fromMillis(NOW.getTime() - 4 * DAY),
+      };
+      const plan = planSession(candidates, lookupFrom({ word: seen }), NOW);
+      expect(plan).toHaveLength(1);
+      return plan[0]!.quiz;
+    };
+
+    expect(askedAfter(1)).toBe('audio');
+    expect(askedAfter(2)).toBe('fill-in');
+    expect(askedAfter(3)).toBe('audio');
+  });
+
+  it('introduces a new word in writing rather than by ear', () => {
+    // Reps zero takes the first of the tied types, which is the written one.
+    // Hearing a word you have never seen written is not a question you can
+    // answer, it is a spelling test on a sound.
+    const item = vocab('word');
+    const plan = planSession(
+      [
+        { quiz: 'fill-in', item, level: '5' },
+        { quiz: 'audio', item, level: '5' },
+      ],
+      NONE,
+      NOW,
+      { maxNew: 5 },
+    );
+
+    expect(plan).toHaveLength(1);
+    expect(plan[0]!.quiz).toBe('fill-in');
+  });
+
   it('does ask the same item in two modes that are genuinely different memories', () => {
     const item = vocab('word');
     const candidates: Candidate[] = [

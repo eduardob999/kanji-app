@@ -47,6 +47,44 @@ function met(ids: readonly string[], overdueDays = -30) {
 }
 
 describe('buildPracticeQueue', () => {
+  it('asks some of a round by ear, when the screen offers listening', () => {
+    /*
+     * The whole practice screen had no sound in it, ever.
+     *
+     * Fill-in and listening share a memory, and the screen offers the four
+     * question types in the order the menu lists them, so every listening
+     * candidate was a duplicate of a fill-in candidate the planner had already
+     * claimed. This is the round the owner would actually get: the same words
+     * offered both ways, all of them met, all of them due.
+     */
+    const words = Array.from({ length: ROUND_SIZE }, (_, i) => vocab(`w${i}`));
+    const candidates: Candidate[] = [
+      ...words.map((item) => ({ quiz: 'fill-in' as QuizMode, item, level: '5' as Level })),
+      ...words.map((item) => ({ quiz: 'audio' as QuizMode, item, level: '5' as Level })),
+    ];
+
+    /*
+     * Review counts spread across the words, because that is what the choice
+     * turns on: each word alternates between the two on its own count, so a
+     * mixture of counts is a mixture of question types. A round in which every
+     * word happened to have been reviewed an even number of times would be all
+     * fill-in, and correctly so — the same word would be by ear next time.
+     */
+    const lookup = (_mode: ReviewMode, itemId: string) => {
+      const reps = Number(itemId.replace('w', ''));
+      return { ...state(itemId, 2), totalReps: reps };
+    };
+
+    const queue = buildPracticeQueue(candidates, lookup, NOW, { maxPerGroup: ROUND_SIZE });
+
+    const heard = queue.filter((q) => q.quiz === 'audio');
+    const read = queue.filter((q) => q.quiz === 'fill-in');
+    expect(heard.length).toBeGreaterThan(0);
+    expect(read.length).toBeGreaterThan(0);
+    // And still one question per word: sharing a memory is why they alternate.
+    expect(new Set(queue.map((q) => q.item.id)).size).toBe(queue.length);
+  });
+
   it('gives the schedule the front of the round, most overdue first', () => {
     const candidates = pool(3);
     const lookup = (_mode: ReviewMode, itemId: string) =>
