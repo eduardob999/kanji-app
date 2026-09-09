@@ -130,8 +130,11 @@ Recorded here so the idea is not had again as though it were free.
 the 代 of バス代, which is read だい, and the question was asking for 代 read しろ.
 A question whose own prompt contradicts its answer is worse than no question.*
 
-- [ ] **A fill-in or listening question always blanks the word being asked, used
+- [x] **A fill-in or listening question always blanks the word being asked, used
       with the reading being asked, in a sentence that genuinely contains it.**
+      *Done 2026-09-09. `npm run sentences:check` verifies all 16,656 shipped
+      word/sentence pairs and reports zero, and it runs in `prebuild`, so an
+      invalid question cannot reach a deploy. What it cost is below.*
 
 The cause is one line in `scripts/build-sentences.mjs`, and it is honest about
 itself: *"Keyed by surface rather than item id: two entries that differ only by
@@ -159,3 +162,49 @@ Done means all of:
    and after. A word with no verified sentence falls back to the reading-only
    prompt the quiz already has, which is a smaller question, not a wrong one.
 4. **The photographed case is a test**: 代/しろ never receives バス代's sentence.
+
+### How wrong it was, and what fixing it cost
+
+Measured on the packs that were live this morning, with kuromoji reading every
+sentence the way the app would have asked it:
+
+| | before | after |
+|---|---|---|
+| word/sentence pairs shipped | 18,408 | 16,656 |
+| pairs where the sentence does **not** use that word with that reading | **3,030 (16.5%)** | **0** |
+| entries with at least one example | 6,534 | 6,000 |
+| entries whose examples were *all* wrong | **730** | 0 |
+| entries with at least one **correct** example | 5,804 | **6,000** |
+
+So one fill-in question in six was invalid, and 730 words could only ever ask an
+invalid one. The headline coverage figure falls — 90% to 83% — and the number
+that matters rises: verified against a sentence that is actually about the word,
+coverage went **up** by 196 entries, because the builder now keeps looking down
+a word's ranking instead of stopping at three sentences that happened to contain
+the characters.
+
+Two words, 密 and 釣, came out of this with no example and no meaning, which
+`corpus.test.ts` already refuses to allow — a question with a shared reading, no
+meaning and no sentence has nothing to identify its answer by. They had meanings
+missing in `data/Vocab.csv`; both now have one. That test existed before this
+work and caught the consequence on the first run, which is the whole argument
+for invariants over inspection.
+
+### What "genuinely uses" means
+
+`scripts/lib/reading-check.mjs`, shared by the builder and the checker:
+
+- **Whole tokens only.** The 代 inside バス代 is not the word 代, any more than
+  the "read" in "already" is the verb. A run of complete tokens must spell the
+  surface exactly.
+- **The reading must match**, after katakana is folded to hiragana. 弾く read
+  はじく does not get a sentence about playing the guitar, where it is ひく.
+- **Every occurrence, not one.** `blankOut` hides *all* occurrences of the
+  surface and labels them with a single reading, so a sentence using the word
+  twice with two readings would be half a wrong question. The whole sentence is
+  rejected.
+- **An unknown word is not agreement.** Where the dictionary has no reading for
+  a token, nothing is confirmed, so the sentence is not used.
+
+kuromoji is a build-time dependency. Nothing ships to the browser but a list of
+sentences that have already been checked.

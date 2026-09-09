@@ -46,10 +46,13 @@ export async function loadQuizSource(
       : Promise.resolve([]),
   ]);
 
+  // Keyed by item id, which is how the packs are built: a sentence is verified
+  // against one reading of one word, and 弾く(はじく) must not be handed the
+  // sentences of 弾く(ひく). See `domain/sentences.ts`.
   const sentences = new Map<string, Sentence[]>();
   for (const pack of packs) {
-    for (const [word, entries] of Object.entries(pack.sentences)) {
-      sentences.set(word, entries);
+    for (const [itemId, entries] of Object.entries(pack.sentences)) {
+      sentences.set(itemId, entries);
     }
   }
 

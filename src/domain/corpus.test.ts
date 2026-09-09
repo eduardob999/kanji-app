@@ -150,6 +150,69 @@ describe('marking, against every answer that ships', () => {
   });
 });
 
+describe('the example sentences', () => {
+  const packs = readdirSync(resolve(PUBLIC, 'sentences')).map((file) => ({
+    file,
+    data: JSON.parse(readFileSync(resolve(PUBLIC, 'sentences', file), 'utf8')) as {
+      sentences: Record<string, { id: number; text: string }[]>;
+    },
+  }));
+
+  const byId = new Map(vocab.map((item) => [item.id, item as unknown as { word: string; reading: string }]));
+
+  it('files every sentence under an item that exists', () => {
+    // A pack built against a different deck than the one shipped is invisible
+    // otherwise: the questions simply stop having examples.
+    const orphans: string[] = [];
+    for (const pack of packs) {
+      for (const id of Object.keys(pack.data.sentences)) {
+        if (!byId.has(id)) orphans.push(`${pack.file}: ${id}`);
+      }
+    }
+    expect(orphans).toEqual([]);
+  });
+
+  it('only files a sentence under a word it contains', () => {
+    const missing: string[] = [];
+    for (const pack of packs) {
+      for (const [id, list] of Object.entries(pack.data.sentences)) {
+        const item = byId.get(id);
+        if (!item) continue;
+        for (const sentence of list) {
+          if (!sentence.text.includes(item.word)) missing.push(`${id}: ${sentence.text}`);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('never asks for 代 read しろ with a sentence about バス代', () => {
+    /*
+     * The question he photographed: 「バス［しろ］はいくら？」. The blank is the
+     * 代 of バス代, which is read だい, and the prompt was asking for しろ.
+     *
+     * Whether a sentence uses a word with a given reading is a morphological
+     * question, and `npm run sentences:check` answers it for all 16,656 pairs
+     * with kuromoji. This is the one case that has to stay answered even if
+     * that script is never run again, so it is checked here on the data itself.
+     */
+    const shiro = packs.flatMap((pack) => pack.data.sentences['代|しろ'] ?? []);
+    expect(shiro.filter((sentence) => sentence.text.includes('バス代'))).toEqual([]);
+  });
+
+  it('keeps the Tatoeba id of every sentence, which the licence requires', () => {
+    const anonymous: string[] = [];
+    for (const pack of packs) {
+      for (const [id, list] of Object.entries(pack.data.sentences)) {
+        for (const sentence of list) {
+          if (!Number.isInteger(sentence.id)) anonymous.push(id);
+        }
+      }
+    }
+    expect(anonymous).toEqual([]);
+  });
+});
+
 describe('questions that could not be answered', () => {
   /*
    * Listening and fill-in ask for the *written* form. What tells you which
@@ -165,7 +228,9 @@ describe('questions that could not be answered', () => {
    * sentences, and the eighth has no homophone. This exists so that a deck
    * rebuilt from an edited CSV cannot quietly introduce one.
    */
-  const sentences: Record<string, unknown[]> = {};
+  // Keyed by item id — surface and reading — since the packs were rebuilt to
+  // verify each sentence against one reading of one word.
+  const sentences: Record<string, { id: number; text: string }[]> = {};
   for (const file of readdirSync(resolve(PUBLIC, 'sentences'))) {
     Object.assign(
       sentences,
@@ -181,13 +246,12 @@ describe('questions that could not be answered', () => {
     }
 
     const unanswerable = vocab.filter((item) => {
-      const { word, reading, meaning } = item as unknown as {
-        word: string;
+      const { reading, meaning } = item as unknown as {
         reading: string;
         meaning: string;
       };
       const hasMeaning = Boolean(meaning && meaning.trim());
-      const hasSentence = (sentences[word]?.length ?? 0) > 0;
+      const hasSentence = (sentences[item.id]?.length ?? 0) > 0;
       const shared = (byReading.get(reading) ?? 0) > 1;
 
       return !hasMeaning && !hasSentence && shared;

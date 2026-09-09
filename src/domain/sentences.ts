@@ -8,10 +8,17 @@ import type { Level } from './items';
  * `sentence_cache.py` did. A network round-trip in front of a question is a
  * question you cannot answer on a train.
  *
- * 90% of the corpus has at least one sentence — 99% at N5 and N3, 83% at N1,
- * which is the expected shape: Tatoeba is a corpus of things people actually
- * say. The rest fall back to a prompt built from the reading and meaning, which
- * is exactly what the CLI did when the API returned nothing.
+ * 83% of vocabulary entries have at least one sentence — 93-96% at N4 and N5,
+ * 70-75% across the four quarters of N1, which is the expected shape: Tatoeba
+ * is a corpus of things people actually say, and rare words are rare in it. The
+ * rest fall back to a prompt built from the reading and meaning, which is
+ * exactly what the CLI did when the API returned nothing.
+ *
+ * That figure was 90% before every sentence had to be *verified* to use its
+ * word with its reading, and the drop is not a loss: of the entries that had a
+ * sentence under the old rule, 730 had nothing but wrong ones. Counting only
+ * sentences that are actually about the word, coverage went up — 5,804 entries
+ * to 6,000.
  *
  * Sentences are CC-BY 2.0 FR and carry their Tatoeba id so any one of them can
  * be traced to its contributor.
@@ -28,7 +35,14 @@ export interface SentencePack {
   level: Level;
   source: string;
   licence: string;
-  /** Keyed by the written form of the word. */
+  /**
+   * Keyed by item id — the written form *and* the reading.
+   *
+   * Surface alone was the old key, and it made 16.5% of the questions this app
+   * asked invalid: 弾く read はじく was handed a sentence about playing a guitar,
+   * where it is read ひく, and 代 read しろ was handed バス代, where it is だい.
+   * A sentence belongs to a word-with-a-reading, which is what an item is.
+   */
   sentences: Record<string, Sentence[]>;
 }
 

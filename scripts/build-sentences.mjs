@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { pipeline } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
 import { spawnSync } from 'node:child_process';
+import { createTokenizer, usesWord } from './lib/reading-check.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DECK_DIR = resolve(ROOT, 'public/decks');
@@ -203,19 +204,56 @@ function indexSentences(wanted, native) {
  *    asked to carry weight it cannot bear.
  * 4. SHORTER, because the sentence exists to give just enough context.
  * 5. LOWEST ID, so the build is deterministic.
+ *
+ * Ranking, not choosing: what comes back is the whole list in order, because
+ * the caller has one more question to ask of each candidate — whether the
+ * sentence uses the word at all — and it can only ask that of a sentence it is
+ * still holding. See `keepVerified`.
  */
-function pick(entries) {
-  return [...entries]
-    .sort(
-      (a, b) =>
-        a.drill - b.drill ||
-        a.hits - b.hits ||
-        a.foreign - b.foreign ||
-        a.text.length - b.text.length ||
-        a.id - b.id,
-    )
-    .slice(0, PER_WORD)
-    .map((entry) => ({ id: entry.id, text: entry.text }));
+function rank(entries) {
+  return [...entries].sort(
+    (a, b) =>
+      a.drill - b.drill ||
+      a.hits - b.hits ||
+      a.foreign - b.foreign ||
+      a.text.length - b.text.length ||
+      a.id - b.id,
+  );
+}
+
+/**
+ * How far down a word's ranking to keep looking for a usable sentence.
+ *
+ * Verification costs a morphological parse per sentence, so this is a budget
+ * rather than a rule about language. A word whose forty best candidates all
+ * turn out to use some other word that merely contains it does not have a
+ * fortieth-best sentence worth showing; measured over the whole corpus, raising
+ * this to 200 changed the number of words with an example by four.
+ */
+const MAX_EXAMINED = 40;
+
+/**
+ * The best few sentences that genuinely use this word, read this way.
+ *
+ * The check that was missing. Sentences were filed by surface — every sentence
+ * containing the characters 代 was filed under 代 — and the quiz then printed
+ * the entry's reading beside the blank, so 「バス代はいくら？」 became a question
+ * asking for 代 read しろ. 16.5% of the pairs this script used to ship were
+ * wrong that way, and 730 words had nothing but wrong ones.
+ *
+ * See `scripts/lib/reading-check.mjs` for what "genuinely uses" means and why
+ * every occurrence in the sentence has to check out rather than one.
+ */
+function keepVerified(tokenizer, entries, word, reading) {
+  const kept = [];
+
+  for (const entry of rank(entries).slice(0, MAX_EXAMINED)) {
+    if (!usesWord(tokenizer, entry.text, word, reading)) continue;
+    kept.push({ id: entry.id, text: entry.text });
+    if (kept.length === PER_WORD) break;
+  }
+
+  return kept;
 }
 
 await ensureCorpus();
@@ -223,6 +261,9 @@ await ensureLanguages();
 
 const native = readNativeSpeakers();
 console.log(`${native.size} users declare Japanese as a native language`);
+
+console.log('Loading the morphological dictionary…');
+const tokenizer = await createTokenizer();
 
 const decks = readDecks();
 const wanted = new Set();
@@ -250,9 +291,21 @@ for (const deck of decks) {
     const entries = found.get(item.word);
     if (!entries) continue;
 
-    // Keyed by surface rather than item id: two entries that differ only by
-    // reading share the same written word and so the same sentences.
-    if (!pack[item.word]) pack[item.word] = pick(entries);
+    /*
+     * Keyed by item id — surface *and* reading — because that is what a
+     * question is about.
+     *
+     * It used to be keyed by surface, with a comment saying two entries
+     * differing only by reading "share the same written word and so the same
+     * sentences". They share the written word. They do not share the sentences:
+     * 弾く read はじく is not 弾く read ひく, and a sentence about playing the
+     * guitar is a wrong question for the first and a right one for the second.
+     * 237 of the 6,982 surfaces in the decks carry more than one reading.
+     */
+    const kept = keepVerified(tokenizer, entries, item.word, item.reading);
+    if (kept.length === 0) continue;
+
+    pack[item.id] = kept;
     deckCovered += 1;
     covered += 1;
   }
