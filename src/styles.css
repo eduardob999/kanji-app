@@ -1233,6 +1233,38 @@ code {
 }
 
 /*
+ * Values in the reveal are prose, and prose does not right-align.
+ *
+ * `.datalist` was built for the Progress and Account screens, where a row is a
+ * short label against a number and the numbers line up down the right edge. The
+ * reveal borrowed it for readings and meanings, which are neither short nor
+ * numbers: 印 is "stamp; seal; mark; imprint; symbol; emblem; trademark;
+ * evidence; souvenir; India", and right-aligned in the column that leaves it
+ * has, that is four lines with a ragged left edge — every line starting
+ * somewhere different, which is the one thing that makes wrapped text hard to
+ * read.
+ *
+ * So here, and only here, the label holds a column of its own and the value
+ * runs down the left edge of what is left. Everywhere else keeps its numbers
+ * aligned.
+ */
+.quiz__reveal .datalist__row {
+  gap: 12px;
+}
+
+.quiz__reveal .datalist__row dt {
+  flex: none;
+  min-width: 4.5rem;
+}
+
+.quiz__reveal .datalist__row dd {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+/*
  * What the answer did to the schedule, at the top of the dock.
  *
  * It used to sit above the Next button in normal flow, which the sticky dock
@@ -2202,6 +2234,76 @@ code {
 }
 
 /*
+ * With one exception, and it is the state the whole card is worst in.
+ *
+ * After a miss the reveal is 196px of Character, Readings and Meaning above a
+ * 173px dock, and `flex: none` on both means neither yields: the shortfall goes
+ * past the bottom of the window instead. Measured at 412x915 with a 45%
+ * keyboard, which is the owner's phone: the field he is being asked to write in
+ * ended 26px below the fold and the Done button 82px below it, so the one
+ * screen the app asks you to act on was the one screen you had to go looking
+ * for. At 360px it was 139px and 195px.
+ *
+ * The dock cannot give — it is the field and the button, and both have a 44px
+ * floor. The prompt already gives everything it has: it is `flex: 1` from a
+ * zero basis, so it is the *first* thing squeezed and it measured 0px in this
+ * state, which is the question itself gone. That leaves the reveal, and the
+ * reveal is the right answer: it is reference material you read once, and after
+ * a miss on kanji writing its Readings and Meaning rows are a verbatim copy of
+ * the prompt directly above them. Scrolling three rows to see the third is a
+ * far smaller cost than a Done button nobody can reach.
+ *
+ * Only while the keyboard is up. With it down the card fits and this changes
+ * nothing.
+ */
+[data-keyboard='open'] .quiz__reveal {
+  flex: 0 1 auto;
+  overflow-y: auto;
+  /* A cut-off row should look cut off rather than like the last one. */
+  scroll-padding-block: 2px;
+  /*
+   * But never squeezed to a sliver.
+   *
+   * Left to shrink freely it went to 4px at 360px: a scrollable box too small
+   * to scroll, and a strip of half a letter that reads as a rendering fault
+   * rather than as something you can pull up. One row is the floor — enough to
+   * see that the box is a list and that there is more of it.
+   */
+  min-height: 2.6rem;
+
+  /*
+   * And the last row fades rather than being guillotined.
+   *
+   * A row cut off mid-x-height looks broken; the same row fading out reads as
+   * "there is more here". Only in this state, because this is the only state
+   * where the box is shorter than its contents.
+   */
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent);
+}
+
+/*
+ * And the prompt stands down once the answer is on the card.
+ *
+ * Not a saving so much as a duplicate removed: after a miss the reveal states
+ * the readings and the meaning, which is exactly what the prompt above it was
+ * asking with. Two copies of the same three lines, in a state that has 429px
+ * to spend at 360px wide.
+ *
+ * It was already invisible here — `flex: 1` from a zero basis makes the prompt
+ * the first thing squeezed, and it measured 0px in this state — so this takes
+ * nothing off the screen that was on it. What it takes back is the margin and
+ * the card gap around a box with nothing in it, and that is what pays for the
+ * floor above.
+ *
+ * `:has` so it applies only when there is a reveal to replace it. Before the
+ * answer is checked the prompt is the whole question and nothing may touch it.
+ */
+[data-keyboard='open'] .quiz__prompt:has(~ .quiz__reveal) {
+  display: none;
+}
+
+/*
  * A prompt with nowhere left to shrink scrolls, rather than spilling.
  *
  * `min-height: 0` above lets the box get smaller than its contents, which is
@@ -2247,4 +2349,72 @@ code {
  */
 .textinput {
   scroll-margin-block: 12px 16px;
+}
+
+/* Phones ------------------------------------------------------------------ */
+
+/*
+ * The same layout, at a size that fits in a hand.
+ *
+ * Every measurement in this file above was chosen at desktop width and then
+ * shipped unchanged to a 360px phone, which is where the app is actually used.
+ * Nothing was broken by it — `npm run ui` checks overflow, tap targets, type
+ * size and contrast, and all of them passed — because none of those is the
+ * complaint. The complaint is that a card of 20px padding, 16px gaps and 24px
+ * of air above it spends a third of a phone screen on space, and the parts that
+ * matter go below the fold: on the owner's 412px phone, after a miss, the field
+ * and the button were both behind the keyboard.
+ *
+ * So this trims the space between things and leaves the things alone. Type
+ * sizes that carry meaning do not move — the question stays as large as it was,
+ * the answer field keeps its 44px, the buttons keep theirs — and what goes is
+ * padding, gaps and margins, which are the only part of a layout a phone cannot
+ * afford. 430px rather than a round 400 covers every phone in wide use in
+ * portrait, including the 412px one this was measured on, and stops short of
+ * the narrowest tablet.
+ */
+@media (max-width: 430px) {
+  .screen {
+    padding: max(10px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom));
+  }
+
+  .content {
+    gap: 12px;
+    padding-top: 12px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .quiz {
+    gap: 12px;
+  }
+
+  .quiz__prompt {
+    margin: 4px 0 12px;
+  }
+
+  /*
+   * Rows of reference, not of reading. Three of them stack up directly above
+   * the thing you have to press, and at 10px of padding each they cost more
+   * than the border between them is worth.
+   */
+  .datalist__row {
+    padding: 7px 0;
+    font-size: 0.85rem;
+  }
+
+  /*
+   * The answer, in a plate that was 72px tall to hold one character.
+   *
+   * Its own 16px margins are on top of the card's 12px gap — the card sets one
+   * rhythm for its pieces and this piece predates that, so on a phone the
+   * spacing above and below it was 28px of a 429px window. The character keeps
+   * its size; the room around it does not.
+   */
+  .verdict {
+    margin: 4px 0;
+    padding: 12px 14px;
+  }
 }
