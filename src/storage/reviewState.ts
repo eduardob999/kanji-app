@@ -123,12 +123,27 @@ export interface ReviewSnapshot {
   byMode: Map<ReviewMode, Map<string, ItemReviewState>>;
   fromCache: boolean;
   hasPendingWrites: boolean;
+  /**
+   * True once this came from the live listener rather than the bootstrap read.
+   *
+   * The bootstrap below answers from the local cache and answers *empty* when
+   * that cache is cold — which is indistinguishable, to anything reading a
+   * lookup, from an account that has never reviewed anything. Displaying an
+   * empty snapshot for a moment is harmless. Planning a session against one is
+   * not: every item reads as unseen, so the round comes out as the first few
+   * words of N5 however much has been learned. Whoever cares about that
+   * difference needs to be able to see it, and `fromCache` cannot show it —
+   * the listener's own snapshots are `fromCache` too whenever the device is
+   * offline, which is precisely when they are most trustworthy.
+   */
+  live: boolean;
 }
 
 export const EMPTY_SNAPSHOT: ReviewSnapshot = {
   byMode: new Map(),
   fromCache: true,
   hasPendingWrites: false,
+  live: false,
 };
 
 export function lookupReview(
@@ -196,7 +211,12 @@ export function subscribeReviewStates(
   void getDocsFromCache(reviews)
     .then((cached) => {
       if (livePublished) return;
-      onChange({ byMode: readBuckets(cached.docs), fromCache: true, hasPendingWrites: false });
+      onChange({
+        byMode: readBuckets(cached.docs),
+        fromCache: true,
+        hasPendingWrites: false,
+        live: false,
+      });
     })
     .catch(() => {
       if (!livePublished) onChange(EMPTY_SNAPSHOT);
@@ -211,6 +231,7 @@ export function subscribeReviewStates(
         byMode: readBuckets(snapshot.docs),
         fromCache: snapshot.metadata.fromCache,
         hasPendingWrites: snapshot.metadata.hasPendingWrites,
+        live: true,
       });
     },
     (error) => {

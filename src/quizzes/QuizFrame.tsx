@@ -124,7 +124,7 @@ export function QuizFrame({
   onFinished,
   renderFinished,
 }: QuizFrameProps) {
-  const { lookup, error: reviewError } = useReviewStates(user);
+  const { lookup, ready: statesReady, error: reviewError } = useReviewStates(user);
   const { profile } = useUserProfile(user);
   const inputMethod = profile?.kanjiba.inputMethod ?? DEFAULT_INPUT_METHOD;
   const adaptive = profile?.kanjiba.adaptive ?? EMPTY_MODEL;
@@ -172,6 +172,25 @@ export function QuizFrame({
   const helped = useRef(false);
 
   useEffect(() => {
+    /*
+     * Nothing is planned until the schedule can be trusted.
+     *
+     * `lookup` answers null for every item until the review state is in, and
+     * null is precisely what the planner reads as "never seen" — so a round
+     * planned a moment too early is the first few words of N5, in order,
+     * however many of them were answered yesterday. The decks are cached after
+     * the first visit, so from the second one on the load wins that race every
+     * time and the mode opens on 私 for good.
+     *
+     * `ready` rather than `!loading` because the first snapshot can be the
+     * bootstrap cache read, which is empty on a cold cache and says nothing
+     * about what has been studied. See `useReviewStates`.
+     */
+    if (!statesReady) {
+      setStatus('loading');
+      return;
+    }
+
     let live = true;
     setStatus('loading');
     setMessage(null);
@@ -211,7 +230,7 @@ export function QuizFrame({
     // Bumping `round` is what restarts the session. `lookup` is deliberately
     // absent: it changes on every snapshot, and is read through the ref so a
     // landing write cannot reshuffle the queue mid-session.
-  }, [buildQueue, loadQuiz, onPlanned, round]);
+  }, [buildQueue, loadQuiz, onPlanned, round, statesReady]);
 
   const question = queue[index];
   // Every per-question behaviour — how it is prompted, marked and timed —

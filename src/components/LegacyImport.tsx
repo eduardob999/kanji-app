@@ -68,7 +68,7 @@ function seedUrl(): string {
 }
 
 export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void }) {
-  const { lookup, loading: statesLoading } = useReviewStates(user);
+  const { lookup, ready: statesReady } = useReviewStates(user);
   const [status, setStatus] = useState<Status>('loading');
   const [message, setMessage] = useState<string | null>(null);
   const [seed, setSeed] = useState<LegacySeedFile | null>(null);
@@ -165,7 +165,7 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
   const alreadyHave = (seed?.entries.length ?? 0) - count;
 
   // Nothing left to do, and nothing worth saying about it.
-  if (status === 'idle' && !statesLoading && seed && count === 0) return null;
+  if (status === 'idle' && statesReady && seed && count === 0) return null;
 
   return (
     <div className="field">
@@ -200,7 +200,11 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
         type="button"
         className="button button--primary button--block"
         onClick={() => void run()}
-        disabled={status === 'working' || status === 'loading' || count === 0}
+        // Not before the review state is in: the filter that protects real
+        // answers from being seeded over reads an empty lookup as "nothing has
+        // been answered", and the seed is a guess that must never replace a
+        // measurement.
+        disabled={status === 'working' || status === 'loading' || !statesReady || count === 0}
       >
         {status === 'working' ? 'Importing…' : 'Import my old scores'}
       </button>

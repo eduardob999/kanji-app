@@ -54,7 +54,7 @@ const WITHOUT_VOICE: readonly QuizMode[] = ['vocab-reading', 'kanji-writing', 'f
 
 export function PracticePanel({ user, silent = false }: { user: User; silent?: boolean }) {
   const { voice, checking } = useJapaneseVoice();
-  const { lookup, loading: statesLoading } = useReviewStates(user);
+  const { lookup, ready: statesReady } = useReviewStates(user);
   const { profile } = useUserProfile(user);
 
   // Silence is a choice about the room, no voice is a fact about the device,
@@ -200,7 +200,9 @@ export function PracticePanel({ user, silent = false }: { user: User; silent?: b
   // The summary. Loads the same source the session will use: everything caches,
   // so starting costs nothing more.
   useEffect(() => {
-    if (checking || statesLoading || started) return;
+    // `ready`, not merely loaded: counting against a cold cache reports a
+    // full backlog as an empty one. See `useReviewStates`.
+    if (checking || !statesReady || started) return;
 
     let live = true;
 
@@ -248,7 +250,7 @@ export function PracticePanel({ user, silent = false }: { user: User; silent?: b
     };
     // `lookup` changes on every snapshot; the count is a snapshot of when the
     // screen opened and should not flicker as writes land.
-  }, [attempt, checking, statesLoading, started, modes, speaking, user.uid]);
+  }, [attempt, checking, statesReady, started, modes, speaking, user.uid]);
 
   const renderFinished = ({
     offered,
