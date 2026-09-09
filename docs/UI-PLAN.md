@@ -175,9 +175,15 @@ looks wrong is still wrong, which is why the screenshots stay in the loop.
 *Opened 2026-09-09, at the owner's request, after a run of phone-layout fixes
 that each solved the screen in front of them and left the general case open.*
 
-- [ ] **The UI is nothing but small elements that fit easily on any screen —
+- [x] **The UI is nothing but small elements that fit easily on any screen —
       the smallest phones included — and it is easy to use, interactive, and
       asks for little or no scrolling.**
+      *Measured green on 2026-09-09: `npm run ui` reports zero failing
+      combinations across six viewports (320, 360, 390, 412, 768, 1280), with
+      the fold rule on every screen that is operated rather than read, both
+      keyboard behaviours at 55%, and the longest question in the corpus in
+      place of the fixture's. What it took is listed at the bottom of this
+      section.*
 
 An item worded that way is a feeling, and a feeling cannot be finished. These
 are the measurements standing in for it, all of them in `npm run ui` so the
@@ -203,3 +209,38 @@ here with the number that makes it impossible.
 Done means `npm run ui` reports zero failing combinations with all of the above
 switched on, and the screenshots in `.ui/` show screens that look composed
 rather than merely compliant.
+
+### What it took
+
+Twenty-three failing combinations at the start, all but five of them at 320px.
+In the order they were paid off:
+
+1. **The harness was wrong about sign-in.** It wrapped a screen that renders its
+   own `<main class="screen">` in the shell — a 100dvh screen nested inside
+   another one, 173px over at every width, on a screen that has no problem. A
+   harness harder on a layout than the app is not testing the app.
+2. **Two explanations were taller than the things they explained.** The legacy
+   import was 120 words and a second primary button under Start, 367px of a
+   640px phone; the input-method screen carried three paragraphs about
+   downloads and speed tracking. Both are folded into `<details>` now: worth
+   reading once, not worth a screenful every visit.
+3. **A quiz is a screen, not a document.** The keyboard rules already fixed the
+   card's height and let the prompt and the reveal give way; with the keyboard
+   down none of it applied, so the verdict state scrolled. `:has(.quiz)` says
+   the same thing whether or not anyone is typing. That one change closed seven
+   of the nine remaining failures.
+4. **Chrome stands down while you type.** The tab bar already did. The top bar
+   did not, and at 320px with a 55% keyboard it was 61px of a 288px window,
+   which left the question itself 45px. Hiding it is what let the longest kanji
+   in the corpus — eleven readings and a 121-character meaning — fit above the
+   keyboard on the smallest phone, at 18px rather than at the floor.
+5. **Small things that were only small on a small screen.** A duplicate `h1` on
+   the practice card that the top bar directly above it already said; a licence
+   line under the drawing pad on every question, when `About` and `LICENSES.md`
+   already carry it; `1fr` grid tracks that could not shrink below their own
+   nowrap labels and pushed the handwriting card 5px sideways.
+
+The keyboard simulation moved from 45% to 55% of the window as part of this.
+45% is the comfortable case, and it was passing while the owner — whose
+keyboard is taller — was scrolling to reach the field he was being asked to
+type into.

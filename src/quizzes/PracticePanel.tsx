@@ -289,8 +289,14 @@ export function PracticePanel({ user, silent = false }: { user: User; silent?: b
   }
 
   return (
-    <section className="card">
-      <h1 className="card__title">{silent ? 'Practice (silent)' : 'Practice'}</h1>
+    <section className="card" aria-label={silent ? 'Practice (silent)' : 'Practice'}>
+      {/*
+        No heading here. The shell's top bar is directly above this card and
+        already says "Practice", or "Practice (silent)", as the page's `h1` —
+        so this was the same words twice, a second `h1` for the same thing, and
+        35px of a 320px phone on the screen the app opens on. The label keeps
+        the card named for anything reading the page rather than looking at it.
+      */}
 
       {error ? (
         <>

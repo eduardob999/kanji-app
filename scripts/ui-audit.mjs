@@ -58,8 +58,17 @@ const EXECUTABLE = resolve(
  * existed at all. 360 now covers light and 390 dark.
  */
 const VIEWPORTS = [
+  /*
+   * The smallest phone anyone is still using, and the one this file had never
+   * looked at. 320x640 is a Galaxy A-series in display-zoom, an iPhone SE 1st
+   * generation, and the width every "even the smallest phones" claim has to
+   * survive. It finds what 360 does not.
+   */
+  { name: 'phone-320-dark', width: 320, height: 640, scheme: 'dark' },
   { name: 'phone-360-light', width: 360, height: 780, scheme: 'light' },
   { name: 'phone-390-dark', width: 390, height: 844, scheme: 'dark' },
+  /* The owner's own phone, and the width every report so far has come from. */
+  { name: 'phone-412-light', width: 412, height: 915, scheme: 'light' },
   { name: 'tablet-768-dark', width: 768, height: 1024, scheme: 'dark' },
   { name: 'desktop-1280-light', width: 1280, height: 900, scheme: 'light' },
 ];
@@ -180,9 +189,14 @@ const deadDecks = {
  * over a 464px window with the dock riding over the question. This file passed
  * the whole time.
  *
- * 45% of the viewport is a middling Android keyboard; iOS is a little less.
+ * 55% of the viewport, which is a tall Android keyboard — Gboard with its
+ * suggestion strip on a short screen — rather than a middling one. This was
+ * 45%, and 45% is the comfortable case: it passed while the owner, whose
+ * keyboard is taller than that, was scrolling to reach the field he was being
+ * asked to type into. The harness should sit at the hard end of what people
+ * actually have, not the middle.
  */
-const KEYBOARD_FRACTION = 0.45;
+const KEYBOARD_FRACTION = 0.55;
 
 /**
  * Everything that has to hold with a keyboard up, whichever kind it is.
@@ -578,6 +592,48 @@ const STATES = {
 const MIN_TAP = 44;
 const MIN_FONT = 12;
 
+/**
+ * Screens that have to fit the window with nothing below the fold.
+ *
+ * The ones where something is *done*: a question is asked and answered, a round
+ * is started, a setting is chosen. Scrolling to reach the thing you came to
+ * press is the failure this list exists to prevent, and on those screens it is
+ * always avoidable — there is a fixed amount to show and it is small.
+ *
+ * Everything else is exempt, and the exemptions are the point of naming them
+ * rather than leaving the rule vague:
+ *
+ *   browse      a list of 9,445 items. A list is scrolled; that is what it is.
+ *   progress    a report: streak, eight level bars, the sticking points.
+ *   scheduler   a report with a calibration curve and its explanation.
+ *   account     settings, the sync badge, the licences.
+ *   about       prose.
+ *
+ * Those five are read, not operated, and forcing them into a window would mean
+ * hiding what someone came to read. What is *not* exempt on them is everything
+ * else in this file: nothing may overflow sideways, be too small to hit, or sit
+ * under the tab bar.
+ */
+const MUST_FIT = new Set([
+  'practice',
+  'practice-silent',
+  'practice-empty',
+  'practice-ahead',
+  'summary',
+  'reading',
+  'writing',
+  'fill',
+  'audio',
+  'reading-empty',
+  'fill-empty',
+  'audio-empty',
+  'handwriting',
+  'choice',
+  'input',
+  'signin',
+  'sync',
+]);
+
 /** Runs inside the page: everything that needs layout to have happened. */
 function inspect(minTap, minFont) {
   const doc = document.documentElement;
@@ -745,6 +801,9 @@ function inspect(minTap, minFont) {
   return {
     viewport,
     scrollWidth: doc.scrollWidth,
+    // What is below the fold, for the screens that may not have anything there.
+    scrollHeight: doc.scrollHeight,
+    window: window.innerHeight,
     overflowing: overflowing.slice(0, 8),
     occluded: occluded.slice(0, 4),
     smallTaps: smallTaps.slice(0, 8),
@@ -921,6 +980,17 @@ for (const viewport of VIEWPORTS) {
     const issues = [];
     if (result.scrollWidth > result.viewport + 1) {
       issues.push(`overflows by ${result.scrollWidth - result.viewport}px`);
+    }
+    /*
+     * Below the fold, on a screen that is operated rather than read.
+     *
+     * Only in the resting state: the keyboard states have their own rules in
+     * `keyboardChecks`, which know that a keyboard changes what "the fold"
+     * means and that one state is allowed to scroll.
+     */
+    if (MUST_FIT.has(screen) && !state?.name?.startsWith('keyboard')) {
+      const below = result.scrollHeight - result.window;
+      if (below > 1) issues.push(`${below}px below the fold on a screen that should fit`);
     }
     if (result.overflowing.length) {
       issues.push(`${result.overflowing.length} element(s) past the edge: ` +

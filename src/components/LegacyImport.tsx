@@ -169,45 +169,54 @@ export function LegacyImport({ user, onDone }: { user: User; onDone?: () => void
 
   return (
     <div className="field">
-      <p className="card__body">
-        Bring across what the old command-line app knew.{' '}
-        {count > 0 ? (
-          <>
-            <strong>{count.toLocaleString()} items</strong> from its records are not here yet.
-            {alreadyHave > 0
-              ? ` ${alreadyHave.toLocaleString()} already are, and will be left exactly as they are.`
-              : ' The rest of that file was its way of writing down a word’s JLPT level, which is not evidence of anything.'}
-          </>
-        ) : (
-          'Reading the export…'
-        )}
-      </p>
-      <p className="card__hint">
-        They start with a small amount of remembered strength and come back for checking at about{' '}
-        {count > 0 ? perDay(count) : '—'} a day{count > 0 ? `, ${overHowLong(intakeDaysFor(count))}` : ''},
-        weakest evidence first. Everything else starts unseen, in level order. Nothing is invented
-        for words you were never tested on, and the first real answer replaces the guess with
-        something measured.
-      </p>
+      {/*
+        The whole offer, folded into one row.
 
-      {status === 'error' ? (
-        <p className="notice notice--error" role="alert">
-          {message}
+        This is a one-off action sitting under the Start button on the screen
+        the app opens on, and it was 120 words and a second primary button
+        there — 367px of a 640px phone, which is what put Start itself below the
+        fold on a new account. Folded, it is one labelled row carrying the
+        number that makes the offer worth taking, and everything else — what it
+        does, what it will not touch, and the button that does it — is one tap
+        away on the one day anybody wants it.
+      */}
+      <details className="disclosure">
+        <summary className="disclosure__summary">
+          {count > 0
+            ? `Import ${count.toLocaleString()} scores from the old app`
+            : 'Reading the old app’s export…'}
+        </summary>
+
+        <p className="card__hint disclosure__body">
+          {alreadyHave > 0
+            ? `${alreadyHave.toLocaleString()} of its records are already here and will be left exactly as they are. `
+            : 'The rest of that file was its way of writing down a word’s JLPT level, which is not evidence of anything. '}
+          Imported items start with a small amount of remembered strength and come back for
+          checking at about {count > 0 ? perDay(count) : '—'} a day
+          {count > 0 ? `, ${overHowLong(intakeDaysFor(count))}` : ''}, weakest evidence first.
+          Everything else starts unseen, in level order. Nothing is invented for words you were
+          never tested on, and the first real answer replaces the guess with something measured.
         </p>
-      ) : null}
 
-      <button
-        type="button"
-        className="button button--primary button--block"
-        onClick={() => void run()}
-        // Not before the review state is in: the filter that protects real
-        // answers from being seeded over reads an empty lookup as "nothing has
-        // been answered", and the seed is a guess that must never replace a
-        // measurement.
-        disabled={status === 'working' || status === 'loading' || !statesReady || count === 0}
-      >
-        {status === 'working' ? 'Importing…' : 'Import my old scores'}
-      </button>
+        {status === 'error' ? (
+          <p className="notice notice--error" role="alert">
+            {message}
+          </p>
+        ) : null}
+
+        <button
+          type="button"
+          className="button button--primary button--block"
+          onClick={() => void run()}
+          // Not before the review state is in: the filter that protects real
+          // answers from being seeded over reads an empty lookup as "nothing
+          // has been answered", and the seed is a guess that must never replace
+          // a measurement.
+          disabled={status === 'working' || status === 'loading' || !statesReady || count === 0}
+        >
+          {status === 'working' ? 'Importing…' : 'Import my old scores'}
+        </button>
+      </details>
     </div>
   );
 }

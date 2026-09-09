@@ -311,11 +311,15 @@ export function HandwritingInput({ value, onChange, onSubmit, disabled }: Answer
         </button>
       </div>
 
-      {/* Required by the MIT terms these patterns ship under. */}
-      <p className="handwriting__credit">
-        Recognition by <a href="https://github.com/asdfjkl/kanjicanvas">Kanji Canvas</a> (MIT), from{' '}
-        <a href="https://kanjivg.tagaini.net/">KanjiVG</a> (CC BY-SA 3.0).
-      </p>
+      {/*
+        The Kanji Canvas and KanjiVG attribution used to sit here, two lines
+        under the pad, on every question. It is an obligation and it is still
+        met — `Tools → About` names both with their links and their terms, and
+        `LICENSES.md` ships with the source — but the obligation is to
+        attribute, not to attribute on every screen. Two lines of licence under
+        the drawing pad is 34px of a 640px phone, on the one screen with the
+        least room to spare, and it was helping push Check under the tab bar.
+      */}
     </div>
   );
 }

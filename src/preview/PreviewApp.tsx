@@ -125,6 +125,9 @@ const SCREENS = {
 
 type ScreenKey = keyof typeof SCREENS;
 
+/** Screens the app shows without the shell around them. */
+const BARE = new Set<ScreenKey>(['signin']);
+
 function screenFromHash(): ScreenKey | null {
   const raw = window.location.hash.replace(/^#\/preview\/?/, '').trim();
   // `practice-empty` is `practice` rendered against a brand-new account and
@@ -172,6 +175,22 @@ export function PreviewApp() {
   }
 
   const [, render] = SCREENS[screen];
+
+  /*
+   * Screens that are their own screen.
+   *
+   * Sign-in renders `<main class="screen screen--centred">` itself, because in
+   * the app it *is* the whole page: there is no shell before you are signed in,
+   * no tab bar, no header. Wrapping it in the shell here nests a 100dvh screen
+   * inside another one, under a header, above a tab bar — a page 173px taller
+   * than the window at every width, which the audit then reported as a layout
+   * failure on a screen that has none.
+   *
+   * The harness must be exactly as hard on a layout as the app is. This file
+   * already carries that lesson once, about a header chip that wrapped: "a
+   * harness that is harder on the layout than the app is not testing the app".
+   */
+  if (BARE.has(screen)) return render();
 
   // The same shell chrome the real app puts around a panel, so what is
   // screenshotted includes the padding and the tab bar that a panel actually

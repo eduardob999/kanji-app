@@ -28,8 +28,7 @@ export function InputMethodPanel({ user }: { user: User }) {
     <section className="card">
       <h1 className="card__title">Input method</h1>
       <p className="card__body">
-        Japanese input is the one thing that cannot be assumed about a device, so it is a choice
-        rather than a guess.
+        Japanese input cannot be assumed about a device, so it is a choice rather than a guess.
       </p>
 
       <fieldset className="field" disabled={loading}>
@@ -57,16 +56,25 @@ export function InputMethodPanel({ user }: { user: User }) {
         <p className="card__hint">{describeInputMethod(current)}</p>
       </fieldset>
 
-      <p className="card__hint">
-        Handwriting downloads about 1.5 MB of stroke patterns the first time you use it, then works
-        offline. It covers 2,006 of this app’s 2,211 kanji and all kana; the 205 it does not know
-        are mostly rare name characters, and there is a “type it instead” button for those.
-      </p>
-
-      <p className="card__hint">
-        Your answering speed is tracked separately for each method, so switching does not confuse
-        the scheduler about how well you know something — see <strong>Tools → Scheduler</strong>.
-      </p>
+      {/*
+        Two paragraphs that answer questions nobody has on the way past.
+        *
+        Folded because they are worth reading once — before choosing
+        handwriting, before worrying that switching method will confuse the
+        scheduler — and cost 150px of a 640px phone on every visit after that.
+      */}
+      <details className="disclosure">
+        <summary className="disclosure__summary">What each method costs</summary>
+        <p className="card__hint disclosure__body">
+          Handwriting downloads about 1.5 MB of stroke patterns the first time you use it, then
+          works offline. It covers 2,006 of this app’s 2,211 kanji and all kana; the 205 it does not
+          know are mostly rare name characters, and there is a “type it instead” button for those.
+        </p>
+        <p className="card__hint">
+          Your answering speed is tracked separately for each method, so switching does not confuse
+          the scheduler about how well you know something — see <strong>Tools → Scheduler</strong>.
+        </p>
+      </details>
     </section>
   );
 }

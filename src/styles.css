@@ -133,6 +133,24 @@
 }
 
 /*
+ * And so does the top bar, for the same reason and with the same argument.
+ *
+ * It says which screen you are on and whether anything is still saving. Both
+ * are worth a glance between questions; neither is worth 61px of a 288px window
+ * while you are typing into the question. That window is not hypothetical: a
+ * 320px phone with a keyboard covering 55% of it leaves the quiz card 288px,
+ * of which the bar and its rule took a fifth, and the prompt — the question
+ * itself — was left with 45px.
+ *
+ * It comes back the moment the keyboard closes, like the tab bar. Nothing in it
+ * is an action that could be needed mid-answer: the way out of a quiz is in the
+ * dock, beside Check.
+ */
+[data-keyboard='open'] .topbar {
+  display: none;
+}
+
+/*
  * With the keyboard up, the window is not a floor to grow from. It is the whole
  * budget, and whatever does not fit inside it is not somewhere else on the
  * page: it is behind the keyboard.
@@ -163,7 +181,66 @@
   padding-top: 8px;
 }
 
+/*
+ * The last of the frame, on the smallest screens, while typing.
+ *
+ * Four pixels here and four there is not usually worth writing a rule for. At
+ * 320x288 it is: the prompt had 45px, and everything on this list is room the
+ * question does not have.
+ */
+@media (max-width: 360px) {
+  [data-keyboard='open'] .screen {
+    padding-left: 8px;
+    padding-right: 8px;
+    padding-top: 4px;
+  }
+
+  [data-keyboard='open'] .content {
+    padding-top: 4px;
+  }
+
+  [data-keyboard='open'] .card {
+    padding: 8px 10px;
+  }
+
+  [data-keyboard='open'] .quiz {
+    gap: 8px;
+  }
+}
+
 [data-keyboard='open'] .content > * {
+  min-height: 0;
+}
+
+/*
+ * A quiz is a screen, not a document.
+ *
+ * The keyboard rules below already say this for the case where a keyboard is
+ * up: fix the height, let the flex column distribute the shortfall, and the
+ * prompt and the reveal give way so the dock stays reachable. With the keyboard
+ * *down* none of it applied, so the same card that fits above an on-screen
+ * keyboard scrolled without one — the verdict state was 133px past the bottom
+ * of a 320px phone, and the answer to "where is Next" was "further down".
+ *
+ * Everything needed was already built. This is only saying that a card holding
+ * a question is height-bound whether or not someone is typing into it.
+ *
+ * Scoped with `:has(.quiz)` rather than applied to every screen, because most
+ * screens are documents and should scroll: a list of 9,445 words, a progress
+ * report, the licences. See `MUST_FIT` in `scripts/ui-audit.mjs` for the same
+ * distinction, written as a test.
+ */
+.screen:has(.quiz) {
+  height: calc(100dvh - var(--keyboard-inset));
+}
+
+.screen:has(.quiz) .content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.screen:has(.quiz) .content > * {
   min-height: 0;
 }
 
@@ -1213,8 +1290,18 @@ code {
 .quiz__gloss {
   margin: 0;
   color: var(--text-muted);
-  /* Floored at 13px: `npm run ui` calls anything under 12px unreadable. */
-  font-size: max(0.8125rem, calc(1rem * var(--fit, 1)));
+  /*
+   * Floored at 12.5px, which is as low as the audit's readability rule allows
+   * and lower than this started.
+   *
+   * The floor only ever binds in the case that is already desperate: 320px
+   * wide, a keyboard over half the screen, and one of the dozen longest
+   * questions in the corpus. There the choice is not between 13px and 16px, it
+   * is between 12.5px and a meaning below the bottom of the box — and a
+   * question you can read close up beats a question you have to scroll to.
+   * Everywhere else the fit never reaches this.
+   */
+  font-size: max(0.78125rem, calc(1rem * var(--fit, 1)));
   line-height: max(1.25, calc(1.5 * var(--fit, 1)));
   overflow-wrap: anywhere;
 }
@@ -1629,7 +1716,7 @@ code {
  */
 .quiz__readings {
   margin: 0 0 10px;
-  font-size: max(1rem, calc(clamp(1.5rem, 8vw, 2.25rem) * var(--fit, 1)));
+  font-size: max(0.8125rem, calc(clamp(1.5rem, 8vw, 2.25rem) * var(--fit, 1)));
   /*
    * Leading closes up as the type shrinks, rather than staying generous around
    * text that is already fighting for room. Floored at 1.1, which is as tight
@@ -1818,7 +1905,14 @@ code {
  */
 .handwriting__actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /*
+   * `minmax(0, 1fr)` rather than `1fr`: a grid track's automatic minimum is its
+   * content, and the content here is three labels told never to wrap, so at
+   * 320px the row simply grew wider than the card and took the dock with it —
+   * five pixels of horizontal overflow on the screen that can least afford to
+   * be dragged sideways. The tracks may now be narrower than their text.
+   */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   width: 100%;
 }
@@ -1827,17 +1921,6 @@ code {
   padding: 10px 4px;
   font-size: 0.8rem;
   white-space: nowrap;
-}
-
-.handwriting__credit {
-  margin: 4px 0 0;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.handwriting__credit a {
-  color: var(--accent-soft);
 }
 
 /* Progress ---------------------------------------------------------------- */
@@ -2435,5 +2518,164 @@ code {
   .verdict {
     margin: 4px 0;
     padding: 12px 14px;
+  }
+}
+
+/*
+ * And a second step for the smallest screens still in use.
+ *
+ * 320x640 is 44% less screen than the 390x844 most of this was designed
+ * against, and the difference is not spread evenly: the fixed parts — a 44px
+ * button, a 48px field, a 79px tab bar — cost the same on both, so what a
+ * smaller screen loses is almost entirely the room around them. Below 360 the
+ * spacing therefore goes to the minimum that still reads as spacing.
+ */
+@media (max-width: 360px) {
+  .screen {
+    padding: max(8px, env(safe-area-inset-top)) 10px max(8px, env(safe-area-inset-bottom));
+  }
+
+  .content {
+    gap: 10px;
+    padding-top: 8px;
+  }
+
+  .card {
+    padding: 12px;
+  }
+
+  .quiz {
+    gap: 10px;
+  }
+
+  .datalist__row {
+    padding: 5px 0;
+  }
+
+  .verdict {
+    margin: 2px 0;
+    padding: 10px 12px;
+  }
+
+  /*
+   * A notice keeps its colour and gives up its box.
+   *
+   * The border, the wash and 20px of vertical padding are what make a notice
+   * read as a notice on a screen with room around it. At 320 the colour does
+   * that job on its own — the pacing note is the only coloured text on the
+   * screen — and the box costs 26px on the screen the app opens on.
+   *
+   * Errors and confirmations keep theirs: they interrupt, and interrupting is
+   * exactly what the box is for.
+   */
+  .notice--muted,
+  .notice--warn {
+    margin-bottom: 10px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .card__body {
+    margin-bottom: 10px;
+  }
+
+  /*
+   * The counts, which are a glance rather than a headline.
+   *
+   * 2.25rem of "5,277" and "5,778" side by side is most of the width of a
+   * 320px screen spent on two numbers you read once before pressing Start.
+   */
+  .tally {
+    gap: 20px;
+    margin: 4px 0 12px;
+  }
+
+  .tally__number {
+    font-size: 1.75rem;
+  }
+
+  /* The drawing pad keeps its shape; what shrinks is the frame around it. */
+  .handwriting {
+    gap: 8px;
+  }
+
+  .handwriting__answer {
+    min-height: 48px;
+  }
+
+  .handwriting__candidates {
+    min-height: 46px;
+  }
+
+  .handwriting__actions .button {
+    padding: 10px 2px;
+    font-size: 0.75rem;
+  }
+}
+
+/* Disclosures ------------------------------------------------------------- */
+
+/*
+ * A paragraph of reasoning, folded away until it is wanted.
+ *
+ * The app explains itself, which is right, and on a phone the explanation is
+ * often taller than the thing being explained — the legacy import was 120 words
+ * and a button under the Start button, and on a 320px screen Start was below
+ * the fold because of it. Folding is better than cutting: the argument is still
+ * there for the one time anybody wants it, and it costs a line the rest of the
+ * time.
+ *
+ * `<details>` rather than state in React: it is a native disclosure, keyboard
+ * and screen-reader behaviour included, and it works before hydration.
+ */
+.disclosure {
+  margin: 0;
+}
+
+.disclosure__summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* The 44px floor, met by padding rather than by a height that would look odd
+     around one line of text. */
+  min-height: 44px;
+  color: var(--accent-soft);
+  font-size: 0.85rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+/* Safari draws its own triangle through `::-webkit-details-marker`. */
+.disclosure__summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure__summary::before {
+  content: '›';
+  display: inline-block;
+  transition: transform 0.12s ease;
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+.disclosure[open] > .disclosure__summary::before {
+  transform: rotate(90deg);
+}
+
+.disclosure__summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.disclosure__body {
+  margin-top: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disclosure__summary::before {
+    transition: none;
   }
 }
