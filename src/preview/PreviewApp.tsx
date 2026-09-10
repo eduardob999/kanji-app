@@ -4,6 +4,8 @@ import { AccountPanel } from '../components/AccountPanel';
 import { BrowsePanel } from '../components/BrowsePanel';
 import { InputMethodPanel } from '../components/InputMethodPanel';
 import { ProgressPanel } from '../components/ProgressPanel';
+import { useAccent } from '../hooks/useAccent';
+import { AppearancePanel } from '../components/AppearancePanel';
 import { SchedulerPanel } from '../components/SchedulerPanel';
 import { SoundPanel } from '../components/SoundPanel';
 import { SignInScreen } from '../components/SignInScreen';
@@ -117,6 +119,7 @@ const SCREENS = {
   progress: ['Progress', () => <ProgressPanel user={previewUser} />],
   scheduler: ['Scheduler', () => <SchedulerPanel user={previewUser} />],
   input: ['Input method', () => <InputMethodPanel user={previewUser} />],
+  appearance: ['Appearance', () => <AppearancePanel user={previewUser} />],
   sound: ['Sound', () => <SoundPanel user={previewUser} />],
   account: ['Account', () => <AccountPanel user={previewUser} />],
   about: ['About', () => <AboutPanel />],
@@ -142,6 +145,10 @@ function screenFromHash(): ScreenKey | null {
 
 export function PreviewApp() {
   const [screen, setScreen] = useState<ScreenKey | null>(screenFromHash);
+  // The harness paints itself the same way the app does — at the default hue,
+  // so a screenshot is of the app's own blue arriving through the same path the
+  // learner's choice will.
+  useAccent(undefined);
 
   useEffect(() => {
     const onHash = () => setScreen(screenFromHash());

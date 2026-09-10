@@ -3,6 +3,7 @@ import type { User } from 'firebase/auth';
 import { ensureUserProfile, subscribeToUserProfile } from '../storage/userState';
 import type { ProfileSnapshot } from '../types';
 import { describeFailure } from '../domain/failure';
+import { isPreview, previewProfile } from '../preview/fixtures';
 
 export interface UserProfileState extends ProfileSnapshot {
   loading: boolean;
@@ -27,7 +28,33 @@ const INITIAL: UserProfileState = {
 export function useUserProfile(user: User): UserProfileState {
   const [state, setState] = useState<UserProfileState>(INITIAL);
 
+  /*
+   * The preview harness has no Firestore, so this subscription never settles
+   * and `loading` stays true for ever — which every profile-driven control
+   * reads as "not ready yet" and renders itself disabled. The input-method
+   * chooser, the sound switch and the accent picker were all being
+   * screenshotted in a state no learner will ever see, and could not be driven
+   * by the audit at all.
+   *
+   * The same treatment `useReviewStates` already gives the harness, and for the
+   * same reason: a screen that cannot be interacted with cannot be checked.
+   * `import.meta.env.DEV` is a compile-time constant, so none of this exists in
+   * a production build.
+   */
+  const previewing = import.meta.env.DEV && isPreview();
+
   useEffect(() => {
+    if (previewing) {
+      setState({
+        profile: previewProfile,
+        fromCache: false,
+        hasPendingWrites: false,
+        loading: false,
+        error: null,
+      });
+      return;
+    }
+
     setState(INITIAL);
 
     ensureUserProfile(user).catch((error: unknown) => {
@@ -49,7 +76,7 @@ export function useUserProfile(user: User): UserProfileState {
     );
 
     return unsubscribe;
-  }, [user]);
+  }, [previewing, user]);
 
   return state;
 }

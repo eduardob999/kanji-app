@@ -12,6 +12,7 @@ import {
 import type { User } from 'firebase/auth';
 import { db } from '../firebase';
 import { isInputMethod } from '../domain/inputMethod';
+import { isHue } from '../domain/theme';
 import { toAdaptiveModel } from './modelState';
 import type { InputMethod } from '../domain/inputMethod';
 import type { KanjibaProfile, ProfileSnapshot, SessionRecord, UserProfile } from '../types';
@@ -86,6 +87,7 @@ function toUserProfile(uid: string, data: DocumentData | undefined): UserProfile
     kanjiba: {
       ...(isInputMethod(kanjiba['inputMethod']) ? { inputMethod: kanjiba['inputMethod'] } : {}),
       ...(typeof kanjiba['sounds'] === 'boolean' ? { sounds: kanjiba['sounds'] as boolean } : {}),
+      ...(isHue(kanjiba['accentHue']) ? { accentHue: kanjiba['accentHue'] } : {}),
       legacyScoresImportedAt: (kanjiba['legacyScoresImportedAt'] ?? null) as Timestamp | null,
       lastOpenedAt: (kanjiba['lastOpenedAt'] ?? null) as Timestamp | null,
       adaptive: toAdaptiveModel(kanjiba),
@@ -202,6 +204,11 @@ export async function setInputMethod(uid: string, inputMethod: InputMethod): Pro
 /** Turns the answer cues on or off. Same treatment: not awaited, cache-first. */
 export async function setSounds(uid: string, sounds: boolean): Promise<void> {
   await updateKanjibaProfile(uid, { sounds });
+}
+
+/** Sets the accent hue, in degrees. */
+export async function setAccentHue(uid: string, accentHue: number): Promise<void> {
+  await updateKanjibaProfile(uid, { accentHue });
 }
 
 /**

@@ -26,6 +26,7 @@ export type ScreenId =
   | 'browse'
   | 'progress'
   | 'input'
+  | 'appearance'
   | 'sound'
   | 'scheduler'
   | 'account'
@@ -134,6 +135,12 @@ export const NAV_ROOT: NavNode = {
           title: 'Input method',
           blurb: 'Keyboard, handwriting, or multiple choice.',
           screen: 'input',
+        },
+        {
+          id: 'tools.appearance',
+          title: 'Appearance',
+          blurb: 'The colour the app is painted in.',
+          screen: 'appearance',
         },
         {
           id: 'tools.sound',

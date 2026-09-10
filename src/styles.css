@@ -2784,3 +2784,75 @@ code {
     transition: none;
   }
 }
+
+/* Appearance -------------------------------------------------------------- */
+
+/*
+ * Hue swatches.
+ *
+ * The fill mirrors the recipe in `src/domain/theme.ts` — the same lightness and
+ * chroma per theme — so a swatch is the colour it will actually apply rather
+ * than an approximation of it. Two places holding one recipe is a real cost;
+ * the alternative is generating this stylesheet from TypeScript, which for four
+ * numbers is a machine to maintain instead of a comment to read. If the recipe
+ * moves, `theme.test.ts` will still pass and these will be wrong, so: move both.
+ */
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.swatch {
+  height: 44px;
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  background: oklch(0.72 0.09 var(--swatch-hue));
+  cursor: pointer;
+}
+
+.swatch--chosen {
+  border-color: var(--text);
+  /* A ring rather than a tick: a tick needs a colour that reads on every hue. */
+  box-shadow: inset 0 0 0 2px var(--bg);
+}
+
+.swatch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: light) {
+  .swatch {
+    background: oklch(0.36 0.08 var(--swatch-hue));
+  }
+}
+
+/*
+ * A range input, sized so a thumb can find it.
+ *
+ * The native control is about 20px tall, which is under half the 44px floor,
+ * and the part you are actually aiming at is the thumb. Padding the input makes
+ * the *target* 44px while the track stays visually slight.
+ */
+.slider {
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  background: none;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.slider:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.field__label--inline {
+  display: block;
+  margin-bottom: 4px;
+}

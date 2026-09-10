@@ -16,6 +16,8 @@ import { useModelFit } from '../hooks/useModelFit';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { EMPTY_MODEL } from '../storage/modelState';
 import { AccountPanel } from './AccountPanel';
+import { useAccent } from '../hooks/useAccent';
+import { AppearancePanel } from './AppearancePanel';
 import { AppMark } from './AppMark';
 import { BrowsePanel } from './BrowsePanel';
 import { AboutPanel } from './AboutPanel';
@@ -53,6 +55,10 @@ export function AppShell({ user }: AppShellProps) {
   // built up, in idle time after the app has settled. Mounted here so it runs
   // once per launch rather than once per screen that happens to want it.
   useModelFit(user, profile?.kanjiba.adaptive ?? EMPTY_MODEL);
+
+  // Paints the app in the chosen accent, both themes at once. Here rather than
+  // on the Appearance screen, so the colour is the app's and not that screen's.
+  useAccent(profile?.kanjiba.accentHue);
   const [nodeId, setNodeId] = useState<string>(() => nodeFromHash(window.location.hash).id);
 
   const go = useCallback((id: string) => {
@@ -112,6 +118,8 @@ export function AppShell({ user }: AppShellProps) {
         return <ProgressPanel user={user} />;
       case 'input':
         return <InputMethodPanel user={user} />;
+      case 'appearance':
+        return <AppearancePanel user={user} />;
       case 'sound':
         return <SoundPanel user={user} />;
       case 'about':

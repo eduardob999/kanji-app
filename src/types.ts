@@ -40,6 +40,14 @@ export interface KanjibaProfile {
    */
   inputMethod?: InputMethod;
   /**
+   * The accent colour, as a hue in degrees.
+   *
+   * Only the hue: the lightness and chroma that decide whether text on the
+   * accent is readable are the app's, not the learner's. See
+   * `src/domain/theme.ts`. Absent means the icon's own blue.
+   */
+  accentHue?: number;
+  /**
    * Whether answers make a sound.
    *
    * Absent means on, which is the default a game would pick: the cue closes the
