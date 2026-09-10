@@ -11,6 +11,7 @@ import { planSession, type Candidate, type PlannedQuestion, type ReviewLookup } 
 import { levelLabel, type StudyItem } from '../domain/items';
 import type { QuizSource } from './source';
 import { buildChoices } from '../domain/distractors';
+import { playCue } from '../audio/cues';
 import { useFitToBox } from '../hooks/useFitToBox';
 import { useReviewStates } from '../hooks/useReviewStates';
 import { useUserProfile } from '../hooks/useUserProfile';
@@ -80,6 +81,15 @@ export interface QuizFrameProps {
   /** The queue ran out. Fires once per round. */
   onFinished?: (outcome: { offered: number; answered: number; right: number }) => void;
   /**
+   * A screen that must make no sound at all.
+   *
+   * Set by the silent practice variant, which exists for a bus or a shared
+   * room. It already drops listening questions; this carries the same decision
+   * to the answer cues, because someone who asked for quiet did not ask for
+   * "no Japanese, but chimes".
+   */
+  silent?: boolean;
+  /**
    * What to show when the queue runs out, if the default is not enough.
    *
    * The practice screen has more to say than a tally: it is where the schedule
@@ -124,11 +134,15 @@ export function QuizFrame({
   onPlanned,
   onFinished,
   renderFinished,
+  silent = false,
 }: QuizFrameProps) {
   const { lookup, ready: statesReady, error: reviewError } = useReviewStates(user);
   const { profile } = useUserProfile(user);
   const inputMethod = profile?.kanjiba.inputMethod ?? DEFAULT_INPUT_METHOD;
   const adaptive = profile?.kanjiba.adaptive ?? EMPTY_MODEL;
+  // Absent means on: a game makes a sound when you get something right, and
+  // someone who wants quiet has a switch under Tools.
+  const soundsOn = profile?.kanjiba.sounds ?? true;
 
   const [status, setStatus] = useState<Status>('loading');
   const [message, setMessage] = useState<string | null>(null);
@@ -326,6 +340,16 @@ export function QuizFrame({
         console.error('[firestore] Review did not reach the server.', error);
       });
 
+    /*
+     * The sound, at the moment the verdict appears rather than after the write.
+     *
+     * `recordReview` is deliberately not awaited — offline its promise can stay
+     * pending for hours — so anything waiting on it would be a cue that arrives
+     * tomorrow. What the learner is being told is "that was right", and that is
+     * known here.
+     */
+    playCue(correct ? 'correct' : 'wrong', { enabled: soundsOn, silent });
+
     setVerdict({ question, correct, result, intervalDays: 0, previous, overridden: false, given });
     setTally((current) => ({
       right: current.right + (correct ? 1 : 0),
@@ -469,12 +493,14 @@ export function QuizFrame({
     if (index < queue.length || reported.current) return;
 
     reported.current = true;
+    // The one cue allowed to be pleased with itself, once a round.
+    playCue('finish', { enabled: soundsOn, silent });
     onFinished?.({
       offered: queue.length,
       answered: tally.right + tally.wrong,
       right: tally.right,
     });
-  }, [index, onFinished, queue.length, status, tally]);
+  }, [index, onFinished, queue.length, silent, soundsOn, status, tally]);
 
   /*
    * The way out, after twenty seconds of being stuck.

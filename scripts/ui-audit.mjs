@@ -92,7 +92,7 @@ const VIEWPORTS = [
 
 const SCREENS = [
   'practice', 'summary', 'sync', 'practice-silent', 'reading', 'writing', 'fill', 'audio',
-  'browse', 'progress', 'scheduler', 'input', 'account', 'about', 'signin',
+  'browse', 'progress', 'scheduler', 'input', 'sound', 'account', 'about', 'signin',
   'handwriting', 'choice',
   /*
    * The same screens on a brand-new account.
@@ -557,6 +557,24 @@ const STATES = {
         if (!found.undo) issues.push('a first answer cannot be undone');
         if (found.nonsense) issues.push('a first answer produced a number that is not one');
         return issues;
+      },
+    },
+  ],
+
+  /*
+   * Pressing the cue buttons, which is the only way to find out that the audio
+   * code runs at all in a browser: a headless one has no speakers, so what can
+   * be checked is that asking for a sound throws nothing and leaves no console
+   * error behind.
+   */
+  sound: [
+    {
+      name: 'played',
+      async reach(page) {
+        for (const label of ['Correct', 'Missed', 'Round done']) {
+          await page.click(`button:has-text("${label}")`);
+          await page.waitForTimeout(120);
+        }
       },
     },
   ],

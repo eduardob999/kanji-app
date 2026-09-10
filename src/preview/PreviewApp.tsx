@@ -5,6 +5,7 @@ import { BrowsePanel } from '../components/BrowsePanel';
 import { InputMethodPanel } from '../components/InputMethodPanel';
 import { ProgressPanel } from '../components/ProgressPanel';
 import { SchedulerPanel } from '../components/SchedulerPanel';
+import { SoundPanel } from '../components/SoundPanel';
 import { SignInScreen } from '../components/SignInScreen';
 import { SyncBadge } from '../components/SyncBadge';
 import { AudioPanel } from '../quizzes/AudioPanel';
@@ -116,6 +117,7 @@ const SCREENS = {
   progress: ['Progress', () => <ProgressPanel user={previewUser} />],
   scheduler: ['Scheduler', () => <SchedulerPanel user={previewUser} />],
   input: ['Input method', () => <InputMethodPanel user={previewUser} />],
+  sound: ['Sound', () => <SoundPanel user={previewUser} />],
   account: ['Account', () => <AccountPanel user={previewUser} />],
   about: ['About', () => <AboutPanel />],
   handwriting: ['Handwriting input', () => <InputPreview method="handwriting" />],

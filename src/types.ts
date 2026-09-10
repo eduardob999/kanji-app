@@ -40,6 +40,14 @@ export interface KanjibaProfile {
    */
   inputMethod?: InputMethod;
   /**
+   * Whether answers make a sound.
+   *
+   * Absent means on, which is the default a game would pick: the cue closes the
+   * loop on an answer faster than reading a word does. Stored per user like the
+   * input method, so a phone and a tablet agree.
+   */
+  sounds?: boolean;
+  /**
    * Set once the one-time import of the old CLI's scores has run, so it cannot
    * run twice and overwrite real reviews with seeded ones.
    */

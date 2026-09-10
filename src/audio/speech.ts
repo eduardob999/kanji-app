@@ -220,6 +220,19 @@ export function announcedSequence(reading: string, sentence: string | null): str
   return sentence ? [announcement, sentence, announcement] : [announcement];
 }
 
+/**
+ * Whether something is being read aloud right now.
+ *
+ * Asked by the answer cues, which must not land on top of a listening
+ * question. `speechSynthesis.speaking` is true from the moment an utterance is
+ * queued until the last one ends, which is exactly the window a cue must stay
+ * out of.
+ */
+export function isSpeaking(): boolean {
+  const speech = synth();
+  return Boolean(speech && (speech.speaking || speech.pending));
+}
+
 export function stopSpeaking(): void {
   claim();
   synth()?.cancel();

@@ -85,6 +85,7 @@ function toUserProfile(uid: string, data: DocumentData | undefined): UserProfile
     lastLoginAt: data['lastLoginAt'] ?? null,
     kanjiba: {
       ...(isInputMethod(kanjiba['inputMethod']) ? { inputMethod: kanjiba['inputMethod'] } : {}),
+      ...(typeof kanjiba['sounds'] === 'boolean' ? { sounds: kanjiba['sounds'] as boolean } : {}),
       legacyScoresImportedAt: (kanjiba['legacyScoresImportedAt'] ?? null) as Timestamp | null,
       lastOpenedAt: (kanjiba['lastOpenedAt'] ?? null) as Timestamp | null,
       adaptive: toAdaptiveModel(kanjiba),
@@ -196,6 +197,11 @@ export function subscribeToUserProfile(
  */
 export async function setInputMethod(uid: string, inputMethod: InputMethod): Promise<void> {
   await updateKanjibaProfile(uid, { inputMethod });
+}
+
+/** Turns the answer cues on or off. Same treatment: not awaited, cache-first. */
+export async function setSounds(uid: string, sounds: boolean): Promise<void> {
+  await updateKanjibaProfile(uid, { sounds });
 }
 
 /**

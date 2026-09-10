@@ -20,6 +20,7 @@ import { AppMark } from './AppMark';
 import { BrowsePanel } from './BrowsePanel';
 import { AboutPanel } from './AboutPanel';
 import { SchedulerPanel } from './SchedulerPanel';
+import { SoundPanel } from './SoundPanel';
 import { ProgressPanel } from './ProgressPanel';
 import { InputMethodPanel } from './InputMethodPanel';
 import { KanjiWritingPanel } from '../quizzes/KanjiWritingPanel';
@@ -111,6 +112,8 @@ export function AppShell({ user }: AppShellProps) {
         return <ProgressPanel user={user} />;
       case 'input':
         return <InputMethodPanel user={user} />;
+      case 'sound':
+        return <SoundPanel user={user} />;
       case 'about':
         return <AboutPanel />;
     }

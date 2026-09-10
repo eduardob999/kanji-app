@@ -282,6 +282,7 @@ export function PracticePanel({ user, silent = false }: { user: User; silent?: b
         onPlanned={onPlanned}
         onFinished={onFinished}
         renderFinished={renderFinished}
+        silent={silent}
         emptyTitle="Nothing to ask"
         emptyBody="The word lists arrived with no questions in them, which should not happen. Try again once you are back online."
       />

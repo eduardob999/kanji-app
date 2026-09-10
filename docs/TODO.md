@@ -87,8 +87,9 @@ text over a background image is never below AA.
 
 ## 3. Sound, the way a game does it
 
-- [ ] **Right, wrong, streak and round-end have sounds, they never talk over a
+- [x] **Right, wrong, streak and round-end have sounds, they never talk over a
       listening question, and they can be turned off.**
+      *Done 2026-09-10.*
 
 Kanjiba already speaks Japanese; this is the other kind of sound — short cues
 that make an answer feel resolved. The constraints are specific: the app has a
@@ -98,6 +99,34 @@ offline promise, so the sounds ship with the build rather than stream.
 Done when: cues exist for correct, wrong and round-end; a setting silences them
 and defaults sensibly; nothing plays while speech is playing; total added weight
 under 100 kB.
+
+### What was built
+
+**Synthesised, not downloaded.** Three oscillators and an envelope in
+`src/audio/cues.ts` — about 2 kB of code once the comments come off, against a
+100 kB budget and zero audio files. Nothing to fetch means nothing to be missing
+on a train, which is the same argument the sentences ship in the build under.
+
+- **correct** — two notes up a major third, 180ms. The interval carries it:
+  rising reads as *yes* in a way a single beep does not.
+- **wrong** — one note, lower, softer, and deliberately not dissonant. A buzzer
+  punishes; this is information, and the item is coming back in two hours.
+- **finish** — a three-note arpeggio, once a round.
+
+Each note has an 8ms attack and an exponential tail, because a bare oscillator
+switched on and off clicks — the waveform steps from silence to full amplitude
+in one sample and you hear it.
+
+Three rules decide whether a cue plays, and they are a pure function
+(`shouldPlayCue`) with tests rather than conditions buried in a component:
+the learner's setting; **never over speech**, since a cue landing on a listening
+question is the app making its own question harder; and **nothing at all in
+Practice (silent)**, because that screen exists for a room where sound is not
+allowed and a chime is still a sound.
+
+The setting lives under `Tools → Sound`, defaults to on, and the screen can play
+each cue — a setting for a sound you cannot hear from the settings screen is one
+you have to go and get a question wrong to test.
 
 ## 4. Better sentences, and more of them, without a slower app
 
