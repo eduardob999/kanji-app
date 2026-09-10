@@ -145,6 +145,17 @@ function screenFromHash(): ScreenKey | null {
 
 export function PreviewApp() {
   const [screen, setScreen] = useState<ScreenKey | null>(screenFromHash);
+
+  /*
+   * `?bare=1` drops the harness's own furniture.
+   *
+   * The status chip is here so the audit can measure a header carrying one, as
+   * the real app's header does most of the time. It is also the one thing in
+   * these screenshots that is not the app, which starts to matter when the
+   * screenshots are the deliverable: a picture of Kanjiba for somebody deciding
+   * whether to install it should not have the word "saving" pinned to it.
+   */
+  const bare = new URLSearchParams(window.location.search).has('bare');
   // The harness paints itself the same way the app does — at the default hue,
   // so a screenshot is of the app's own blue arriving through the same path the
   // learner's choice will.
@@ -215,7 +226,7 @@ export function PreviewApp() {
           harness that is harder on the layout than the app is not testing the
           app. The other state is measured on the Sync screen instead.
         */}
-        <span className="topbar__status topbar__status--pending">saving</span>
+        {bare ? null : <span className="topbar__status topbar__status--pending">saving</span>}
       </header>
       <main className="content" id="main">
         {render()}

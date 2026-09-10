@@ -36,8 +36,18 @@ import { useLayoutEffect, type RefObject } from 'react';
  * scales carry their own `max()` so nothing drops below what `npm run ui`
  * accepts as readable. If the content still does not fit at the floor, it
  * scrolls, which is what it did before this existed.
+ *
+ * 0.45 rather than the 0.6 this started at, and the reason is a lesson about
+ * the harness rather than about the layout: every measurement behind that 0.6
+ * was taken in a container with no Japanese font, where kana rendered as tofu
+ * boxes with the wrong metrics. With a real font installed the same questions
+ * need more room, the multiplier hit its floor before the per-size floors did,
+ * and the numbers this file was tuned against turned out to be about squares.
+ *
+ * The `max()` floors are the real limit — 12.5px, which is what "readable"
+ * means here — and this now lets the search reach them.
  */
-const FLOOR = 0.6;
+const FLOOR = 0.45;
 
 /** Seven halvings land within a percent of the largest size that fits. */
 const STEPS = 7;

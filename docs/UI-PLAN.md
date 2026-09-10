@@ -273,3 +273,26 @@ Both are arithmetic rather than styling: the fixed parts of the screen have a
 floor, and below some window height the remainder is smaller than the content
 however it is set. The prompt scrolls there, which is the honest failure — it
 was the *only* behaviour before any of this work, at every size.
+
+
+## The harness was measuring tofu
+
+*2026-09-10.* Every Japanese measurement in this document, and every number the
+fit routine was tuned against, was taken in a container with **no CJK font
+installed**. Kana and kanji rendered as tofu — uniform boxes that are not the
+width of the characters they stand for — so the layouts were checked against
+squares.
+
+Installing Noto Sans JP changed the answers. The worst forty questions at 320px
+under a 55% keyboard went from 40/40 fitting to 34/40, because real Japanese
+needs more room than the placeholder did, and the fit routine's multiplier floor
+of 0.6 — chosen against those tofu numbers — was stopping the search before the
+per-size floors it exists to protect. Lowering it to 0.45 restores 40/40, and
+also carries 360 and 390 through a 62% keyboard, which they did not manage
+before.
+
+`npm run ui` now says so out loud when the font is missing, by measuring 漢字
+against U+FFFF: no font has a glyph for U+FFFF, so equal widths mean everything
+is being drawn as notdef boxes. It warns rather than failing, because a machine
+without the font can still check colour, tap targets and overflow — it just
+cannot be trusted about a Japanese layout.

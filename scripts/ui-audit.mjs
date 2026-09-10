@@ -1005,10 +1005,53 @@ mkdirSync(OUT, { recursive: true });
   console.log(`Auditing ${BASE}`);
 }
 
+/**
+ * Whether this machine can draw Japanese at all.
+ *
+ * Every layout in this app is mostly kana and kanji, and a container without a
+ * CJK font draws all of it as tofu — boxes of a uniform width that are not the
+ * width of the characters they stand in for. The measurements still come out;
+ * they are simply about squares.
+ *
+ * That is not hypothetical. The fit routine's floor was tuned to 0.6 against
+ * tofu, and with a real font the same questions needed more room than the
+ * numbers said. So this is checked and said out loud rather than assumed: a
+ * missing font does not stop the run, it labels it.
+ *
+ * The test is a width comparison against U+FFFF, which no font has a glyph for
+ * and every font therefore draws as its own notdef box.
+ */
+async function checkJapaneseFont(browser) {
+  const page = await browser.newPage();
+  const same = await page.evaluate(() => {
+    const measure = (text) => {
+      const span = document.createElement('span');
+      span.style.cssText = 'position:absolute;visibility:hidden;font-size:64px;white-space:pre';
+      span.textContent = text;
+      document.body.append(span);
+      const width = span.getBoundingClientRect().width;
+      span.remove();
+      return width;
+    };
+    return Math.abs(measure('漢字') - measure('\uFFFF\uFFFF')) < 0.5;
+  });
+  await page.close();
+
+  if (same) {
+    console.warn(
+      '\n  ⚠ No Japanese font on this machine: every kana and kanji is being drawn as\n' +
+        '    a tofu box, so any measurement of a Japanese layout here is about squares.\n' +
+        '    Install one (Noto Sans JP) and re-run before trusting the numbers.\n',
+    );
+  }
+}
+
 const browser = await chromium.launch({
   executablePath: EXECUTABLE,
   args: ['--no-sandbox', '--disable-gpu'],
 });
+
+await checkJapaneseFont(browser);
 
 let problems = 0;
 const summary = [];

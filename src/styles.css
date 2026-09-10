@@ -254,6 +254,43 @@
 }
 
 /*
+ * And the card fills the screen it is bound to.
+ *
+ * Without this the quiz card is as tall as its contents and sits at the top,
+ * which on a phone means a question in the top third and two thirds of nothing
+ * — the "crammed then empty" that opened `UI-PLAN.md`, still true on the one
+ * screen the app is mostly used on. Letting it grow puts the prompt in the
+ * middle of the space and Check where the thumb already is, which is the shape
+ * every app of this kind has for a reason.
+ *
+ * The pieces inside already know what to do with the room: `.quiz__prompt` is
+ * `flex: 1` and centres itself, and the dock is `flex: none` at the end. This
+ * changes what they are distributing, not how.
+ *
+ * Resting state only. With the keyboard up the card's height is already the
+ * window's and every pixel is spoken for — growing it there cost the longest
+ * question in the corpus its last two pixels at 320px, which `npm run ui`
+ * reported the moment this rule went in unscoped.
+ */
+:root:not([data-keyboard='open']) .screen:has(.quiz) .content > .quiz {
+  flex: 1;
+}
+
+/*
+ * And the question sits a little above the middle of that room.
+ *
+ * Optically centred rather than mathematically: text placed at the exact centre
+ * of a tall box reads as slightly low, and on this screen the eye should find
+ * the question before it finds the field it is going to type into. A tenth of
+ * the height is the usual amount.
+ *
+ * Not while the keyboard is up, where there is no spare tenth of anything.
+ */
+:root:not([data-keyboard='open']) .screen:has(.quiz) .quiz__prompt {
+  padding-bottom: 10%;
+}
+
+/*
  * Padding and borders count inside a declared width.
  *
  * Restored after going missing for the whole life of this file. The stylesheet
@@ -1796,7 +1833,7 @@ code {
  */
 .quiz__readings {
   margin: 0 0 10px;
-  font-size: max(0.8125rem, calc(clamp(1.5rem, 8vw, 2.25rem) * var(--fit, 1)));
+  font-size: max(0.78125rem, calc(clamp(1.5rem, 8vw, 2.25rem) * var(--fit, 1)));
   /*
    * Leading closes up as the type shrinks, rather than staying generous around
    * text that is already fighting for room. Floored at 1.1, which is as tight

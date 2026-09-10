@@ -244,7 +244,8 @@ this item needed, and it is where the remaining second goes.
 
 ## 5. A UI worth showing someone
 
-- [ ] **The app looks like something you would download on purpose.**
+- [x] **The app looks like something you would download on purpose.**
+      *Done 2026-09-10.*
 
 It is legible, it fits, and it is plain. Marketable means the things a stranger
 notices in ten seconds: a first impression, motion that explains what just
@@ -256,3 +257,34 @@ deliberate motion (respecting `prefers-reduced-motion`); the empty and first-run
 states are designed rather than default; every screen still passes the audit;
 and there is a screenshot set that would sit on a store page without
 embarrassment.
+
+### What was done
+
+**Motion, as the app replying rather than as decoration.** A verdict rises 6px
+over 140ms; a miss shakes three pixels twice; a hit breathes to 1.02 and back;
+the dock crossfades when it becomes the verdict; the progress bars fill,
+staggered down the levels; the round summary arrives a line at a time. Three
+rules: nothing moves that you are reading, nothing lasts long enough to wait for
+(320ms at the outside), and everything ends at rest — which is what makes the
+existing `prefers-reduced-motion` block sufficient rather than approximate.
+Verified at both motion settings: every element settles at opacity 1 and an
+identity transform. All CSS; nothing added to the bundle.
+
+**The quiz card fills its screen.** It was as tall as its contents and sat at
+the top, which put the question in the top third and left two thirds of nothing
+— the "crammed then empty" this document opens with, still true on the screen
+the app is mostly used on. The prompt now sits at the optical centre and Check
+is where the thumb already is. Resting state only: with the keyboard up every
+pixel is already spoken for, and growing the card there cost the longest
+question in the corpus two pixels at 320px, which the audit reported the moment
+the rule went in unscoped.
+
+**A new account is invited rather than judged.** The Progress screen met a first
+visit with 0 day streak, 0 today, 0 all time, an empty eight-week strip and 0%
+across eight levels — not one number of which is information, since all of them
+follow from "you have not started". It now says what the screen will hold and
+offers the way to make it true. An imported account still gets the real report:
+it has no review *log* but thousands of review states.
+
+**And the screenshots exist**, at `?bare=1` on the preview harness so the
+harness's own status chip stays out of them, captured at 390x844 and 3x.
