@@ -562,6 +562,68 @@ const STATES = {
   ],
 
   /*
+   * The app with somebody's photograph behind it.
+   *
+   * Driven through the real path — a generated JPEG handed to the file input,
+   * resized and re-encoded by `domain/image.ts` exactly as a camera roll photo
+   * would be — because the interesting question is not whether the CSS works.
+   * It is whether every rule in this file still passes with a picture back
+   * there, which is the promise the feature makes: text sits on cards and on
+   * surfaces of their own, so contrast cannot depend on the picture.
+   *
+   * The generated image runs white through orange to navy with light speckle,
+   * which is the awkward case: bright enough at one end to threaten dark text,
+   * dark enough at the other to threaten light text, and busy in the middle.
+   */
+  appearance: [
+    {
+      name: 'background',
+      async reach(page) {
+        await page.evaluate(async () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 1200;
+          canvas.height = 1600;
+          const context = canvas.getContext('2d');
+          const gradient = context.createLinearGradient(0, 0, 1200, 1600);
+          gradient.addColorStop(0, '#ffffff');
+          gradient.addColorStop(0.45, '#ffb03a');
+          gradient.addColorStop(1, '#0d2b4f');
+          context.fillStyle = gradient;
+          context.fillRect(0, 0, 1200, 1600);
+          for (let i = 0; i < 500; i += 1) {
+            context.fillStyle = `rgba(255,255,255,${Math.random() * 0.6})`;
+            context.fillRect(Math.random() * 1200, Math.random() * 1600, 10, 10);
+          }
+
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+          const transfer = new DataTransfer();
+          transfer.items.add(new File([blob], 'photo.jpg', { type: 'image/jpeg' }));
+          const input = document.querySelector('input[type=file]');
+          input.files = transfer.files;
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        // Resizing and re-encoding 1200x1600 takes a moment.
+        await page.waitForSelector('#background-dim', { timeout: 5_000 });
+      },
+      async check(page) {
+        const found = await page.evaluate(() => ({
+          on: document.documentElement.dataset.background === 'on',
+          // The two strips that are not cards have to have gained a surface.
+          topbar: getComputedStyle(document.querySelector('.topbar')).backgroundColor,
+        }));
+
+        const issues = [];
+        if (!found.on) issues.push('choosing a picture did not put one behind the app');
+        if (found.topbar === 'rgba(0, 0, 0, 0)') {
+          issues.push('the header has no surface of its own over a background image');
+        }
+        return issues;
+      },
+    },
+  ],
+
+  /*
    * Pressing the cue buttons, which is the only way to find out that the audio
    * code runs at all in a browser: a headless one has no speakers, so what can
    * be checked is that asking for a sound throws nothing and leaves no console

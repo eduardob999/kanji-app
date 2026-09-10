@@ -48,6 +48,12 @@ export interface KanjibaProfile {
    */
   accentHue?: number;
   /**
+   * How much of the app's ground colour is laid over a background image, as a
+   * percentage. Absent means 85. The picker will not go below 70 — see the
+   * scrim in `styles.css` for what that floor is holding up.
+   */
+  backgroundDim?: number;
+  /**
    * Whether answers make a sound.
    *
    * Absent means on, which is the default a game would pick: the cue closes the

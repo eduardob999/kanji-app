@@ -2856,3 +2856,107 @@ code {
   display: block;
   margin-bottom: 4px;
 }
+
+/* A background of one's own ----------------------------------------------- */
+
+/*
+ * The learner's photograph, behind everything, under a scrim.
+ *
+ * The whole design is one rule: **nothing readable sits on the photograph**.
+ * Text in this app lives on cards, cards are opaque, and what the image is
+ * behind is the space around them and the ground under the header. So a
+ * background cannot change any text's contrast, whatever picture it is — which
+ * is a property of the layout rather than a promise about taste, and it is why
+ * this feature is safe to offer at all.
+ *
+ * Two fixed layers rather than a `background-image` on the body: a photograph
+ * that scrolls with a long Browse list reads as a bug, and `background-attachment:
+ * fixed` is the one property mobile Safari has never implemented properly.
+ *
+ * `data-background` gates all of it. Without an image the app keeps its plain
+ * ground colour and paints nothing extra, which is one fewer compositing layer
+ * on the screen a phone spends its whole session on.
+ */
+:root[data-background='on'] body {
+  background: none;
+}
+
+:root[data-background='on'] body::before,
+:root[data-background='on'] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+:root[data-background='on'] body::before {
+  background-image: var(--app-image);
+  background-size: cover;
+  background-position: center;
+}
+
+/*
+ * The scrim.
+ *
+ * `--app-dim` is a percentage of the app's own ground colour laid over the
+ * image. It is a taste control rather than a safety one — how much picture you
+ * want — and it can be turned well down, because the safety is handled where it
+ * belongs: everything that would otherwise sit on the photograph gets its own
+ * near-opaque surface below.
+ *
+ * The first version made the scrim carry both jobs, with a floor at 70% to keep
+ * the header readable over a white photo. It was safe and it was pointless —
+ * at 85% the picture someone had just chosen was a rumour. Legibility is now
+ * structural and the dimming is free to be low.
+ */
+:root[data-background='on'] body::after {
+  background: color-mix(in srgb, var(--bg) calc(var(--app-dim, 85) * 1%), transparent);
+}
+
+/*
+ * The two strips of text that are not on a card get one of their own.
+ *
+ * The header, the breadcrumb and the tab bar's labels are the only writing in
+ * this app not sitting on an opaque card, and over a photograph they are the
+ * only thing that could become unreadable. So when there is a background they
+ * are given the same 92% ground the tab bar already had, which puts every piece
+ * of text in the app back on a surface the contrast rules were checked against
+ * — whatever the picture is, and however far the dimming is turned down.
+ */
+:root[data-background='on'] .topbar {
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-bottom: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+:root[data-background='on'] .breadcrumb {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+/*
+ * Cards lift slightly off the picture.
+ *
+ * On a flat ground a card is defined by its own colour; over a photograph it
+ * needs an edge, or it reads as a hole. A hairline and a soft shadow are enough
+ * and cost nothing when there is no image, because this rule does not apply
+ * then.
+ */
+:root[data-background='on'] .card {
+  border-color: color-mix(in srgb, var(--text) 18%, transparent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+
+/* A hairline between two halves of one screen, where a heading is not enough. */
+.rule {
+  height: 1px;
+  margin: 20px 0;
+  border: 0;
+  background: var(--border);
+}

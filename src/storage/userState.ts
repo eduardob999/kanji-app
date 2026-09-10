@@ -88,6 +88,9 @@ function toUserProfile(uid: string, data: DocumentData | undefined): UserProfile
       ...(isInputMethod(kanjiba['inputMethod']) ? { inputMethod: kanjiba['inputMethod'] } : {}),
       ...(typeof kanjiba['sounds'] === 'boolean' ? { sounds: kanjiba['sounds'] as boolean } : {}),
       ...(isHue(kanjiba['accentHue']) ? { accentHue: kanjiba['accentHue'] } : {}),
+      ...(typeof kanjiba['backgroundDim'] === 'number' && Number.isFinite(kanjiba['backgroundDim'])
+        ? { backgroundDim: kanjiba['backgroundDim'] as number }
+        : {}),
       legacyScoresImportedAt: (kanjiba['legacyScoresImportedAt'] ?? null) as Timestamp | null,
       lastOpenedAt: (kanjiba['lastOpenedAt'] ?? null) as Timestamp | null,
       adaptive: toAdaptiveModel(kanjiba),
@@ -209,6 +212,11 @@ export async function setSounds(uid: string, sounds: boolean): Promise<void> {
 /** Sets the accent hue, in degrees. */
 export async function setAccentHue(uid: string, accentHue: number): Promise<void> {
   await updateKanjibaProfile(uid, { accentHue });
+}
+
+/** Sets how strongly a background image is dimmed, as a percentage. */
+export async function setBackgroundDim(uid: string, backgroundDim: number): Promise<void> {
+  await updateKanjibaProfile(uid, { backgroundDim });
 }
 
 /**

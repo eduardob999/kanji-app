@@ -73,8 +73,9 @@ at every viewport, scaled or not: Start, Check, Another round.
 
 ## 2. Theme colour and a background of his own
 
-- [ ] **The learner can change the accent colour and set a background image,
+- [x] **The learner can change the accent colour and set a background image,
       and the result still passes every contrast and layout rule.**
+      *Done 2026-09-10. `Tools → Appearance`.*
 
 The palette is already tokens on `:root` (`--accent`, `--bg`, `--text`…), so the
 mechanism is a stored preference writing custom properties. The work is in what
@@ -84,6 +85,36 @@ behind text that has to stay readable.
 Done when: a colour and a background survive a reload and a second device;
 `npm run ui` passes with a chosen accent and an uploaded background in place;
 text over a background image is never below AA.
+
+### How each half is made safe
+
+**The colour is a hue and nothing else.** Lightness and chroma stay the app's,
+in OKLCH, whose lightness is perceptual — so equally light for every hue means
+equally readable against the same background. `theme.test.ts` checks all 360 in
+both themes against the real backgrounds: button label 4.5, accent text on page
+and card 4.5, the filled button as a shape 3.0. That is what lets it be a
+slider instead of a menu of six safe choices.
+
+**The picture never sits behind text.** Cards are opaque, and the header,
+breadcrumb and tab bar take a 92% ground of their own the moment a background
+exists — so every piece of writing in the app is on a surface the contrast rules
+were already checked against, whatever the photograph is. The dimming is
+therefore a taste control (25-96%, default 62) rather than a safety one.
+
+The first version had the scrim carrying both jobs with a floor at 70%. It was
+safe and it was pointless: at 85% the picture someone had just chosen was a
+rumour. Making legibility structural is what let the dimming come down far
+enough to see it.
+
+**The image is resized before it goes anywhere.** A phone photo is 8 MB and
+4000px wide; Firestore's ceiling is 1 MB per document. `domain/image.ts` caps
+the long edge at 1440 and then chooses a JPEG quality by measuring rather than
+hoping — encode, check, drop, encode — with a 600 kB budget that leaves room for
+base64's third on top. It lives in its own document, not on the profile, so the
+accent colour does not arrive behind half a megabyte of photograph.
+
+The audit drives the whole path — a generated JPEG through the real file input —
+and then runs every rule with the picture in place, at all eight viewports.
 
 ## 3. Sound, the way a game does it
 
