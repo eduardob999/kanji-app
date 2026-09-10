@@ -106,6 +106,71 @@ function typingInto(): boolean {
   return el.isContentEditable;
 }
 
+/**
+ * How tall the tab bar actually is, published as `--tabbar-height`.
+ *
+ * The bar is `position: fixed`, so every scrolling screen has to reserve its
+ * height at the bottom or lose that much content underneath it. That height was
+ * a constant — 72px — and constants do not survive the system font size: the
+ * bar is an icon plus a label, the label is `rem`, and at Android's third
+ * text-size step the bar is 110px. The quiz's dock then sat 4px *under* it,
+ * which is not tight, it is unreachable.
+ *
+ * Measured rather than calculated, because the alternative is a formula that
+ * has to know the icon's height, the gap, the padding and the label's line box,
+ * and would go stale the first time any of them changed. A ResizeObserver on
+ * the element itself cannot.
+ *
+ * The token falls back to the old constant when nothing has been measured yet
+ * — no bar on screen, or the first frame — so nothing depends on this having
+ * run.
+ */
+export function watchTabBar(): () => void {
+  const root = document.documentElement;
+  let observer: ResizeObserver | null = null;
+  let watched: Element | null = null;
+
+  const publish = (height: number) => {
+    if (height > 0) root.style.setProperty('--tabbar-height', `${Math.round(height)}px`);
+    else root.style.removeProperty('--tabbar-height');
+  };
+
+  /*
+   * The bar comes and goes: it is not on the sign-in screen, and it is hidden
+   * while the keyboard is up. So the element is looked for again whenever the
+   * document changes rather than once at startup.
+   */
+  const attach = () => {
+    const bar = document.querySelector('.tabbar');
+    if (bar === watched) return;
+
+    observer?.disconnect();
+    watched = bar;
+
+    if (!bar) {
+      publish(0);
+      return;
+    }
+
+    observer = new ResizeObserver(([entry]) => {
+      publish(entry?.contentRect ? bar.getBoundingClientRect().height : 0);
+    });
+    observer.observe(bar);
+    publish(bar.getBoundingClientRect().height);
+  };
+
+  attach();
+
+  const mutations = new MutationObserver(attach);
+  mutations.observe(document.body, { childList: true, subtree: true });
+
+  return () => {
+    mutations.disconnect();
+    observer?.disconnect();
+    root.style.removeProperty('--tabbar-height');
+  };
+}
+
 export function watchKeyboardInset(): () => void {
   const viewport = window.visualViewport;
   const root = document.documentElement;

@@ -32,6 +32,45 @@ Done when: the audit runs each phone width at 1.0, 1.15 and 1.3 text scale and
 at a 62% keyboard, all of it green, **and** he says it is comfortable. The
 second half is not optional — the first half was green last time.
 
+### What the first run found
+
+The bet was right: at 1.3 on a 320px phone, **34 of 35 screens failed**, and the
+tab bar was in every one of them.
+
+1. **The bar ran off the edge.** Four labels in `1fr` columns, and a grid
+   track's automatic minimum is its content, so "Progress" and "Tools" at 1.3
+   pushed the bar 10px past the window — on every screen at once, since the bar
+   is on every screen. `minmax(0, 1fr)` and labels that may wrap.
+2. **The space reserved for the bar was a constant.** 72px, while the bar at
+   1.3 is 110px — so the quiz's dock sat 4px *under* it, which is unreachable
+   rather than tight. It is measured now: a ResizeObserver publishes
+   `--tabbar-height` and the clearance follows it. See `watchTabBar` in
+   `src/viewport.ts`.
+3. **The breakpoints were in pixels.** A phone with the text turned up is a
+   small screen for its owner, and `px` cannot see that. They are `em` now,
+   which in a media query means the browser's default font size — the thing the
+   platform's text-size setting actually changes. A 390px phone at 1.3 measures
+   18.6em and gets the density of a 320px one.
+4. **The drawing pad asked for 30% of a window that no longer had it.**
+   Everything around it is `rem` and grows; the pad was `vh` and did not. It is
+   bounded by `calc(100dvh - 26rem)` as well now — the same quantity from the
+   other end.
+
+And the harness was measuring the wrong thing itself: it scaled text by
+overriding `html { font-size }`, which moves `rem` but not `em` media queries.
+Android moves both, because it raises the browser's *default* font size. The
+audit uses CDP's `Page.setFontSizes` now, so a stylesheet that adapts on a real
+phone adapts in the harness.
+
+### The standard at 1.3, stated
+
+At the default text size every operated screen fits its window, and that rule
+stands. At 1.3 the window has not grown while everything in it has — the tab bar
+alone is 110px of 640 — so demanding a whole card still fit would mean shrinking
+text its owner deliberately enlarged. The rule there is that **the thing you
+came to press is on screen without scrolling for it**, and the audit checks that
+at every viewport, scaled or not: Start, Check, Another round.
+
 ## 2. Theme colour and a background of his own
 
 - [ ] **The learner can change the accent colour and set a background image,

@@ -346,11 +346,18 @@ export function PracticePanel({ user, silent = false }: { user: User; silent?: b
                 */}
                 {round} question{round === 1 ? '' : 's'} this time, all four types interleaved
                 {counts.due > 0 ? ', most overdue first' : ''}.
+                {/*
+                  Short, because this sits directly above Start and prose above
+                  a button pushes it down. At the system's larger text sizes on
+                  a 320px phone these two clauses were four lines and Start was
+                  21px past the fold — the screen's whole purpose, below the
+                  fold, because of a sentence explaining it.
+                */}
                 {practice === 0
                   ? ''
                   : scheduled > 0
-                    ? ' Once what is due and today’s new words run out it keeps going, with words you have already met.'
-                    : ' Nothing is waiting, so this round is practice on words you have already met.'}
+                    ? ' Then it keeps going with words you have met.'
+                    : ' Nothing is due, so this round is practice.'}
                 {pacing.state === 'behind'
                   ? ` About ${pacing.sustainableRate.toLocaleString()} a day keeps pace with what falls due; the backlog on top of that comes down slower.`
                   : ''}

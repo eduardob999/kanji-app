@@ -65,6 +65,23 @@ const VIEWPORTS = [
    * survive. It finds what 360 does not.
    */
   { name: 'phone-320-dark', width: 320, height: 640, scheme: 'dark' },
+  /*
+   * The same phones with the system font turned up.
+   *
+   * Android's display settings and iOS's Dynamic Type both scale text, and a
+   * learner who has turned it up is exactly the learner squinting at kanji.
+   * Every size in this app is in `rem`, so the multiplier lands on all of them
+   * at once: at 1.3 a card tuned to the pixel has a third more text in the same
+   * box. This file passed at 1.0 for its whole life and reported nothing while
+   * the owner said small screens were still troublesome, which is the shape of
+   * a harness measuring a condition nobody is in.
+   *
+   * 1.15 and 1.3 are the second and third steps of Android's slider — the ones
+   * people actually pick — rather than the extreme, which no layout survives
+   * and which would say nothing about this one.
+   */
+  { name: 'phone-320-text130-dark', width: 320, height: 640, scheme: 'dark', scale: 1.3 },
+  { name: 'phone-390-text115-light', width: 390, height: 844, scheme: 'light', scale: 1.15 },
   { name: 'phone-360-light', width: 360, height: 780, scheme: 'light' },
   { name: 'phone-390-dark', width: 390, height: 844, scheme: 'dark' },
   /* The owner's own phone, and the width every report so far has come from. */
@@ -822,12 +839,32 @@ function inspect(minTap, minFont) {
     }
   }
 
+  /*
+   * The primary action, and whether you can see it.
+   *
+   * "Does the card fit" stops being the right question when the text is scaled
+   * up: the window did not grow. What does not stop being the right question is
+   * whether the button the screen exists for is on screen before any scrolling,
+   * and above the tab bar rather than behind it.
+   */
+  const primary = document.querySelector('.quiz__dock .button--primary, .card .button--primary');
+  const primaryBox = primary?.getBoundingClientRect();
+  const action =
+    primary && primaryBox && primaryBox.height > 0
+      ? {
+          label: (primary.textContent ?? '').trim().slice(0, 20),
+          bottom: Math.round(primaryBox.bottom),
+          fold: Math.round(barBox ? barBox.top : window.innerHeight),
+        }
+      : null;
+
   return {
     viewport,
     scrollWidth: doc.scrollWidth,
     // What is below the fold, for the screens that may not have anything there.
     scrollHeight: doc.scrollHeight,
     window: window.innerHeight,
+    action,
     overflowing: overflowing.slice(0, 8),
     occluded: occluded.slice(0, 4),
     smallTaps: smallTaps.slice(0, 8),
@@ -912,6 +949,24 @@ for (const viewport of VIEWPORTS) {
   for (const { screen, state } of runs) {
     const label = state ? `${screen}:${state.name}` : screen;
     const page = await context.newPage();
+
+    /*
+     * The system font size, applied before anything renders.
+     *
+     * Overriding `html { font-size }` scales every `rem` and looks convincing,
+     * and it is the wrong mechanism: Android and iOS raise the *browser's
+     * default* font size, which scales rem and also makes `em` media queries
+     * respond — the mechanism a stylesheet is supposed to adapt through. This
+     * is that same browser setting.
+     */
+    if (viewport.scale) {
+      const cdp = await context.newCDPSession(page);
+      await cdp.send('Page.enable');
+      await cdp.send('Page.setFontSizes', {
+        fontSizes: { standard: Math.round(16 * viewport.scale) },
+      });
+    }
+
     if (state?.before) await state.before(page);
     const errors = [];
     /**
@@ -1011,10 +1066,25 @@ for (const viewport of VIEWPORTS) {
      * Only in the resting state: the keyboard states have their own rules in
      * `keyboardChecks`, which know that a keyboard changes what "the fold"
      * means and that one state is allowed to scroll.
+     *
+     * And only at the default text size. With the system font turned up the
+     * window has not grown while everything in it has, and the honest standard
+     * changes with it: at 1.3 on a 320px phone the tab bar alone is 110px of
+     * 640, and demanding that a whole card still fit would mean shrinking text
+     * its owner deliberately enlarged. What must still hold is that the thing
+     * you came to press is on screen without scrolling for it — which is
+     * checked below, for every viewport, scaled or not.
      */
-    if (MUST_FIT.has(screen) && !state?.name?.startsWith('keyboard')) {
+    if (MUST_FIT.has(screen) && !state?.name?.startsWith('keyboard') && !viewport.scale) {
       const below = result.scrollHeight - result.window;
       if (below > 1) issues.push(`${below}px below the fold on a screen that should fit`);
+    }
+
+    if (MUST_FIT.has(screen) && !state?.name?.startsWith('keyboard') && result.action) {
+      const past = result.action.bottom - result.action.fold;
+      if (past > 1) {
+        issues.push(`"${result.action.label}" is ${past}px below the fold — the action itself`);
+      }
     }
     if (result.overflowing.length) {
       issues.push(`${result.overflowing.length} element(s) past the edge: ` +

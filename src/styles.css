@@ -67,7 +67,16 @@
    * height and the space reserved for it are the same quantity and drifting
    * apart is how this comes back.
    */
-  --tabbar-clearance: calc(72px + env(safe-area-inset-bottom));
+  /*
+   * In `rem`, so it follows the bar it is reserving space for.
+   *
+   * The bar's height is icon plus label plus padding, and the label is `rem`,
+   * so at the system's larger text sizes the bar grows and a clearance fixed at
+   * 72px stops clearing it. The symptom is specific and was measured at 320px
+   * with text at 1.3: the quiz's dock — the answer field and Check — sat 4px
+   * *under* the bar, which is unreachable rather than merely tight.
+   */
+  --tabbar-clearance: calc(var(--tabbar-height, 4.6rem) + env(safe-area-inset-bottom));
 
   /*
    * How much of the window the on-screen keyboard is covering, published by
@@ -188,7 +197,7 @@
  * 320x288 it is: the prompt had 45px, and everything on this list is room the
  * question does not have.
  */
-@media (max-width: 360px) {
+@media (max-width: 22.5em) {
   [data-keyboard='open'] .screen {
     padding-left: 8px;
     padding-right: 8px;
@@ -1092,9 +1101,16 @@ code {
   z-index: 5;
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  /*
+   * `minmax(0, 1fr)` rather than `1fr`, because a grid track's automatic
+   * minimum is its content and the content is four labels that grow with the
+   * system font. At Android's third text-size step on a 320px phone, "Progress"
+   * and "Tools" pushed the bar 10px past the right edge of the window — on
+   * every screen in the app at once, since the bar is on every screen.
+   */
+  grid-auto-columns: minmax(0, 1fr);
   gap: 4px;
-  padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  padding: 8px 8px max(8px, env(safe-area-inset-bottom));
   background: color-mix(in srgb, var(--bg) 92%, transparent);
   backdrop-filter: blur(12px);
   border-top: 1px solid var(--border);
@@ -1104,7 +1120,8 @@ code {
   display: grid;
   justify-items: center;
   gap: 4px;
-  padding: 8px 6px;
+  padding: 8px 2px;
+  min-width: 0;
   background: none;
   border: 0;
   border-radius: var(--radius-sm);
@@ -1113,6 +1130,9 @@ code {
   font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
+  /* A label with nowhere to go breaks rather than widening its column. */
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 .tabbar__tab--active {
@@ -1196,7 +1216,7 @@ code {
  * chips. `scripts/ui-audit.mjs` knows the difference — it exempts descendants
  * of a horizontal scroller and still fails anything else past the edge.
  */
-@media (max-width: 430px) {
+@media (max-width: 26.875em) {
   .segmented--levels {
     display: flex;
     flex-wrap: nowrap;
@@ -1912,8 +1932,26 @@ code {
    * which is not clearance, it is luck; anything that grows the header by a
    * line spends it. 30 leaves a margin worth having.
    */
-  width: min(320px, 78vw, 30vh);
-  height: min(320px, 78vw, 30vh);
+  /*
+   * And bounded by what the rest of this screen leaves.
+   *
+   * Everything around the pad — the answer plate, the candidate row, three
+   * buttons, the dock — is sized in `rem`, so all of it grows when the system
+   * font does while the window does not. At Android's third text step on a
+   * 320px phone that pushed Check 38px *under* the tab bar: the pad was still
+   * asking for 30% of a window that no longer had 30% to spare.
+   *
+   * `calc(100dvh - 26rem)` is the same quantity from the other end — the window
+   * minus the room the rest of the screen needs — and it is in `rem` because
+   * what it is subtracting is. At the default text size it lands above the 30vh
+   * cap and changes nothing.
+   */
+  width: min(320px, 78vw, 30vh, calc(100dvh - 26rem));
+  height: min(320px, 78vw, 30vh, calc(100dvh - 26rem));
+  /* Never so small it cannot be drawn in; below this, scrolling is the better
+     failure. */
+  min-width: 96px;
+  min-height: 96px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-elevated);
@@ -2534,8 +2572,15 @@ code {
  * afford. 430px rather than a round 400 covers every phone in wide use in
  * portrait, including the 412px one this was measured on, and stops short of
  * the narrowest tablet.
+ *
+ * **In `em` rather than `px`**, which is the difference between a layout that
+ * adapts to the person and one that adapts to their hardware. A media query's
+ * `em` is the browser's default font size, and that is exactly what Android's
+ * and iOS's text-size settings change — so a 390px phone with the text turned
+ * up measures 18.6em and gets the density of a small screen, because for its
+ * owner it now is one. 26.875em is 430px at the default 16px; 22.5em is 360px.
  */
-@media (max-width: 430px) {
+@media (max-width: 26.875em) {
   .screen {
     padding: max(10px, env(safe-area-inset-top)) 12px max(10px, env(safe-area-inset-bottom));
   }
@@ -2590,7 +2635,7 @@ code {
  * smaller screen loses is almost entirely the room around them. Below 360 the
  * spacing therefore goes to the minimum that still reads as spacing.
  */
-@media (max-width: 360px) {
+@media (max-width: 22.5em) {
   .screen {
     padding: max(8px, env(safe-area-inset-top)) 10px max(8px, env(safe-area-inset-bottom));
   }

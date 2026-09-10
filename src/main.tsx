@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App';
 import { PreviewApp } from './preview/PreviewApp';
 import { registerServiceWorker } from './pwa/registerServiceWorker';
-import { watchKeyboardInset } from './viewport';
+import { watchKeyboardInset, watchTabBar } from './viewport';
 import './styles.css';
 
 const container = document.getElementById('root');
@@ -29,3 +29,8 @@ registerServiceWorker();
 // Publishes --keyboard-inset, which is what keeps the quiz's buttons above the
 // on-screen keyboard. Started here so the preview harness gets it too.
 watchKeyboardInset();
+
+// And --tabbar-height, which is how much room the bar at the bottom is taking
+// today: it depends on the system font size, so it is not a number this
+// stylesheet can know in advance.
+watchTabBar();
