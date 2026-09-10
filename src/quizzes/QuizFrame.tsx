@@ -9,7 +9,7 @@ import type { ItemReviewState, PracticeResult } from '../domain/review';
 import { describeInterval } from '../domain/scheduler';
 import { planSession, type Candidate, type PlannedQuestion, type ReviewLookup } from '../domain/sessionPlanner';
 import { levelLabel, type StudyItem } from '../domain/items';
-import type { QuizSource } from './source';
+import { usesSentences, type QuizSource } from './source';
 import { buildChoices } from '../domain/distractors';
 import { playCue } from '../audio/cues';
 import { useFitToBox } from '../hooks/useFitToBox';
@@ -210,10 +210,30 @@ export function QuizFrame({
     setStatus('loading');
     setMessage(null);
 
-    loadQuiz().then(
-      ({ candidates, definitions: loaded }) => {
+    loadQuiz()
+      .then(async ({ candidates, definitions: loaded, ensureSentences }) => {
         if (!live) return;
         const planned = buildQueue(candidates, lookupRef.current, new Date());
+
+        /*
+         * The examples for the levels this round actually landed on, and no
+         * others.
+         *
+         * Planning needs every deck — what is due is scattered across levels —
+         * but it needs no sentences at all, and the queue that comes out of it
+         * names the two or three levels whose examples will be read. Fetching
+         * all eight packs before this point put 1.3 MB of Japanese in front of
+         * the first question, most of it for words this round will never ask.
+         *
+         * Awaited, unlike most things here: a fill-in question rendered before
+         * its sentence arrives says "no example sentence for this word", which
+         * is a worse question rather than a slower one.
+         */
+        await ensureSentences(
+          planned.filter((question) => usesSentences(question.quiz)).map((q) => q.level),
+        );
+        if (!live) return;
+
         setDefinitions(loaded);
         setQueue(planned);
         setPool(candidates.map((candidate: Candidate) => candidate.item));
@@ -227,8 +247,8 @@ export function QuizFrame({
         reported.current = false;
         setStatus(planned.length > 0 ? 'ready' : 'empty');
         if (planned.length > 0) onPlanned?.(planned.length);
-      },
-      (error: unknown) => {
+      })
+      .catch((error: unknown) => {
         if (!live) return;
         // The exception's own message is for the console. "Failed to fetch" is
         // what a browser says to a programmer; a learner needs to know whether
@@ -236,8 +256,7 @@ export function QuizFrame({
         console.error('[decks] Could not load the questions.', error);
         setMessage(null);
         setStatus('error');
-      },
-    );
+      });
 
     return () => {
       live = false;

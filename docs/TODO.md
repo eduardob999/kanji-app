@@ -161,8 +161,10 @@ you have to go and get a question wrong to test.
 
 ## 4. Better sentences, and more of them, without a slower app
 
-- [ ] **More entries have an example, the examples read like Japanese, and the
+- [x] **More entries have an example, the examples read like Japanese, and the
       app starts no slower.**
+      *Done 2026-09-10 — and the third clause turned out to be the one worth
+      the most.*
 
 Today: 5,975 of 7,234 entries (83%) have a verified example, and everything
 shipped is checked twice (see `SENTENCE-QUALITY.md`). The gap is 1,259 entries
@@ -172,6 +174,73 @@ Done when: coverage is meaningfully above 83% with the verification unchanged
 and zero invalid questions; the sentence packs do not grow the initial load
 (measured — they are fetched per level, so this is about pack size and when
 they are fetched); and a measured before/after of time-to-first-question.
+
+### Quantity: 83% → 84%, and that is the ceiling
+
+Two last-resort tiers, both reached only by a word that would otherwise have no
+example at all: look further down its ranking (400 candidates instead of 40),
+and then outside the 8-44 character window (6-60). Coverage went from 5,975
+entries to **6,045**, still with every sentence verified twice and
+`npm run sentences:check` at zero.
+
+That is a small number and it is close to all there is. Of the 1,189 entries
+still without an example:
+
+| | entries | |
+|---|---|---|
+| the surface appears nowhere in the corpus, at any length | 645 | 54% |
+| it appears, but never as that word with that reading | 480 | 40% |
+| only in sentences outside even the widened window | 26 | 2% |
+| verified but blocked by the ambiguous-word confirmation rule | 35 | 3% |
+| still reachable — the deep search's own cap | 3 | 0.3% |
+
+**1,151 of 1,189 are not reachable from Tatoeba at all**, whatever this
+pipeline does. The remaining 35 are a correctness trade worth keeping: they are
+words the corpus reads two ways, where an unconfirmed guess is how 「バス［しろ］」
+happened. Going meaningfully past 85% means a second corpus, not a better
+filter — which is a real option (JMdict's own examples, Wikipedia extracts) and
+a much larger piece of work.
+
+### Quality: examples where the word stands on its own
+
+株主総会 contains 総会, read exactly as 総会 is read, so 株主［そうかい］が開かれた is a
+*fair* question — the answer is right and the reading is right. It is still a
+worse question than one where the word stands alone, because what the learner
+sees is half a compound with a hole in it. The ranking now prefers the
+standing-alone sentence where one exists, as a preference rather than a filter:
+filtering would take examples away from the one-character entries that mostly
+appear inside compounds, and a slightly odd question beats none.
+
+**4.1% of entries now show a glued example first**, and those are the words for
+which no other kind exists.
+
+### Speed: the part that actually mattered
+
+The app fetched **all eight sentence packs — 1.3 MB — before it could ask its
+first question**, on every screen that uses sentences, for a round that reads
+fifteen examples from two or three levels. Planning needs every deck, because
+what is due is scattered across levels; it needs no sentences whatsoever.
+
+So the source hands the frame an empty, mutable index and an `ensureSentences`,
+and the frame fills it for the levels its *planned queue* landed on — filtered
+to the questions that will actually read a sentence. Measured, first question
+from a cold start:
+
+| screen | sentence bytes before | after |
+|---|---|---|
+| Practice | 1,304 kB | 934 kB |
+| Fill in the blank | 1,304 kB | 808 kB |
+| Vocab reading | 1,304 kB | **0** |
+| Kanji writing | 1,304 kB | **0** |
+
+Two of the four drills never needed a single sentence and were waiting for all
+of them.
+
+**The next lever, unpulled:** the decks are now the load — 1,110 kB of them,
+because the planner reads every item in the corpus to find what is due. A
+compact index of id, level and rank would be about 200 kB and would let the full
+decks be fetched only for the questions chosen. That is a larger change than
+this item needed, and it is where the remaining second goes.
 
 ## 5. A UI worth showing someone
 
