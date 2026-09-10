@@ -16,7 +16,7 @@ import { useModelFit } from '../hooks/useModelFit';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { EMPTY_MODEL } from '../storage/modelState';
 import { AccountPanel } from './AccountPanel';
-import { useAccent } from '../hooks/useAccent';
+import { useTheme } from '../hooks/useTheme';
 import { useBackground } from '../hooks/useBackground';
 import { AppearancePanel } from './AppearancePanel';
 import { AppMark } from './AppMark';
@@ -59,7 +59,7 @@ export function AppShell({ user }: AppShellProps) {
 
   // Paints the app in the chosen accent, both themes at once. Here rather than
   // on the Appearance screen, so the colour is the app's and not that screen's.
-  useAccent(profile?.kanjiba.accentHue);
+  useTheme(profile?.kanjiba.accentHue, profile?.kanjiba.groundHue);
   useBackground(user, profile?.kanjiba.backgroundDim);
   const [nodeId, setNodeId] = useState<string>(() => nodeFromHash(window.location.hash).id);
 

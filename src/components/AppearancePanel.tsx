@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import type { User } from 'firebase/auth';
-import { DEFAULT_HUE, isHue } from '../domain/theme';
+import { DEFAULT_GROUND_HUE, DEFAULT_HUE, isHue } from '../domain/theme';
 import { toStoredImage } from '../domain/image';
-import { applyAccent } from '../hooks/useAccent';
+import { applyTheme } from '../hooks/useTheme';
 import { applyBackground } from '../hooks/useBackground';
 import { useUserProfile } from '../hooks/useUserProfile';
 import { clearBackground, saveBackground } from '../storage/background';
-import { setAccentHue, setBackgroundDim } from '../storage/userState';
+import { setAccentHue, setBackgroundDim, setGroundHue } from '../storage/userState';
 
 /**
  * How far the dimming goes, and why it can go this low.
@@ -47,6 +47,19 @@ export function AppearancePanel({ user }: { user: User }) {
 
   const [chosen, setChosen] = useState<number | null>(null);
   const showing = chosen ?? hue;
+
+  /*
+   * The ground, which has a third state: unchosen.
+   *
+   * Unchosen is not the same as 249 — the app's own ground is ink at 249 on
+   * dark and washi at 81 on light, and only "unchosen" reproduces both. So the
+   * slider shows 249 for want of anywhere else to sit, while what is *applied*
+   * stays undefined until a learner actually picks something.
+   */
+  const [chosenGround, setChosenGround] = useState<number | null>(null);
+  const storedGround = isHue(profile?.kanjiba.groundHue) ? profile.kanjiba.groundHue : undefined;
+  const groundChoice = chosenGround ?? storedGround;
+  const showingGround = groundChoice ?? DEFAULT_GROUND_HUE;
 
   /*
    * The picture, held locally as well as stored.
@@ -112,10 +125,21 @@ export function AppearancePanel({ user }: { user: User }) {
      * within a tick, and the swatch state is local until it does.
      */
     setChosen(rounded);
-    applyAccent(rounded);
+    applyTheme(rounded, groundChoice);
 
     void setAccentHue(user.uid, rounded).catch((error: unknown) => {
       console.error('[profile] Accent colour did not reach the server.', error);
+    });
+  };
+
+  const chooseGround = (next: number) => {
+    const rounded = Math.round(next);
+
+    setChosenGround(rounded);
+    applyTheme(showing, rounded);
+
+    void setGroundHue(user.uid, rounded).catch((error: unknown) => {
+      console.error('[profile] Background colour did not reach the server.', error);
     });
   };
 
@@ -168,7 +192,57 @@ export function AppearancePanel({ user }: { user: User }) {
 
       <hr className="rule" />
 
-      <h2 className="card__subtitle">Background</h2>
+      <h2 className="card__subtitle">Background colour</h2>
+      <p className="card__body">
+        The ground everything sits on — the page, the cards, and the fields inside them. The app
+        keeps hold of how light each of those is, which is what keeps the writing on them
+        readable.
+      </p>
+
+      <fieldset className="field" disabled={loading}>
+        <legend className="visually-hidden">Background hue</legend>
+        <div className="swatches">
+          {SWATCHES.map((swatch) => (
+            <button
+              key={swatch}
+              type="button"
+              className={`swatch swatch--ground${
+                Math.abs(swatch - showingGround) < 15 ? ' swatch--chosen' : ''
+              }`}
+              style={{ '--swatch-hue': swatch } as React.CSSProperties}
+              aria-label={`Background hue ${swatch} degrees`}
+              aria-pressed={Math.abs(swatch - showingGround) < 15}
+              onClick={() => chooseGround(swatch)}
+            />
+          ))}
+        </div>
+
+        <label className="field__label field__label--inline" htmlFor="ground-hue">
+          Fine tune
+        </label>
+        <input
+          id="ground-hue"
+          className="slider"
+          type="range"
+          min={0}
+          max={359}
+          step={1}
+          value={showingGround}
+          onChange={(event) => chooseGround(Number(event.target.value))}
+        />
+      </fieldset>
+
+      <button
+        type="button"
+        className="button button--ghost button--small"
+        onClick={() => chooseGround(DEFAULT_GROUND_HUE)}
+      >
+        Back to the original ink
+      </button>
+
+      <hr className="rule" />
+
+      <h2 className="card__subtitle">Background picture</h2>
       <p className="card__body">
         A picture of your own behind the app. It sits under the cards rather than under the
         writing — and the header, the tabs and the cards all carry their own surface — so nothing

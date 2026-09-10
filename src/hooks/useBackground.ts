@@ -20,7 +20,7 @@ import { subscribeBackground } from '../storage/background';
 /**
  * Shows an image immediately, before it has been stored.
  *
- * Same reason as `applyAccent`: the write is not awaited, and a background that
+ * Same reason as `applyTheme`: the write is not awaited, and a background that
  * appears a beat after you choose it feels like it did not work. Also the only
  * way the preview harness — which has no Firestore — can show one at all, which
  * is what lets the audit prove the scrim keeps text readable.

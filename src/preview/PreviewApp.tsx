@@ -4,7 +4,7 @@ import { AccountPanel } from '../components/AccountPanel';
 import { BrowsePanel } from '../components/BrowsePanel';
 import { InputMethodPanel } from '../components/InputMethodPanel';
 import { ProgressPanel } from '../components/ProgressPanel';
-import { useAccent } from '../hooks/useAccent';
+import { useTheme } from '../hooks/useTheme';
 import { AppearancePanel } from '../components/AppearancePanel';
 import { SchedulerPanel } from '../components/SchedulerPanel';
 import { SoundPanel } from '../components/SoundPanel';
@@ -159,7 +159,7 @@ export function PreviewApp() {
   // The harness paints itself the same way the app does — at the default hue,
   // so a screenshot is of the app's own blue arriving through the same path the
   // learner's choice will.
-  useAccent(undefined);
+  useTheme(undefined, undefined);
 
   useEffect(() => {
     const onHash = () => setScreen(screenFromHash());

@@ -2849,6 +2849,26 @@ code {
   cursor: pointer;
 }
 
+/*
+ * The ground swatches show the ground.
+ *
+ * Same recipe as `GROUND_RECIPE` in `src/domain/theme.ts` — the page step of
+ * each theme — so a swatch is the colour it will actually paint rather than an
+ * impression of it. Two places holding one recipe, as with the accent above:
+ * if one moves, move both.
+ */
+.swatch--ground {
+  background: oklch(0.22 0.02 var(--swatch-hue));
+  border-color: rgba(249, 243, 232, 0.16);
+}
+
+@media (prefers-color-scheme: light) {
+  .swatch--ground {
+    background: oklch(0.963 0.014 var(--swatch-hue));
+    border-color: rgba(18, 31, 46, 0.16);
+  }
+}
+
 .swatch--chosen {
   border-color: var(--text);
   /* A ring rather than a tick: a tick needs a colour that reads on every hue. */

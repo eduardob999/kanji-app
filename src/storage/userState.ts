@@ -88,6 +88,7 @@ function toUserProfile(uid: string, data: DocumentData | undefined): UserProfile
       ...(isInputMethod(kanjiba['inputMethod']) ? { inputMethod: kanjiba['inputMethod'] } : {}),
       ...(typeof kanjiba['sounds'] === 'boolean' ? { sounds: kanjiba['sounds'] as boolean } : {}),
       ...(isHue(kanjiba['accentHue']) ? { accentHue: kanjiba['accentHue'] } : {}),
+      ...(isHue(kanjiba['groundHue']) ? { groundHue: kanjiba['groundHue'] } : {}),
       ...(typeof kanjiba['backgroundDim'] === 'number' && Number.isFinite(kanjiba['backgroundDim'])
         ? { backgroundDim: kanjiba['backgroundDim'] as number }
         : {}),
@@ -212,6 +213,11 @@ export async function setSounds(uid: string, sounds: boolean): Promise<void> {
 /** Sets the accent hue, in degrees. */
 export async function setAccentHue(uid: string, accentHue: number): Promise<void> {
   await updateKanjibaProfile(uid, { accentHue });
+}
+
+/** Sets the hue of the ground the app is painted on. */
+export async function setGroundHue(uid: string, groundHue: number): Promise<void> {
+  await updateKanjibaProfile(uid, { groundHue });
 }
 
 /** Sets how strongly a background image is dimmed, as a percentage. */

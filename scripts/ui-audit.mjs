@@ -577,6 +577,30 @@ const STATES = {
    */
   appearance: [
     {
+      /*
+       * A ground the app was never designed in.
+       *
+       * The colour rules are proved in `theme.test.ts` over all 360 hues and
+       * all 129,600 accent-ground pairs, which is arithmetic on tokens. This
+       * is the other half: that the tokens are actually what the screen uses,
+       * so a surface painted with a literal colour somewhere in the stylesheet
+       * would show up here as text that stopped clearing AA.
+       */
+      name: 'ground',
+      async reach(page) {
+        await page.locator('.swatch--ground').nth(5).click();
+        await page.waitForTimeout(300);
+      },
+      async check(page) {
+        const ground = await page.evaluate(() =>
+          getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),
+        );
+        return ground === '#101a24' || ground === '#faf4ea'
+          ? ['choosing a background colour did not change the ground']
+          : [];
+      },
+    },
+    {
       name: 'background',
       async reach(page) {
         await page.evaluate(async () => {

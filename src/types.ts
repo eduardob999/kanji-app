@@ -48,6 +48,14 @@ export interface KanjibaProfile {
    */
   accentHue?: number;
   /**
+   * The ground the app is painted on, as a hue in degrees.
+   *
+   * Same bargain as the accent: only the hue: the three lightness steps that
+   * decide whether text on them can be read stay the app's. Absent means the
+   * icon's ink.
+   */
+  groundHue?: number;
+  /**
    * How much of the app's ground colour is laid over a background image, as a
    * percentage. Absent means 85. The picker will not go below 70 — see the
    * scrim in `styles.css` for what that floor is holding up.
