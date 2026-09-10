@@ -287,4 +287,31 @@ offers the way to make it true. An imported account still gets the real report:
 it has no review *log* but thousands of review states.
 
 **And the screenshots exist**, at `?bare=1` on the preview harness so the
-harness's own status chip stays out of them, captured at 390x844 and 3x.
+harness's own status chip stays out of them, captured at 390x844 and 3x — laid
+out as a store listing on a Claude Design canvas:
+<https://claude.ai/code/artifact/6b3714b5-0c01-4ac4-a38d-7390b6b54843>
+
+Its working files (three artboards, the layout, the resized screenshots) are not
+in this repo: the canvas itself is the source, and the design tooling reads them
+back out of the published page when there is an edit to make.
+
+---
+
+## All five, done
+
+Opened 2026-09-10 and finished the same day. What each one actually turned out
+to be about, since none of them was quite what it looked like:
+
+1. **Small screens** — the harness had never run at a raised system text size,
+   where 34 of 35 screens failed. And it was scaling text the wrong way, which
+   `em` breakpoints cannot see.
+2. **Theme and background** — making the choice safe by construction rather
+   than by taste: a hue whose lightness the app keeps, and a picture that is
+   never behind text.
+3. **Sound** — three oscillators and an envelope, so the feature weighs nothing
+   and works on a train.
+4. **Sentences** — the quantity clause was nearly exhausted already; the
+   speed clause was worth a megabyte off the first question.
+5. **A UI worth showing** — motion as the app replying, a card that fills its
+   screen, and the discovery that every Japanese measurement this repo had ever
+   taken was made against tofu.
