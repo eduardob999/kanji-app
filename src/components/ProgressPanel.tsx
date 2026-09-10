@@ -3,6 +3,7 @@ import type { User } from 'firebase/auth';
 import { loadAllDecks } from '../domain/decks';
 import { isKanjiItem, levelLabel, type Deck, type StudyItem } from '../domain/items';
 import { isSlipping, slipScore } from '../domain/leech';
+import { hashFor } from '../domain/navigation';
 import { DEFAULT_MAX_SLIPPING } from '../domain/sessionPlanner';
 import { REVIEW_MODES, deckTypeForReviewMode, reviewModeLabel, type ReviewMode } from '../domain/modes';
 import {
@@ -116,6 +117,25 @@ export function ProgressPanel({ user }: { user: User }) {
     return found.sort((a, b) => b.score - a.score);
   }, [loaded, lookup, mode]);
 
+  /*
+   * Whether there is anything at all to report.
+   *
+   * Both halves have to be empty, and the second is the one that matters: an
+   * imported account has no *review log* — the old app recorded that you were
+   * right, never when — but it has thousands of review states, and telling
+   * someone who has just imported six thousand items that there is nothing to
+   * report would be wrong. `statesLoading` keeps it from flashing the empty
+   * state on the way in.
+   */
+  const nothingYet =
+    !statesLoading &&
+    streaks !== null &&
+    streaks.totalReviews === 0 &&
+    progress !== null &&
+    // "Seen" is everything not in the unseen band — the three that mean the
+    // schedule has some record of you.
+    progress.counts.known + progress.counts.familiar + progress.counts.learning === 0;
+
   return (
     <section className="card">
       <h1 className="card__title">Progress</h1>
@@ -126,6 +146,33 @@ export function ProgressPanel({ user }: { user: User }) {
         </p>
       ) : null}
 
+      {nothingYet ? (
+        /*
+         * A new account, told what will be here rather than shown eight bars
+         * at zero.
+         *
+         * The full report is honest about an empty history and reads as a
+         * verdict on it: 0 day streak, 0 today, 0 all time, an empty
+         * eight-week strip and 0% across every level, before you have been
+         * offered a single question. Nothing on it is information — every
+         * number is derivable from "you have not started" — and it is the
+         * first thing a new learner meets under Progress.
+         *
+         * So the zeros wait until there is something to count, and what stands
+         * in their place is what the screen will be for, and the way to make it
+         * true.
+         */
+        <>
+          <p className="card__body">
+            Nothing to report yet. Your first round fills this in: the days you turned up, how
+            much of each level the schedule can vouch for, and the words that keep slipping.
+          </p>
+          <a className="button button--primary button--block" href={hashFor('study.practice')}>
+            Start practising
+          </a>
+        </>
+      ) : (
+        <>
       <h2 className="card__subtitle">Turning up</h2>
       {streaks === null ? (
         <p className="card__body">Reading your history…</p>
@@ -295,6 +342,8 @@ export function ProgressPanel({ user }: { user: User }) {
               </p>
             ) : null}
           </details>
+        </>
+      )}
         </>
       )}
     </section>

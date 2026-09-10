@@ -2960,3 +2960,155 @@ code {
   border: 0;
   background: var(--border);
 }
+
+/* Motion ------------------------------------------------------------------ */
+
+/*
+ * What moves, and why any of it does.
+ *
+ * Motion here is not decoration and it is not celebration: it is the app
+ * answering. A verdict that simply appears is a state change you have to notice;
+ * a verdict that arrives with 140ms of rise is one you feel land, and the
+ * difference is most of what separates an app you use from a form you fill in.
+ *
+ * Three rules kept it honest:
+ *
+ * 1. **Nothing moves that you are reading.** The question never animates. What
+ *    animates is the app's reply to you.
+ * 2. **Nothing lasts long enough to wait for.** The longest is 320ms, on a
+ *    meter you are not blocked by; everything on the answer path is 140-200ms,
+ *    which is under the threshold where a person starts to perceive delay.
+ * 3. **Everything ends at rest.** Each keyframe finishes at the element's
+ *    ordinary state, so a reduced-motion browser zeroing the duration lands
+ *    exactly where an unanimated one does. That is what makes the global
+ *    `prefers-reduced-motion` block above sufficient rather than approximate.
+ *
+ * All CSS, no library, nothing added to the bundle.
+ */
+
+@keyframes verdict-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes verdict-wrong {
+  /*
+   * A shake of three pixels, twice.
+   *
+   * Enough to read as "no" before the word does, small enough not to be a
+   * telling-off — the item is coming back in two hours and the app has no
+   * business being cross about it. Duolingo shakes about twice this far, which
+   * suits a game with a cartoon owl and not a page of kanji.
+   */
+  20% { transform: translateX(-3px); }
+  45% { transform: translateX(3px); }
+  70% { transform: translateX(-2px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes verdict-right {
+  /* A single breath outward. Never past 1.02: a card that bounces reads as a
+     toy, and this one is telling you something true. */
+  45% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+.verdict {
+  animation: verdict-in 140ms ease-out both;
+}
+
+.verdict--wrong {
+  animation: verdict-in 140ms ease-out both, verdict-wrong 200ms ease-in-out 60ms;
+}
+
+.verdict--hit {
+  animation: verdict-in 140ms ease-out both, verdict-right 220ms ease-out 40ms;
+}
+
+/*
+ * The dock, when it becomes the verdict.
+ *
+ * The answer field is replaced by the grade and the next button in the same
+ * place, and without this the swap is a jump-cut: the tallest element on the
+ * screen changes contents between one frame and the next.
+ */
+@keyframes dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.quiz__dock {
+  animation: dock-in 160ms ease-out both;
+}
+
+/*
+ * The meter fills rather than appearing full.
+ *
+ * On the Progress screen there are eight of them, and a screen of bars that
+ * were always at that length says nothing about having got there. Staggered by
+ * row so the eye reads down the levels instead of taking them all at once.
+ */
+@keyframes meter-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.meter__fill {
+  transform-origin: left center;
+  animation: meter-fill 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.levels__row:nth-child(2) .meter__fill { animation-delay: 40ms; }
+.levels__row:nth-child(3) .meter__fill { animation-delay: 80ms; }
+.levels__row:nth-child(4) .meter__fill { animation-delay: 120ms; }
+.levels__row:nth-child(5) .meter__fill { animation-delay: 160ms; }
+.levels__row:nth-child(6) .meter__fill { animation-delay: 200ms; }
+.levels__row:nth-child(7) .meter__fill { animation-delay: 240ms; }
+.levels__row:nth-child(8) .meter__fill { animation-delay: 280ms; }
+
+/*
+ * The round summary arrives a line at a time.
+ *
+ * It is the one screen in the app that is purely a result, and a result that
+ * assembles itself is read; a result that is simply there is skipped. 60ms
+ * apart, which is fast enough that the whole card is settled in a fifth of a
+ * second.
+ */
+@keyframes summary-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.summary > * {
+  animation: summary-in 220ms ease-out both;
+}
+
+.summary > *:nth-child(2) { animation-delay: 60ms; }
+.summary > *:nth-child(3) { animation-delay: 120ms; }
+.summary > *:nth-child(4) { animation-delay: 180ms; }
+.summary > *:nth-child(5) { animation-delay: 240ms; }
+
+/*
+ * Reduced motion: the global block above zeroes every duration, which lands
+ * each of these at its final frame because every one of them ends at rest.
+ * The two `both`-filled entrances need saying explicitly, since a zeroed
+ * duration with `animation-fill-mode: both` holds the *first* frame — which for
+ * an entrance is invisible.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .verdict,
+  .verdict--wrong,
+  .verdict--hit,
+  .quiz__dock,
+  .meter__fill,
+  .summary > * {
+    animation: none !important;
+  }
+}

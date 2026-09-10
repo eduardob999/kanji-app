@@ -440,7 +440,10 @@ export function SessionSummary({
   });
 
   return (
-    <section className="card">
+    // `summary` is what the stagger in styles.css hangs off: this is the one
+    // screen that is purely a result, and a result that assembles itself is
+    // read rather than skipped.
+    <section className="card summary">
       <h1 className="card__title">Round done</h1>
 
       <div className="tally">
