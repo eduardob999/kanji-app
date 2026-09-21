@@ -9,7 +9,8 @@
  *
  * That variability is the whole design problem here, and the answer is to find
  * out *before* offering the quiz rather than failing silently in the middle of
- * it. `hasJapaneseVoice` is what the listening mode checks.
+ * it. `whenVoicesReady` is the first answer and `subscribeVoices` keeps it
+ * current; `useJapaneseVoice` is what the screens actually read.
  *
  * Two browser quirks worth knowing:
  *
@@ -90,6 +91,33 @@ export function whenVoicesReady(timeoutMs = 3_000): Promise<SpeechSynthesisVoice
     const timer = window.setTimeout(finish, timeoutMs);
     speech.addEventListener('voiceschanged', finish);
   });
+}
+
+/**
+ * Calls back with the Japanese voices whenever the browser's list changes.
+ *
+ * `whenVoicesReady` answers once and then gives up, which is the right shape
+ * for "can this screen be shown at all" and the wrong shape for *staying*
+ * right. Its three seconds are a guess about how long a browser takes to bind
+ * its speech engine, and on a cold start — the first launch of the installed
+ * app, an Android phone still waking its TTS service — the guess can be short.
+ * Nothing revisited that answer, so one slow start meant the practice screen
+ * quietly dropped listening for the whole visit on a device that speaks
+ * Japanese perfectly well.
+ *
+ * So the screens keep listening. The same event also fires when a voice is
+ * installed or removed while the app is open, which is exactly what someone
+ * does after being told they have none.
+ *
+ * Returns the unsubscribe.
+ */
+export function subscribeVoices(onChange: (voices: SpeechSynthesisVoice[]) => void): () => void {
+  const speech = synth();
+  if (!speech) return () => {};
+
+  const handler = () => onChange(japaneseVoices());
+  speech.addEventListener('voiceschanged', handler);
+  return () => speech.removeEventListener('voiceschanged', handler);
 }
 
 /** The voice to use, preferring a local one — network voices lag and need a connection. */

@@ -38,11 +38,16 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = resolve(ROOT, '.ui');
 const BASE = process.env.UI_BASE ?? 'http://localhost:5173';
 
-/** Playwright's own cached build; nothing extra to download. */
-const EXECUTABLE = resolve(
-  homedir(),
-  '.cache/ms-playwright/chromium-1148/chrome-linux/chrome',
-);
+/**
+ * Playwright's own cached build; nothing extra to download.
+ *
+ * `UI_CHROMIUM` points it somewhere else, for a machine that already ships a
+ * browser or cached a different build number. An audit that cannot be launched
+ * is an audit nobody runs.
+ */
+const EXECUTABLE =
+  process.env.UI_CHROMIUM ??
+  resolve(homedir(), '.cache/ms-playwright/chromium-1148/chrome-linux/chrome');
 
 /**
  * The viewports that matter, and the theme each is checked in.

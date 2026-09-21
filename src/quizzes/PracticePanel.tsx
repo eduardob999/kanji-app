@@ -100,7 +100,24 @@ export function PracticePanel({ user, silent = false }: { user: User; silent?: b
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [abandoned, started, user.uid]);
 
-  const loadQuiz = useCallback(() => loadQuizSource(modes, speaking), [modes, speaking]);
+  /*
+   * The voice is sampled once per round rather than depended on.
+   *
+   * The frame replans whenever this callback's identity changes, and the voice
+   * can now turn up at any moment: the hook keeps watching for one instead of
+   * giving up three seconds after the screen opened. Naming it as a dependency
+   * would mean a voice that arrived mid-question rebuilt the queue underneath
+   * the answer being typed and threw the tally away. A fixed identity leaves
+   * the frame calling this exactly when it plans a round, which is the one
+   * moment at which changing the question types in play costs nothing.
+   */
+  const voiceRef = useRef(speaking);
+  voiceRef.current = speaking;
+
+  const loadQuiz = useCallback(() => {
+    const forRound = voiceRef.current;
+    return loadQuizSource(forRound ? WITH_VOICE : WITHOUT_VOICE, forRound);
+  }, []);
 
   /**
    * Derived rather than stored, so it simply improves when the log arrives.
@@ -345,7 +362,15 @@ export function PracticePanel({ user, silent = false }: { user: User; silent?: b
                   line above has just said eight, so the screen contradicted
                   itself on the first launch of a new account.
                 */}
-                {round} question{round === 1 ? '' : 's'} this time, all four types interleaved
+                {/*
+                  How many types, counted rather than asserted. The line said
+                  "all four" on the silent screen and on any device with no
+                  Japanese voice, where three are in play — which is precisely
+                  where someone is left wondering where the listening questions
+                  went.
+                */}
+                {round} question{round === 1 ? '' : 's'} this time,{' '}
+                {modes.length === 4 ? 'all four' : 'three'} types interleaved
                 {counts.due > 0 ? ', most overdue first' : ''}.
                 {/*
                   Short, because this sits directly above Start and prose above
@@ -387,6 +412,16 @@ export function PracticePanel({ user, silent = false }: { user: User; silent?: b
           */}
           {profile ? <LegacyImport user={user} /> : null}
 
+          {/*
+            Below Start, and measured rather than chosen.
+
+            The answer to "where did the listening questions go?" belongs above
+            the action, and `npm run ui` says it cannot go there: two more lines
+            at 130% text on a 320px phone put Start itself 8px below the fold,
+            and 40px on the round with nothing due. So the count in the line
+            above Start carries the signal — it says three types rather than
+            four — and this says why.
+          */}
           {!silent && !voice ? (
             <p className="card__hint">
               Listening questions are left out: this device has no Japanese speech voice.
