@@ -1477,6 +1477,52 @@ code {
 }
 
 /*
+ * Other words with the same kanji, after a miss.
+ *
+ * Sits under the reveal's datalist and borrows its rule lines so the two read
+ * as one block. Word and reading share a line and the meaning takes the next,
+ * because a meaning is the part that runs long and a word is never more than a
+ * few characters.
+ */
+.examples__title {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.examples__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.examples__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+  padding: 6px 0;
+  font-size: 0.9rem;
+}
+
+.examples__word {
+  font-size: 1.05rem;
+}
+
+.examples__reading {
+  color: var(--text-muted);
+}
+
+.examples__meaning {
+  flex-basis: 100%;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+/*
  * What the answer did to the schedule, at the top of the dock.
  *
  * It used to sit above the Next button in normal flow, which the sticky dock
@@ -2493,6 +2539,20 @@ code {
  * Only while the keyboard is up. With it down the card fits and this changes
  * nothing.
  */
+/*
+ * A reveal carrying example words is the one that can outgrow a short phone
+ * with the keyboard down too: three more rows under Character, Readings and
+ * Meaning. At 360x640 they fell below the dock, where nothing could reach
+ * them. So such a reveal yields and scrolls, as every reveal does with the
+ * keyboard up, and the rows it holds back are the examples — the answer
+ * itself stays at the top.
+ */
+.quiz__reveal:has(.examples) {
+  flex: 0 1 auto;
+  overflow-y: auto;
+  min-height: 2.6rem;
+}
+
 [data-keyboard='open'] .quiz__reveal {
   flex: 0 1 auto;
   overflow-y: auto;

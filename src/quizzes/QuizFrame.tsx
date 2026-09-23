@@ -677,7 +677,10 @@ export function QuizFrame({
             </p>
           ) : null}
 
-          <div className="quiz__reveal">{definition.renderReveal(question.item)}</div>
+          <div className="quiz__reveal">
+            {definition.renderReveal(question.item)}
+            {!verdict.correct ? definition.renderExamples?.(question.item) : null}
+          </div>
 
           {stuck ? (
             /*
