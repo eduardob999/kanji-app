@@ -1,4 +1,5 @@
 import { loadAllDecks } from '../domain/decks';
+import { buildExampleIndex, type ExampleIndex } from '../domain/examples';
 import type { KanjiItem, Level, VocabItem } from '../domain/items';
 import { deckTypeFor, type QuizMode } from '../domain/modes';
 import { loadSentencePack, type Sentence } from '../domain/sentences';
@@ -39,6 +40,9 @@ export interface QuizSource {
 
 /** Which modes draw on the Tatoeba packs. */
 export const NEEDS_SENTENCES: readonly QuizMode[] = ['fill-in', 'audio'];
+
+/** Which modes list other words using the same kanji after a miss. */
+const SHOWS_EXAMPLES: readonly QuizMode[] = ['kanji-writing', 'vocab-reading'];
 
 /** Whether a question will read an example sentence. */
 export function usesSentences(quiz: QuizMode): boolean {
@@ -86,6 +90,23 @@ export async function loadQuizSource(
     for (const level of wanted) loaded.add(level);
   };
 
+  /*
+   * Filled in place, like the sentences, and not awaited: the examples are
+   * wanted only after a miss, and a kanji-only sitting would otherwise wait on
+   * the vocabulary decks before its first question. When the vocab decks are
+   * already loaded for the quiz itself this resolves at once. A failure leaves
+   * the index empty and the reveal without examples, which is all it costs.
+   */
+  const examples: ExampleIndex = new Map();
+  if (modes.some((mode) => SHOWS_EXAMPLES.includes(mode))) {
+    const decks = wantsVocab ? Promise.resolve(vocabDecks) : loadAllDecks<VocabItem>('vocab');
+    decks
+      .then((loaded) => {
+        for (const [kanji, words] of buildExampleIndex(loaded)) examples.set(kanji, words);
+      })
+      .catch((error: unknown) => console.warn('Example words unavailable:', error));
+  }
+
   const candidates: Candidate[] = [];
   for (const mode of modes) {
     const decks = deckTypeFor(mode) === 'kanji' ? kanjiDecks : vocabDecks;
@@ -96,5 +117,5 @@ export async function loadQuizSource(
     }
   }
 
-  return { candidates, definitions: quizDefinitions({ sentences, voice }), ensureSentences };
+  return { candidates, definitions: quizDefinitions({ sentences, voice, examples }), ensureSentences };
 }

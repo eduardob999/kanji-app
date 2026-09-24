@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { isAnyReadingCorrect, isReadingCorrect, isWritingCorrect } from '../domain/answerCheck';
+import { examplesFor, type ExampleIndex } from '../domain/examples';
 import type { KanjiItem, StudyItem, VocabItem } from '../domain/items';
 import type { QuizMode } from '../domain/modes';
 import { blankOut, chooseSentence, type Sentence } from '../domain/sentences';
@@ -36,6 +37,11 @@ export interface QuizDefinition {
   answerOf: (item: StudyItem) => string;
   renderPrompt: (question: PlannedQuestion, helpers: PromptHelpers) => ReactNode;
   renderReveal: (item: StudyItem) => ReactNode;
+  /**
+   * Other words using the same kanji, shown on a miss only. Kanji writing and
+   * vocab reading have one; the fill-in and listening reveals do not.
+   */
+  renderExamples?: (item: StudyItem) => ReactNode;
 }
 
 /**
@@ -50,6 +56,8 @@ export interface QuizContext {
   sentences: Map<string, Sentence[]>;
   /** Null when the device has no Japanese voice; listening is hidden then. */
   voice: SpeechSynthesisVoice | null;
+  /** Kanji to the vocabulary that uses it. Empty until the vocab decks load. */
+  examples: ExampleIndex;
 }
 
 const asVocab = (item: StudyItem): VocabItem => item as VocabItem;
@@ -73,6 +81,36 @@ function VocabReveal({ item }: { item: VocabItem }) {
         <dd>{item.meaning || '—'}</dd>
       </div>
     </dl>
+  );
+}
+
+/**
+ * A few words that share this surface's kanji, or nothing when there are none.
+ *
+ * Read from the index at render time rather than captured, for the same reason
+ * the sentences are: the index is filled after the definitions are made.
+ */
+function ExampleWords({ index, surface }: { index: ExampleIndex; surface: string }) {
+  const words = examplesFor(index, surface);
+  if (words.length === 0) return null;
+
+  return (
+    <div className="examples">
+      <p className="examples__title">Also written with {surface.length === 1 ? 'it' : 'these'}</p>
+      <ul className="examples__list">
+        {words.map((example) => (
+          <li key={example.word} className="examples__row">
+            <span className="examples__word" lang="ja">
+              {example.word}
+            </span>
+            <span className="examples__reading" lang="ja">
+              {example.reading}
+            </span>
+            <span className="examples__meaning">{example.meaning}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -100,6 +138,7 @@ export function quizDefinitions(context: QuizContext): Record<QuizMode, QuizDefi
         </>
       ),
       renderReveal: (item) => <VocabReveal item={asVocab(item)} />,
+      renderExamples: (item) => <ExampleWords index={context.examples} surface={asVocab(item).word} />,
     },
 
     'kanji-writing': {
@@ -132,6 +171,7 @@ export function quizDefinitions(context: QuizContext): Record<QuizMode, QuizDefi
           </div>
         </dl>
       ),
+      renderExamples: (item) => <ExampleWords index={context.examples} surface={asKanji(item).kanji} />,
     },
 
     'fill-in': {
