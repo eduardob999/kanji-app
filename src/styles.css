@@ -3291,3 +3291,36 @@ code {
 .wordlist__actions .button {
   min-height: 44px;
 }
+
+/*
+ * Sentences under a word's reveal. They share `.examples`, so the reveal yields
+ * and scrolls exactly as the kanji examples do rather than pushing the dock off
+ * a short screen.
+ */
+.examples__sentence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: 10px;
+  padding: 6px 0;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.examples__hit {
+  background: transparent;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.examples__source {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.examples__licence {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}

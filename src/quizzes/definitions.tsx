@@ -3,7 +3,7 @@ import { isAnyReadingCorrect, isReadingCorrect, isWritingCorrect } from '../doma
 import { examplesFor, type ExampleIndex } from '../domain/examples';
 import type { KanjiItem, StudyItem, VocabItem } from '../domain/items';
 import type { QuizMode } from '../domain/modes';
-import { blankOut, chooseSentence, type Sentence } from '../domain/sentences';
+import { blankOut, chooseSentence, markWord, pickExamples, type Sentence } from '../domain/sentences';
 import type { PlannedQuestion } from '../domain/sessionPlanner';
 import { announcedSequence, speakSequence, stopSpeaking } from '../audio/speech';
 
@@ -36,7 +36,12 @@ export interface QuizDefinition {
   /** What the answer was, shown on a miss. */
   answerOf: (item: StudyItem) => string;
   renderPrompt: (question: PlannedQuestion, helpers: PromptHelpers) => ReactNode;
-  renderReveal: (item: StudyItem) => ReactNode;
+  /**
+   * What is shown once the question is answered, right or wrong. The question
+   * is passed so a reveal can show the sentence that was *asked*, which depends
+   * on the item's review state as planned and not as it is a moment later.
+   */
+  renderReveal: (item: StudyItem, question: PlannedQuestion) => ReactNode;
   /**
    * Other words using the same kanji, shown on a miss only. Kanji writing and
    * vocab reading have one; the fill-in and listening reveals do not.
@@ -114,9 +119,84 @@ function ExampleWords({ index, surface }: { index: ExampleIndex; surface: string
   );
 }
 
+/**
+ * Example sentences for a word, shown after every answer to a word question.
+ *
+ * Not only after a miss: a word met in a sentence is a word met in use, and that
+ * is as much worth seeing when the answer was right, perhaps more, since the
+ * reveal after a hit is otherwise the same three lines the prompt just showed.
+ * The sentence that was asked comes first, with the gap filled in.
+ *
+ * The packs hold Japanese only, so there is no translation to show; the word is
+ * marked, and each sentence links to its Tatoeba page, which is both the
+ * attribution CC-BY requires and the way to a translation.
+ */
+function SentenceExamples({
+  item,
+  asked,
+  sentences,
+}: {
+  item: VocabItem;
+  asked: Sentence | null;
+  sentences: readonly Sentence[];
+}) {
+  const shown = pickExamples(sentences, item.word, asked);
+  if (shown.length === 0) return null;
+
+  return (
+    <div className="examples">
+      <p className="examples__title">Used in a sentence</p>
+      <ul className="examples__list">
+        {shown.map((sentence) => (
+          <li key={sentence.id} className="examples__sentence">
+            <span lang="ja">
+              {markWord(sentence.text, item.word).map((part, at) =>
+                part.hit ? (
+                  <mark key={at} className="examples__hit">
+                    {part.text}
+                  </mark>
+                ) : (
+                  part.text
+                ),
+              )}
+            </span>
+            <a
+              className="examples__source"
+              href={`https://tatoeba.org/en/sentences/show/${sentence.id}`}
+              rel="noreferrer"
+            >
+              Tatoeba
+            </a>
+          </li>
+        ))}
+      </ul>
+      <p className="examples__licence">Sentences CC-BY 2.0 FR.</p>
+    </div>
+  );
+}
+
 export function quizDefinitions(context: QuizContext): Record<QuizMode, QuizDefinition> {
   const sentenceFor = (item: VocabItem, reps: number): Sentence | null =>
     chooseSentence(context.sentences.get(item.id) ?? [], reps, item.word);
+
+  /**
+   * The reveal for a word question: the word, then where it is used.
+   *
+   * `asked` is the sentence the prompt showed, so only the modes that put one in
+   * the prompt pass it; for the others the shortest sentences stand in.
+   */
+  const wordReveal = (item: StudyItem, question: PlannedQuestion, askedInPrompt: boolean) => {
+    const vocab = asVocab(item);
+    const available = context.sentences.get(vocab.id) ?? [];
+    const asked = askedInPrompt ? sentenceFor(vocab, question.state?.totalReps ?? 0) : null;
+
+    return (
+      <>
+        <VocabReveal item={vocab} />
+        <SentenceExamples item={vocab} asked={asked} sentences={available} />
+      </>
+    );
+  };
 
   return {
     'vocab-reading': {
@@ -137,7 +217,7 @@ export function quizDefinitions(context: QuizContext): Record<QuizMode, QuizDefi
           <p className="quiz__gloss">{asVocab(item).meaning || 'no meaning recorded'}</p>
         </>
       ),
-      renderReveal: (item) => <VocabReveal item={asVocab(item)} />,
+      renderReveal: (item, question) => wordReveal(item, question, false),
       renderExamples: (item) => <ExampleWords index={context.examples} surface={asVocab(item).word} />,
     },
 
@@ -203,23 +283,7 @@ export function quizDefinitions(context: QuizContext): Record<QuizMode, QuizDefi
           </>
         );
       },
-      renderReveal: (item) => {
-        const vocab = asVocab(item);
-        const available = context.sentences.get(vocab.word) ?? [];
-
-        return (
-          <>
-            <VocabReveal item={vocab} />
-            {available.length > 0 ? (
-              <p className="quiz__note">
-                Sentence from{' '}
-                <a href={`https://tatoeba.org/en/sentences/show/${available[0]!.id}`}>Tatoeba</a>,
-                CC-BY 2.0 FR.
-              </p>
-            ) : null}
-          </>
-        );
-      },
+      renderReveal: (item, question) => wordReveal(item, question, true),
     },
 
     audio: {
@@ -237,7 +301,7 @@ export function quizDefinitions(context: QuizContext): Record<QuizMode, QuizDefi
           />
         );
       },
-      renderReveal: (item) => <VocabReveal item={asVocab(item)} />,
+      renderReveal: (item, question) => wordReveal(item, question, true),
     },
   };
 }

@@ -167,3 +167,56 @@ export function chooseSentence(
 
   return pool[reps % pool.length] ?? null;
 }
+
+/**
+ * The sentences to show after a word has been answered, whether or not it was
+ * answered correctly.
+ *
+ * The sentence that was asked comes first, so a fill-in question's reveal is
+ * that sentence with the gap filled, which is what someone looks for. Then
+ * others, shortest first: a short sentence is read in a moment and a long one
+ * is skipped, and these are shown for being read. A sentence using the word
+ * once is preferred to one using it twice, for the reason `chooseSentence`
+ * gives, and a sentence is never shown twice.
+ */
+export function pickExamples(
+  sentences: readonly Sentence[],
+  word: string,
+  asked: Sentence | null,
+  limit = 2,
+): Sentence[] {
+  const rest = [...sentences]
+    .filter((sentence) => sentence.id !== asked?.id)
+    .sort(
+      (a, b) =>
+        Number(occurrences(a.text, word) !== 1) - Number(occurrences(b.text, word) !== 1) ||
+        a.text.length - b.text.length,
+    );
+
+  return (asked ? [asked, ...rest] : rest).slice(0, limit);
+}
+
+export interface TextPart {
+  text: string;
+  /** True for the stretch that is the word itself. */
+  hit: boolean;
+}
+
+/** `text` cut into the word and what surrounds it, so the word can be marked. */
+export function markWord(text: string, word: string): TextPart[] {
+  if (!word) return [{ text, hit: false }];
+
+  const parts: TextPart[] = [];
+  let from = 0;
+
+  for (;;) {
+    const at = text.indexOf(word, from);
+    if (at < 0) break;
+    if (at > from) parts.push({ text: text.slice(from, at), hit: false });
+    parts.push({ text: word, hit: true });
+    from = at + word.length;
+  }
+
+  if (from < text.length) parts.push({ text: text.slice(from), hit: false });
+  return parts;
+}

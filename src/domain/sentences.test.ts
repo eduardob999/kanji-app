@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blankOut, chooseSentence, type Sentence } from './sentences';
+import { blankOut, chooseSentence, markWord, pickExamples, type Sentence } from './sentences';
 
 describe('blankOut', () => {
   it('puts the reading in the gap', () => {
@@ -106,5 +106,54 @@ describe('a word that turns up twice', () => {
     expect(chooseSentence([a, b], 0)).toBe(a);
     expect(chooseSentence([a, b], 1)).toBe(b);
     expect(chooseSentence([a, b], 2)).toBe(a);
+  });
+});
+
+describe('pickExamples', () => {
+  const s = (id: number, text: string): Sentence => ({ id, text });
+  const pool = [
+    s(1, '毎月のガス代はいくらですか、教えてください。'),
+    s(2, '毎月行く。'),
+    s(3, '毎月毎月、同じことを言う。'),
+    s(4, '毎月お金を貯めている。'),
+  ];
+
+  it('shows the sentence that was asked first, then the shortest others', () => {
+    const picked = pickExamples(pool, '毎月', pool[0]!, 3);
+    expect(picked.map((x) => x.id)).toEqual([1, 2, 4]);
+  });
+
+  it('prefers a sentence using the word once, and still shows the rest if it must', () => {
+    expect(pickExamples(pool, '毎月', null, 4).map((x) => x.id)).toEqual([2, 4, 1, 3]);
+  });
+
+  it('never shows the asked sentence twice, and stops at the limit', () => {
+    const picked = pickExamples(pool, '毎月', pool[1]!);
+    expect(picked).toHaveLength(2);
+    expect(new Set(picked.map((x) => x.id)).size).toBe(2);
+  });
+
+  it('copes with a word that has no sentences', () => {
+    expect(pickExamples([], '毎月', null)).toEqual([]);
+  });
+});
+
+describe('markWord', () => {
+  it('splits a sentence around every use of the word', () => {
+    expect(markWord('本を読む。本が好き。', '本')).toEqual([
+      { text: '本', hit: true },
+      { text: 'を読む。', hit: false },
+      { text: '本', hit: true },
+      { text: 'が好き。', hit: false },
+    ]);
+  });
+
+  it('gives back a sentence without the word whole', () => {
+    expect(markWord('猫が好き。', '本')).toEqual([{ text: '猫が好き。', hit: false }]);
+  });
+
+  it('puts the text back together unchanged', () => {
+    const text = '私は毎月行く';
+    expect(markWord(text, '毎月').map((p) => p.text).join('')).toBe(text);
   });
 });
