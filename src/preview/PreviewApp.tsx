@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AboutPanel } from '../components/AboutPanel';
+import { WordListPanel } from '../components/WordListPanel';
 import { AccountPanel } from '../components/AccountPanel';
 import { BrowsePanel } from '../components/BrowsePanel';
 import { InputMethodPanel } from '../components/InputMethodPanel';
@@ -122,6 +123,7 @@ const SCREENS = {
   appearance: ['Appearance', () => <AppearancePanel user={previewUser} />],
   sound: ['Sound', () => <SoundPanel user={previewUser} />],
   account: ['Account', () => <AccountPanel user={previewUser} />],
+  suggest: ['Send a word list', () => <WordListPanel />],
   about: ['About', () => <AboutPanel />],
   handwriting: ['Handwriting input', () => <InputPreview method="handwriting" />],
   choice: ['Multiple choice input', () => <InputPreview method="choice" />],

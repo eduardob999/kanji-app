@@ -30,6 +30,7 @@ export type ScreenId =
   | 'sound'
   | 'scheduler'
   | 'account'
+  | 'suggest'
   | 'about';
 
 export interface NavNode {
@@ -159,6 +160,12 @@ export const NAV_ROOT: NavNode = {
           title: 'Account & sync',
           blurb: 'Where your progress is stored, and whether it has landed.',
           screen: 'account',
+        },
+        {
+          id: 'tools.suggest',
+          title: 'Send a word list',
+          blurb: 'Missing a word? Send a list to be reviewed and added.',
+          screen: 'suggest',
         },
         {
           id: 'tools.about',

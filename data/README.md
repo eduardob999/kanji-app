@@ -49,6 +49,31 @@ Counts are per sentence and by substring, so a word is credited once however
 many times a sentence uses it, and short words are credited inside longer ones.
 That is a ranking signal, not a statistic to quote.
 
+## Word lists sent in
+
+Tools → *Send a word list* checks a pasted or uploaded list against the decks and
+opens a pre-filled issue on this repository with what is new, as a ```csv block.
+It is an issue rather than a database because `firestore.rules` is shared with
+GHAPP and lets people touch only their own data; the issue tracker needs no
+backend and no rule change, and the sender sees exactly what is being published.
+
+To review one, copy the issue body (or the `.csv` they attached) to a file:
+
+```bash
+npm run review -- list.md             # report only
+npm run review -- list.md --add 3     # append the ready rows at level N3
+npm run decks && npm test
+```
+
+A word is ready only if it is not already in `Vocab.csv`, is not in
+`archaic.csv`, and has both a reading and a meaning. Rows missing either are
+listed, not guessed. The level is yours to choose, not the sender's.
+
+Adding words does **not** rebuild `public/sentences/` or `frequency.json`, which
+are committed on purpose. A new word has no example sentence and ranks last in
+its level until someone runs `npm run sentences` and `npm run frequency` as a
+deliberate act.
+
 ## Known gaps
 
 Eight vocabulary rows have no meaning: 急に, 番, お目に掛かる, 税, 密, 釣, 大,

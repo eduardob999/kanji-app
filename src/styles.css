@@ -3229,3 +3229,65 @@ code {
     animation: none !important;
   }
 }
+
+/* Send a word list ---------------------------------------------------------- */
+
+.wordlist__text,
+.wordlist__note {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem; /* under 16px and iOS zooms the page on focus */
+}
+
+.wordlist__text {
+  min-height: 160px;
+  resize: vertical;
+}
+
+.wordlist__note {
+  min-height: 44px;
+}
+
+.wordlist__text:focus-visible,
+.wordlist__note:focus-visible,
+.wordlist__file:focus-visible {
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+}
+
+.wordlist__file {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.wordlist__problems {
+  margin: 0 0 16px;
+  padding-left: 18px;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.wordlist__line {
+  font-variant-numeric: tabular-nums;
+}
+
+.wordlist__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wordlist__actions .button {
+  min-height: 44px;
+}
