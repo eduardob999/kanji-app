@@ -396,8 +396,23 @@ function loadCommonness() {
   return JSON.parse(readFileSync(path, 'utf8')).tiers;
 }
 
+/**
+ * Words added after the carried-over list, from data/Vocab-extra.csv.
+ *
+ * A separate file so the provenance is plain (Vocab.csv is the predecessor's
+ * list, this is built by scripts/build-bank.py) and so that removing the whole
+ * addition is deleting one file. Same columns as Vocab.csv, minus the old
+ * scheduler scores. Absent file: no extra words.
+ */
+function loadExtraVocab() {
+  if (!existsSync(resolve(ROOT, 'data/Vocab-extra.csv'))) return [];
+  return readCsv('Vocab-extra.csv');
+}
+
 function buildVocab(frequency) {
-  const rows = readCsv('Vocab.csv');
+  const extra = loadExtraVocab();
+  if (extra.length > 0) console.log(`  adding ${extra.length} words from data/Vocab-extra.csv`);
+  const rows = [...readCsv('Vocab.csv'), ...extra];
   const archaic = loadArchaic();
   const unmatched = new Set(archaic);
   const raw = rows
