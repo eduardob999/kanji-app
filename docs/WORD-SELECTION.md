@@ -70,3 +70,30 @@ Each step ships on its own: tests, build, UI audit, PR, merge, deploy log read.
   schedule responds to the answer.
 - The planner's rule that unseen material enters only through the pacer's ration
   stays: the weighted draw only ever picks from words already met.
+
+## Status (handed over mid-way, 2026-10-07)
+
+Done, committed on `claude/optimistic-volta-bhflb3`, **not yet merged or
+deployed**. Tests (389), typecheck and build pass; the UI audit for this batch
+was started and not finished, so run `npm run ui` before merging:
+
+1. `data/commonness.json` and the `tier` on every vocabulary item.
+2. Common-before-obscure introduction order (`src/domain/commonness.ts`).
+3. Weighted practice draw (`src/domain/practiceWeight.ts`, `randomPractice.ts`).
+
+Also fixed on the way: a corrupt `Vocab.csv` row (a stray U+03FE standing in for
+対, producing a junk item); the row is deleted, not merged, because the real 対立
+sits at N1 (d) with its sentences and the packs cannot be rebuilt. JMdict
+attribution is now in `LICENSES.md` and About.
+
+Left to do:
+
+4. **Grow the bank.** `scripts/build-bank.py` is the prototype: about 3,100
+   candidates, ~1,060 at N3 and ~130 at N5. Open decisions: whether to drop
+   single-character words; whether to cut to `nf01`-`nf08` for a first release;
+   and where they live (proposed: a committed `data/Vocab-extra.csv`, loaded by
+   `build-decks.mjs` after `Vocab.csv`, so provenance is clear and removal is one
+   file). Tatoeba is not reachable from the cloud sandbox, so these words have no
+   example sentence unless sentences are built for them locally.
+5. **Trim the tail.** Review the ~370 tier-4 and ~210 tier-3 words already in the
+   deck by hand.
