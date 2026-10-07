@@ -1,6 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import { describe, expect, it } from 'vitest';
-import type { Level, VocabItem } from './items';
+import type { Level, Tier, VocabItem } from './items';
 import type { QuizMode, ReviewMode } from './modes';
 import type { ItemReviewState } from './review';
 import {
@@ -13,8 +13,15 @@ import {
 const NOW = new Date('2026-08-26T09:00:00Z');
 const DAY = 86_400_000;
 
-function vocab(id: string, rank?: number): VocabItem {
-  return { id, word: id, reading: 'よみ', meaning: 'meaning', ...(rank ? { rank } : {}) };
+function vocab(id: string, rank?: number, tier?: Tier): VocabItem {
+  return {
+    id,
+    word: id,
+    reading: 'よみ',
+    meaning: 'meaning',
+    ...(rank ? { rank } : {}),
+    ...(tier ? { tier } : {}),
+  };
 }
 
 function candidate(id: string, level: Level, quiz: QuizMode = 'vocab-reading'): Candidate {
@@ -39,6 +46,34 @@ function lookupFrom(states: Record<string, ItemReviewState>) {
 }
 
 const NONE = () => null;
+
+describe('planSession introduction order', () => {
+  it('introduces common words before obscure ones within a level', () => {
+    const at = (id: string, rank: number, tier: Tier): Candidate => ({
+      quiz: 'vocab-reading',
+      item: vocab(id, rank, tier),
+      level: '3',
+    });
+    // The obscure words are the most frequent in Tatoeba; they still wait.
+    const candidates = [at('rare1', 1, 4), at('rare2', 2, 3), at('c1', 30, 2), at('c2', 20, 1)];
+
+    const plan = planSession(candidates, NONE, NOW, { maxNew: 4, maxPerGroup: 10 });
+
+    expect(plan.map((q) => q.item.id).sort()).toEqual(['c1', 'c2', 'rare1', 'rare2']);
+
+    const firstTwo = planSession(candidates, NONE, NOW, { maxNew: 2, maxPerGroup: 10 });
+    expect(firstTwo.map((q) => q.item.id).sort()).toEqual(['c1', 'c2']);
+  });
+
+  it('still introduces the easier level first, whatever the tiers', () => {
+    const candidates: Candidate[] = [
+      { quiz: 'vocab-reading', item: vocab('hardcommon', 1, 1), level: '2' },
+      { quiz: 'vocab-reading', item: vocab('easyrare', 1, 4), level: '5' },
+    ];
+    const plan = planSession(candidates, NONE, NOW, { maxNew: 1, maxPerGroup: 10 });
+    expect(plan.map((q) => q.item.id)).toEqual(['easyrare']);
+  });
+});
 
 describe('planSession', () => {
   it('puts the most overdue item first', () => {
