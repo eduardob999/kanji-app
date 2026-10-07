@@ -101,6 +101,16 @@ export function AboutPanel() {
         </Credit>
 
         <Credit
+          what="How common a word is"
+          href="https://www.edrdg.org/jmdict/j_jmdict.html"
+          name="JMdict"
+          licence="CC BY-SA 4.0"
+        >
+          © Electronic Dictionary Research and Development Group. Its frequency tags decide which
+          words are taught first and which turn up least.
+        </Credit>
+
+        <Credit
           what="Kanji and vocabulary lists"
           href="https://github.com/eduardob999/kanji-practice-app"
           name="kanji-practice-app"

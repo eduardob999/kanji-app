@@ -104,7 +104,19 @@ export interface VocabItem {
    * back to deck order.
    */
   rank?: number;
+  /**
+   * How common the word is, from JMdict's priority tags: 1 core, 2 common,
+   * 3 uncommon, 4 unlisted. Built by `scripts/build-commonness.py`; absent when
+   * the decks were built without `data/commonness.json`, which reads as 2.
+   *
+   * Separate from `rank`, which orders words *within* a level by Tatoeba count;
+   * this says whether a word is worth a place in the queue at all.
+   */
+  tier?: Tier;
 }
+
+/** 1 is the commonest. See `VocabItem.tier`. */
+export type Tier = 1 | 2 | 3 | 4;
 
 export type StudyItem = KanjiItem | VocabItem;
 
