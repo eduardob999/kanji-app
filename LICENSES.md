@@ -57,6 +57,18 @@ fill-in quiz links to the sentence it showed.
 [kanji-practice-app](https://github.com/eduardob999/kanji-practice-app), this
 project's predecessor.
 
+## JMdict — how common a word is
+
+`data/commonness.json`, which says how common each vocabulary item is, is
+derived from the priority tags in
+[JMdict](https://www.edrdg.org/jmdict/j_jmdict.html), the property of the
+[Electronic Dictionary Research and Development Group](https://www.edrdg.org/),
+used under the Group's licence, which is
+[Creative Commons Attribution-ShareAlike 4.0](https://www.edrdg.org/edrdg/licence.html).
+Only the tag-derived tier is kept; the file contains none of JMdict's text. It is
+built by `scripts/build-commonness.py` from the `jamdict-data` distribution, and
+shared under the same terms.
+
 ## FSRS
 
 The scheduler implements [FSRS](https://github.com/open-spaced-repetition), and

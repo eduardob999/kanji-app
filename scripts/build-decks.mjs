@@ -383,6 +383,19 @@ function loadArchaic() {
   return new Set(readCsv('archaic.csv').map((row) => `${row.Word}|${row.Reading}`));
 }
 
+/** Word-and-reading to tier, from data/commonness.json; null when it is missing. */
+function loadCommonness() {
+  const path = resolve(ROOT, 'data/commonness.json');
+  if (!existsSync(path)) {
+    console.warn(
+      '  ! data/commonness.json is missing, so no word carries a tier.\n' +
+        '    See scripts/build-commonness.py.',
+    );
+    return null;
+  }
+  return JSON.parse(readFileSync(path, 'utf8')).tiers;
+}
+
 function buildVocab(frequency) {
   const rows = readCsv('Vocab.csv');
   const archaic = loadArchaic();
@@ -417,14 +430,19 @@ function buildVocab(frequency) {
     );
   }
 
-  const items = entries.map((entry) => ({
-    // Word and reading, so words that differ only by reading stay distinct.
-    id: `${entry.word}|${entry.reading}`,
-    word: entry.word,
-    reading: entry.reading,
-    meaning: entry.meanings.filter(Boolean).join('; '),
-    level: entry.level,
-  }));
+  const tiers = loadCommonness();
+  const items = entries.map((entry) => {
+    const id = `${entry.word}|${entry.reading}`;
+    return {
+      // Word and reading, so words that differ only by reading stay distinct.
+      id,
+      word: entry.word,
+      reading: entry.reading,
+      meaning: entry.meanings.filter(Boolean).join('; '),
+      level: entry.level,
+      ...(tiers?.[id] ? { tier: tiers[id] } : {}),
+    };
+  });
 
   markUnanswerablePrompts(items);
 

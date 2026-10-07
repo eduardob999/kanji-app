@@ -27,6 +27,16 @@ const vocab = load('vocab-');
 const all = [...kanji, ...vocab];
 
 describe('the corpus', () => {
+  it('gives every word a commonness tier, and is mostly common words', () => {
+    const tiers = vocab.map((item) => ('tier' in item ? item.tier : undefined));
+    expect(tiers.every((tier) => tier === 1 || tier === 2 || tier === 3 || tier === 4)).toBe(true);
+
+    // The deck is meant to be the syllabus, not the dictionary. If this falls
+    // below nine in ten, something has been added that is mostly obscure.
+    const common = tiers.filter((tier) => tier === 1 || tier === 2).length;
+    expect(common / tiers.length).toBeGreaterThan(0.9);
+  });
+
   it('holds none of the words data/archaic.csv excludes', () => {
     const listed = readFileSync(resolve(PUBLIC, '../data/archaic.csv'), 'utf8')
       .split('\n')
@@ -41,7 +51,7 @@ describe('the corpus', () => {
 
   it('is the size everything else claims it is', () => {
     expect(kanji).toHaveLength(2_211);
-    expect(vocab).toHaveLength(7_219);
+    expect(vocab).toHaveLength(7_218);
   });
 
   it('gives every item an id nothing else shares', () => {

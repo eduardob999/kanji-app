@@ -1,5 +1,6 @@
 import { baseLevel, levelRank, type Level, type StudyItem } from './items';
 import { isSlipping } from './leech';
+import { byIntroduction } from './commonness';
 import { reviewModeFor, type QuizMode, type ReviewMode } from './modes';
 import type { ItemReviewState } from './review';
 
@@ -236,11 +237,11 @@ export function planSession(
   // deck order, which was the order of the source CSV — arbitrary, and at eight
   // new items a day it decided what a learner spent most of a year on. Decks
   // built without frequency data have no rank and fall back to that order.
-  fresh.sort(
-    (a, b) =>
-      levelRank(a.level) - levelRank(b.level) ||
-      (a.item.rank ?? Number.MAX_SAFE_INTEGER) - (b.item.rank ?? Number.MAX_SAFE_INTEGER),
-  );
+  //
+  // Within a level, words JMdict lists as common come before any it does not —
+  // see `byIntroduction`. Without that the order was Tatoeba count alone, which
+  // credits a short word for the longer ones it sits inside.
+  fresh.sort((a, b) => levelRank(a.level) - levelRank(b.level) || byIntroduction(a.item, b.item));
 
   const chosen: PlannedQuestion[] = [];
   const perGroup = new Map<string, number>();
