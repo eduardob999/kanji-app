@@ -17,6 +17,24 @@ CLI's `scores.txt` rather than these columns.
 `tatoeba/` (gitignored) holds the raw Tatoeba export downloaded by
 `npm run sentences`.
 
+## `archaic.csv`
+
+Vocabulary the decks leave out because nobody needs it for the JLPT or for
+reading today. `npm run decks` drops each `Word,Reading` pair listed here before
+anything else, and says how many it dropped and warns about any line that matched
+nothing. `Vocab.csv` itself is untouched, so reversing a call is deleting a line.
+
+It is keyed on word *and* reading because what is archaic is usually one reading
+of a word the learner does need: 弟/おと goes, 弟/おとうと stays.
+
+The first nine lines are the words whose primary sense JMdict tags `archaism` or
+`obsolete term`. The rest are archaic readings of common kanji (少女/おとめ,
+地方/じかた and so on) judged by hand. Words that merely *carry* an archaic sense
+among modern ones (写真, 朝, 敵) are deliberately kept: about 175 do, and cutting
+them would remove most of the N5 to N3 vocabulary. A wrong or archaic *reading*
+is the thing to cut. `corpus.test.ts` checks that nothing listed is in the built
+decks.
+
 ## `frequency.json`
 
 How often each kanji and word appears in the Tatoeba corpus, built by
