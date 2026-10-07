@@ -116,8 +116,18 @@ export function AboutPanel() {
           name="kanji-practice-app"
           licence="predecessor"
         >
-          2,211 kanji and 7,235 words, carried over unchanged from the command-line app this one
-          replaces.
+          2,211 kanji and 7,218 words, carried over unchanged from the command-line app this one
+          replaces, plus 338 everyday words added since.
+        </Credit>
+
+        <Credit
+          what="JLPT vocabulary levels"
+          href="https://github.com/Bluskyo/JLPT_Vocabulary"
+          name="Jonathan Waller's JLPT lists"
+          licence="CC BY"
+        >
+          The words and the level each belongs to match the JLPT resource lists Jonathan Waller
+          published at tanos.co.uk.
         </Credit>
       </ul>
 

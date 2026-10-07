@@ -118,15 +118,18 @@ def tier_for(word, reading):
 
 
 tiers = {}
-with open(ROOT / 'data/Vocab.csv', encoding='utf8', newline='') as handle:
-    for row in csv.DictReader(handle):
-        word, reading = row['Kanji'].strip(), row['Reading'].strip()
-        if not word:
-            continue
-        # The best tier a duplicated row earned: two CSV rows for one word and
-        # reading are one item after build-decks merges them.
-        key = f'{word}|{reading}'
-        tiers[key] = min(tiers.get(key, 4), tier_for(word, reading))
+for name in ('Vocab.csv', 'Vocab-extra.csv'):
+    if not (ROOT / 'data' / name).exists():
+        continue
+    with open(ROOT / 'data' / name, encoding='utf8', newline='') as handle:
+        for row in csv.DictReader(handle):
+            word, reading = row['Kanji'].strip(), row['Reading'].strip()
+            if not word:
+                continue
+            # The best tier a duplicated row earned: two CSV rows for one word
+            # and reading are one item after build-decks merges them.
+            key = f'{word}|{reading}'
+            tiers[key] = min(tiers.get(key, 4), tier_for(word, reading))
 
 out = {
     'source': 'JMdict via jamdict-data 1.5 (EDRDG, CC BY-SA 4.0)',

@@ -57,6 +57,14 @@ fill-in quiz links to the sentence it showed.
 [kanji-practice-app](https://github.com/eduardob999/kanji-practice-app), this
 project's predecessor.
 
+The vocabulary words and their JLPT levels match, entry for entry, the JLPT
+resource lists compiled by Jonathan Waller at tanos.co.uk (6,968 of the 6,981
+written forms in the deck appear there, 6,966 of them at the same level), so the list is
+credited to him. Those lists were published under
+[Creative Commons Attribution](https://creativecommons.org/licenses/by/3.0/)
+(CC BY); the original site is offline, so that licence is recorded from the
+projects that republished the lists rather than checked at the source.
+
 ## JMdict — how common a word is
 
 `data/commonness.json`, which says how common each vocabulary item is, is

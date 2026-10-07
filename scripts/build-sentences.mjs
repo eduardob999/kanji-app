@@ -399,9 +399,33 @@ console.log(
 );
 
 const decks = readDecks();
+
+/*
+ * ADDITIVE mode, `SENTENCES_ADDITIVE=1 npm run sentences`.
+ *
+ * The committed packs are not rebuilt (CLAUDE.md): what each word is asked
+ * depends on the whole word list, because ranking prefers sentences holding
+ * fewer other target words, so adding words would reshuffle words that are
+ * already part-way through being learned. In this mode only the items listed in
+ * data/Vocab-extra.csv are looked up, and their entries are merged into the
+ * existing packs. Entries already in a pack are never read or rewritten.
+ */
+const ADDITIVE = process.env.SENTENCES_ADDITIVE === '1';
+const onlyIds = new Set();
+if (ADDITIVE) {
+  const lines = readFileSync(resolve(ROOT, 'data/Vocab-extra.csv'), 'utf8').split('\n').slice(1);
+  for (const line of lines) {
+    // Kanji,Reading,Meaning,Level; the meaning is the only field that may hold a comma.
+    const cells = line.split(',');
+    if (cells.length >= 2 && cells[0]) onlyIds.add(`${cells[0]}|${cells[1]}`);
+  }
+  console.log(`Additive mode: ${onlyIds.size} items from data/Vocab-extra.csv`);
+}
+const inScope = (item) => !ADDITIVE || onlyIds.has(item.id);
+
 const wanted = new Set();
 for (const deck of decks) {
-  for (const item of deck.items) wanted.add(item.word);
+  for (const item of deck.items) if (inScope(item)) wanted.add(item.word);
 }
 maxWordLength = Math.max(...[...wanted].map((w) => w.length));
 
@@ -416,10 +440,13 @@ let total = 0;
 const report = [];
 
 for (const deck of decks) {
-  const pack = {};
+  const file = `${deck.id}.json`;
+  const existing = ADDITIVE ? JSON.parse(readFileSync(resolve(OUT_DIR, file), 'utf8')) : null;
+  const pack = existing ? existing.sentences : {};
   let deckCovered = 0;
 
   for (const item of deck.items) {
+    if (!inScope(item)) continue;
     total += 1;
     const entries = found.get(item.word);
     // No `continue` on an empty pool any more: the fallback tiers inside
@@ -453,7 +480,6 @@ for (const deck of decks) {
     covered += 1;
   }
 
-  const file = `${deck.id}.json`;
   writeFileSync(
     resolve(OUT_DIR, file),
     `${JSON.stringify({

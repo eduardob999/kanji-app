@@ -103,9 +103,25 @@ it passes while proving nothing.
 **The CLI retired.** `kanji-practice-app`'s README now opens with a notice
 pointing here; `pip install pjapp` still works and the repository stays up.
 
+**Common words first.** Every word carries a commonness tier from JMdict
+(`data/commonness.json`); new words are introduced common-before-obscure; the
+unscheduled practice draw is weighted by tier and by how shaky a memory is
+instead of uniform; 338 everyday words were added (`data/Vocab-extra.csv`) and 26
+poor entries left out. The measurements and reasoning are in
+[WORD-SELECTION.md](WORD-SELECTION.md).
+
 ## Next
 
-Nothing outstanding. The list above is what has been built and, where a claim
+- **Kana-only words.** 1,196 words from the JLPT list the deck came from are
+  written in kana only (あっさり, ドラマ). The reading question cannot be asked
+  of them, so they need a quiz change before they can come in.
+- **A better bank source.** JMdict's bands are newspaper-shaped, which is why only
+  338 of 1,072 candidates survived review. Jiten's frequency lists (CC BY-SA 4.0)
+  are drawn from anime, drama and novels and would suit better; their CSV links
+  could not be found from here.
+
+
+Beyond that, the list above is what has been built and, where a claim
 here is checkable, checked — the numbers in it were re-measured rather than
 remembered, which is how the score count turned out to be wrong by a factor of
 five and the precache size out of date.
