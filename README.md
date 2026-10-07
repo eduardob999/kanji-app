@@ -23,7 +23,7 @@ Live at **<https://eduardob999.github.io/kanji-app/>**.
 
 ## What it does
 
-Four question types, all drawn from the same 2,211 kanji and 7,530 vocabulary
+Four question types, all drawn from the same 2,211 kanji and 7,526 vocabulary
 entries:
 
 | Mode | Prompt | You answer |

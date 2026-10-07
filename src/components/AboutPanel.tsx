@@ -117,7 +117,7 @@ export function AboutPanel() {
           licence="predecessor"
         >
           2,211 kanji and 7,218 words, carried over unchanged from the command-line app this one
-          replaces, plus 338 everyday words added since.
+          replaces, plus 339 everyday words added since.
         </Credit>
 
         <Credit

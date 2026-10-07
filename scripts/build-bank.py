@@ -160,6 +160,10 @@ if args.csv:
         if re.match(r'[A-Z]', x['meaning']) and x['word'] not in CAPITAL_OK: continue
         if tat.count(x['word']) < 10 and tub.get(x['word'], 10**9) > 15000: continue
         keep.append(x)
+    # Corrections to carried-over rows that were missing their okurigana. The
+    # wrong row is in data/archaic.csv; this is the right one, with the level and
+    # meaning the old row had.
+    keep += [{'word': '取り分け', 'reading': 'とりわけ', 'meaning': 'especially, above all', 'level': '1c', 'band': 0}]
     keep.sort(key=lambda x: (LV.index(x['level']), x['band'], x['word']))
     with open(args.csv, 'w', encoding='utf8', newline='') as f:
         w = csv.writer(f)

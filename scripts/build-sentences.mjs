@@ -447,6 +447,7 @@ for (const deck of decks) {
 
   for (const item of deck.items) {
     if (!inScope(item)) continue;
+    if (existing && item.id in pack) continue;
     total += 1;
     const entries = found.get(item.word);
     // No `continue` on an empty pool any more: the fallback tiers inside
