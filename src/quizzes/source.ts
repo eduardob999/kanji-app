@@ -38,8 +38,11 @@ export interface QuizSource {
   ensureSentences: (levels: readonly Level[]) => Promise<void>;
 }
 
-/** Which modes draw on the Tatoeba packs. */
-export const NEEDS_SENTENCES: readonly QuizMode[] = ['fill-in', 'audio'];
+/**
+ * Which modes draw on the Tatoeba packs: fill-in and listening for the question,
+ * and vocab reading for the sentences shown once it is answered.
+ */
+export const NEEDS_SENTENCES: readonly QuizMode[] = ['vocab-reading', 'fill-in', 'audio'];
 
 /** Which modes list other words using the same kanji after a miss. */
 const SHOWS_EXAMPLES: readonly QuizMode[] = ['kanji-writing', 'vocab-reading'];

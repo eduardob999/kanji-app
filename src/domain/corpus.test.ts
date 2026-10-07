@@ -27,9 +27,21 @@ const vocab = load('vocab-');
 const all = [...kanji, ...vocab];
 
 describe('the corpus', () => {
+  it('holds none of the words data/archaic.csv excludes', () => {
+    const listed = readFileSync(resolve(PUBLIC, '../data/archaic.csv'), 'utf8')
+      .split('\n')
+      .slice(1)
+      .filter(Boolean)
+      .map((line) => line.split(',').slice(0, 2).join('|'));
+
+    expect(listed.length).toBeGreaterThan(0);
+    const ids = new Set(vocab.map((item) => item.id));
+    expect(listed.filter((id) => ids.has(id))).toEqual([]);
+  });
+
   it('is the size everything else claims it is', () => {
     expect(kanji).toHaveLength(2_211);
-    expect(vocab).toHaveLength(7_234);
+    expect(vocab).toHaveLength(7_219);
   });
 
   it('gives every item an id nothing else shares', () => {

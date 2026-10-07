@@ -92,7 +92,7 @@ const VIEWPORTS = [
 
 const SCREENS = [
   'practice', 'summary', 'sync', 'practice-silent', 'reading', 'writing', 'fill', 'audio',
-  'browse', 'progress', 'scheduler', 'input', 'sound', 'account', 'about', 'signin',
+  'browse', 'progress', 'scheduler', 'input', 'sound', 'account', 'suggest', 'about', 'signin',
   'handwriting', 'choice',
   /*
    * The same screens on a brand-new account.

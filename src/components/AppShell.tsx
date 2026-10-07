@@ -22,6 +22,7 @@ import { AppearancePanel } from './AppearancePanel';
 import { AppMark } from './AppMark';
 import { BrowsePanel } from './BrowsePanel';
 import { AboutPanel } from './AboutPanel';
+import { WordListPanel } from './WordListPanel';
 import { SchedulerPanel } from './SchedulerPanel';
 import { SoundPanel } from './SoundPanel';
 import { ProgressPanel } from './ProgressPanel';
@@ -124,6 +125,8 @@ export function AppShell({ user }: AppShellProps) {
         return <AppearancePanel user={user} />;
       case 'sound':
         return <SoundPanel user={user} />;
+      case 'suggest':
+        return <WordListPanel />;
       case 'about':
         return <AboutPanel />;
     }

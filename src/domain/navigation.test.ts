@@ -45,6 +45,7 @@ const EVERY_SCREEN = [
   'input',
   'scheduler',
   'account',
+  'suggest',
   'about',
 ] as const satisfies readonly ScreenId[];
 

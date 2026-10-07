@@ -366,16 +366,45 @@ function markUnanswerablePrompts(items) {
   }
 }
 
+/**
+ * Words kept out of the decks because they are archaic, from data/archaic.csv.
+ *
+ * A list rather than a deleted row: Vocab.csv stays the carried-over source, and
+ * each exclusion carries its reason and can be reversed by deleting a line. Keyed
+ * on word *and* reading, since what is archaic is usually one reading of a word
+ * the learner needs - 弟/おと goes, 弟/おとうと stays.
+ *
+ * A line that matches nothing is warned about rather than ignored, so a typo
+ * cannot leave an archaic word quietly in.
+ */
+function loadArchaic() {
+  const path = resolve(ROOT, 'data/archaic.csv');
+  if (!existsSync(path)) return new Set();
+  return new Set(readCsv('archaic.csv').map((row) => `${row.Word}|${row.Reading}`));
+}
+
 function buildVocab(frequency) {
   const rows = readCsv('Vocab.csv');
+  const archaic = loadArchaic();
+  const unmatched = new Set(archaic);
   const raw = rows
     .filter((row) => row.Kanji)
+    .filter((row) => {
+      const id = `${row.Kanji}|${row.Reading}`;
+      unmatched.delete(id);
+      return !archaic.has(id);
+    })
     .map((row) => ({
       word: row.Kanji,
       reading: row.Reading,
       meaning: row.Meaning,
       level: row.Level,
     }));
+
+  console.log(`  left out ${archaic.size - unmatched.size} archaic entries (data/archaic.csv)`);
+  if (unmatched.size > 0) {
+    console.warn(`  ! data/archaic.csv lines matching nothing: ${[...unmatched].join(', ')}`);
+  }
 
   const { entries, merged } = dedupe(raw);
   console.log(`  merged ${merged} duplicate word/reading pairs`);
