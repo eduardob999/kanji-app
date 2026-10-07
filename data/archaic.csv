@@ -40,3 +40,8 @@ Word,Reading,Why
 愛憎,あいにく,Wrong word: あいにく is 生憎. 愛憎/あいぞう is the real one
 一筋,ひとすき,Misread. 一筋 is ひとすじ
 欲深い,よくふかい,Not the real reading. JMdict has よくぶかい
+兆,きざし,Missing okurigana: the deck already has 兆し/きざし
+天,あまつ,Missing okurigana, and archaic (天つ). 天 stays under its other readings
+叔父,おじい,Wrong word: おじい is a grandfather, 叔父 is an uncle. 叔父さん/おじさん stays
+叔父,おじさん,Missing okurigana: the deck already has 叔父さん/おじさん
+取り分,とりわけ,Missing okurigana: replaced by 取り分け/とりわけ in Vocab-extra.csv

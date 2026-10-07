@@ -51,8 +51,8 @@ describe('the corpus', () => {
 
   it('is the size everything else claims it is', () => {
     expect(kanji).toHaveLength(2_211);
-    // 7,218 carried over in Vocab.csv less 26 judged out in step 5, plus 338 in Vocab-extra.csv.
-    expect(vocab).toHaveLength(7_530);
+    // 7,218 carried over in Vocab.csv less 31 judged out, plus 339 in Vocab-extra.csv.
+    expect(vocab).toHaveLength(7_526);
   });
 
   it('gives every item an id nothing else shares', () => {
