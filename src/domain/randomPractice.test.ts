@@ -1,6 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
 import { describe, expect, it } from 'vitest';
-import type { Level, VocabItem } from './items';
+import type { Level, Tier, VocabItem } from './items';
 import type { QuizMode, ReviewMode } from './modes';
 import type { ItemReviewState } from './review';
 import { ROUND_SIZE, buildRandomQueue } from './randomPractice';
@@ -107,5 +107,107 @@ describe('buildRandomQueue', () => {
 
     expect(queue[0]!.state).toBe(state);
     expect(queue[0]!.overdueDays).toBeCloseTo(2, 5);
+  });
+});
+
+/**
+ * What the weighted draw is *for*, measured over many rounds.
+ *
+ * One round is fifteen draws, far too few to show a lean, so each of these runs
+ * hundreds of seeded rounds (a different `now` seeds a different round) and
+ * checks a rate. The thresholds are loose on purpose: they say "the lean exists
+ * and has not run away", not what the exact weights are.
+ */
+describe('buildRandomQueue weighting', () => {
+  const ROUNDS = 300;
+
+  const tiered = (id: string, tier: Tier): VocabItem => ({ ...vocab(id), tier });
+
+  function rounds(candidates: Candidate[], lookup: Parameters<typeof buildRandomQueue>[1] = NONE) {
+    return Array.from({ length: ROUNDS }, (_, i) =>
+      buildRandomQueue(candidates, lookup, new Date(NOW.getTime() + i * 60_000)),
+    );
+  }
+
+  it('draws obscure words rarely, but does not shut them out', () => {
+    const candidates: Candidate[] = [
+      ...Array.from({ length: 300 }, (_, i) => ({
+        quiz: 'vocab-reading' as const,
+        item: tiered(`common${i}`, 1),
+        level: '3' as const,
+      })),
+      ...Array.from({ length: 300 }, (_, i) => ({
+        quiz: 'vocab-reading' as const,
+        item: tiered(`rare${i}`, 4),
+        level: '3' as const,
+      })),
+    ];
+
+    const picks = rounds(candidates).flat();
+    const rare = picks.filter((q) => q.item.id.startsWith('rare')).length / picks.length;
+
+    // Half the pool is obscure; a uniform draw would give 0.5.
+    expect(rare).toBeGreaterThan(0.01);
+    expect(rare).toBeLessThan(0.15);
+  });
+
+  it('leans towards memories that are about to slip', () => {
+    const DAYS = 86_400_000;
+    const candidates = [...pool(200), ...pool(200).map((c) => ({ ...c, item: vocab(`old${c.item.id}`) }))];
+
+    const lookup = (_mode: ReviewMode, id: string): ItemReviewState => ({
+      itemId: id,
+      stability: 10,
+      lapses: 0,
+      totalReps: 4,
+      // The "old" half was last seen long ago; the rest a moment ago.
+      lastReviewedAt: Timestamp.fromMillis(
+        NOW.getTime() - (id.startsWith('old') ? 120 : 0.1) * DAYS,
+      ),
+    });
+
+    const picks = rounds(candidates, lookup).flat();
+    const fading = picks.filter((q) => q.item.id.startsWith('old')).length / picks.length;
+
+    expect(fading).toBeGreaterThan(0.55);
+    expect(fading).toBeLessThan(0.85);
+  });
+
+  it('keeps a round mixed: no question type takes over', () => {
+    const candidates: Candidate[] = [
+      ...pool(300, 'vocab-reading'),
+      ...pool(300, 'fill-in'),
+      ...pool(300, 'kanji-writing'),
+    ].map((candidate, i) => ({ ...candidate, item: vocab(`i${i}`) }));
+
+    for (const round of rounds(candidates)) {
+      const counts = new Map<string, number>();
+      for (const q of round) counts.set(q.quiz, (counts.get(q.quiz) ?? 0) + 1);
+      expect(Math.max(...counts.values())).toBeLessThanOrEqual(9);
+    }
+  });
+
+  it('never asks one word twice in a round', () => {
+    const candidates: Candidate[] = [
+      ...pool(40, 'vocab-reading'),
+      ...pool(40, 'fill-in'),
+      ...pool(40, 'audio'),
+    ];
+
+    for (const round of rounds(candidates)) {
+      const ids = round.map((q) => q.item.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  it('copes when every weight but one is zero-ish', () => {
+    // A pool of one word asked three ways yields one question, not a loop.
+    const item = vocab('only');
+    const candidates: Candidate[] = (['vocab-reading', 'fill-in', 'audio'] as const).map((quiz) => ({
+      quiz,
+      item,
+      level: '5',
+    }));
+    expect(buildRandomQueue(candidates, NONE, NOW)).toHaveLength(1);
   });
 });
